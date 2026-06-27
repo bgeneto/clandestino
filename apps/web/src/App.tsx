@@ -9,6 +9,13 @@ import { PlayerStandingsPage } from './pages/edition/PlayerStandingsPage.js';
 import { PublicEditionPage } from './pages/edition/PublicEditionPage.js';
 import { RegisterResultPage } from './pages/edition/RegisterResultPage.js';
 import { RequirePlayerSession } from './pages/edition/RequirePlayerSession.js';
+import { CreateEditionPage } from './pages/organizer/CreateEditionPage.js';
+import { ImportCsvPage } from './pages/organizer/ImportCsvPage.js';
+import { OrganizerDashboardPage } from './pages/organizer/OrganizerDashboardPage.js';
+import { OrganizerEditionPage } from './pages/organizer/OrganizerEditionPage.js';
+import { OrganizerLayout } from './pages/organizer/OrganizerLayout.js';
+import { OrganizerLoginPage } from './pages/organizer/OrganizerLoginPage.js';
+import { OrganizerVerifyPage } from './pages/organizer/OrganizerVerifyPage.js';
 
 export function App() {
   return (
@@ -23,6 +30,16 @@ export function App() {
             <Route path="partidas/:matchId/registrar" element={<RegisterResultPage />} />
             <Route path="grupo" element={<MyGroupPage />} />
             <Route path="classificacao" element={<PlayerStandingsPage />} />
+          </Route>
+        </Route>
+        <Route path="/organizador">
+          <Route index element={<OrganizerLoginPage />} />
+          <Route path="entrar" element={<OrganizerVerifyPage />} />
+          <Route element={<OrganizerLayout />}>
+            <Route path="painel" element={<OrganizerDashboardPage />} />
+            <Route path="edicao/nova" element={<CreateEditionPage />} />
+            <Route path="edicao/:editionId" element={<OrganizerEditionPage />} />
+            <Route path="importar" element={<ImportCsvPage />} />
           </Route>
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />

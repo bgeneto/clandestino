@@ -43,6 +43,11 @@ export function HomePage() {
           Acesse uma edição pela URL <code className="text-slate-300">/edicao/:id</code> ou pela
           entrada via QR code <code className="text-slate-300">/edicao/:id/entrar</code>.
         </p>
+        <p className="mt-3">
+          <Link className="text-brand underline" to="/organizador">
+            Painel do organizador
+          </Link>
+        </p>
       </div>
     </section>
   );

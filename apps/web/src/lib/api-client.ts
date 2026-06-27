@@ -1,6 +1,6 @@
 import type { SubmitMatchResultBody } from '@clandestino/shared-contracts';
 import { buildApiUrl } from './api-config.js';
-import { db, SESSION_ROW_ID } from '../db/clandestino-db.js';
+import { db, ORGANIZER_SESSION_ROW_ID, SESSION_ROW_ID } from '../db/clandestino-db.js';
 
 export class ApiError extends Error {
   readonly status: number;
@@ -17,7 +17,19 @@ export class ApiError extends Error {
 export type ApiRequestOptions = Omit<RequestInit, 'body'> & {
   body?: unknown;
   playerAuth?: boolean;
+  organizerAuth?: boolean;
 };
+
+async function readOrganizerHeaders(): Promise<Record<string, string>> {
+  const session = await db.organizerSession.get(ORGANIZER_SESSION_ROW_ID);
+  if (!session) {
+    return {};
+  }
+
+  return {
+    Authorization: `Bearer ${session.sessionToken}`,
+  };
+}
 
 async function readSessionHeaders(): Promise<Record<string, string>> {
   const session = await db.session.get(SESSION_ROW_ID);
@@ -42,6 +54,13 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
   if (options.playerAuth) {
     const sessionHeaders = await readSessionHeaders();
     for (const [key, value] of Object.entries(sessionHeaders)) {
+      headers.set(key, value);
+    }
+  }
+
+  if (options.organizerAuth) {
+    const organizerHeaders = await readOrganizerHeaders();
+    for (const [key, value] of Object.entries(organizerHeaders)) {
       headers.set(key, value);
     }
   }

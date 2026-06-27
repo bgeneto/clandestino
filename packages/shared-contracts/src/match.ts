@@ -97,3 +97,22 @@ export const CorrectMatchResultBodySchema = Type.Object(
 );
 
 export type CorrectMatchResultBody = Static<typeof CorrectMatchResultBodySchema>;
+
+export const ContestedMatchSchema = Type.Object(
+  {
+    match: MatchSchema,
+    contestReason: Type.Optional(Type.Union([Type.String(), Type.Null()])),
+  },
+  { $id: 'ContestedMatch' },
+);
+
+export type ContestedMatch = Static<typeof ContestedMatchSchema>;
+
+export const EditionContestedMatchesResponseSchema = Type.Object(
+  {
+    contests: Type.Array(ContestedMatchSchema),
+  },
+  { $id: 'EditionContestedMatchesResponse' },
+);
+
+export type EditionContestedMatchesResponse = Static<typeof EditionContestedMatchesResponseSchema>;

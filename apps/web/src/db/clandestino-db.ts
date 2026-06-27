@@ -9,6 +9,16 @@ import Dexie, { type EntityTable } from 'dexie';
 
 export const SESSION_ROW_ID = 'current';
 
+export const ORGANIZER_SESSION_ROW_ID = 'current';
+
+export type OrganizerSession = {
+  id: typeof ORGANIZER_SESSION_ROW_ID;
+  sessionToken: string;
+  email: string;
+  expiresAt: string;
+  updatedAt: string;
+};
+
 export type OutboxStatus = 'AGUARDANDO_SINCRONIZACAO' | 'SINCRONIZANDO' | 'FALHA';
 
 export type OutboxKind = 'SUBMIT_MATCH_RESULT';
@@ -68,6 +78,7 @@ export type QueryCacheRow = {
 
 export class ClandestinoDatabase extends Dexie {
   session!: EntityTable<PlayerSession, 'id'>;
+  organizerSession!: EntityTable<OrganizerSession, 'id'>;
   edition!: EntityTable<CachedEdition, 'id'>;
   groups!: EntityTable<CachedGroups, 'id'>;
   matches!: EntityTable<CachedMatch, 'id'>;
@@ -86,6 +97,10 @@ export class ClandestinoDatabase extends Dexie {
       standing: 'id, editionId, groupId',
       outbox: 'id, status, createdAt, matchId',
       queryCache: 'key',
+    });
+
+    this.version(2).stores({
+      organizerSession: 'id',
     });
   }
 }

@@ -1,5 +1,8 @@
 import type { TypeBoxTypeProvider } from '@fastify/type-provider-typebox';
 import {
+  DrawSnapshotListResponseSchema,
+  EditionContestedMatchesResponseSchema,
+  EditionFinalPlacementsResponseSchema,
   EditionMatchesResponseSchema,
   EditionParticipantsResponseSchema,
   EditionStandingsResponseSchema,
@@ -7,12 +10,12 @@ import {
   PlayerMatchesResponseSchema,
 } from '@clandestino/shared-contracts';
 import { Type } from '@sinclair/typebox';
-import { and, asc, eq, inArray, or } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, or } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import { schema } from '../db/index.js';
 import { notFound } from '../lib/errors.js';
 import { getResultSubmitter } from '../lib/matches.js';
-import { mapMatch, mapStanding } from '../lib/mappers.js';
+import { mapDrawSnapshot, mapFinalPlacement, mapMatch, mapStanding } from '../lib/mappers.js';
 
 const editionIdParams = Type.Object({ id: Type.String({ format: 'uuid' }) });
 
@@ -259,6 +262,130 @@ export async function registerEditionReadRoutes(app: FastifyInstance): Promise<v
           isSeed: false,
         })),
       };
+    },
+  );
+
+  typed.get(
+    '/editions/:id/draw-snapshots',
+    {
+      schema: {
+        params: editionIdParams,
+        response: {
+          200: DrawSnapshotListResponseSchema,
+          404: ErrorResponseSchema,
+        },
+      },
+    },
+    async (request) => {
+      const editionId = request.params.id;
+      await loadEditionOrThrow(app, editionId);
+
+      const snapshots = await app.db
+        .select()
+        .from(schema.drawSnapshots)
+        .where(eq(schema.drawSnapshots.editionId, editionId))
+        .orderBy(asc(schema.drawSnapshots.rankPosition));
+
+      return { snapshots: snapshots.map(mapDrawSnapshot) };
+    },
+  );
+
+  typed.get(
+    '/editions/:id/final-placements',
+    {
+      schema: {
+        params: editionIdParams,
+        response: {
+          200: EditionFinalPlacementsResponseSchema,
+          404: ErrorResponseSchema,
+        },
+      },
+    },
+    async (request) => {
+      const editionId = request.params.id;
+      await loadEditionOrThrow(app, editionId);
+
+      const placements = await app.db
+        .select()
+        .from(schema.finalPlacements)
+        .where(eq(schema.finalPlacements.editionId, editionId))
+        .orderBy(asc(schema.finalPlacements.position));
+
+      return { placements: placements.map(mapFinalPlacement) };
+    },
+  );
+
+  typed.get(
+    '/editions/:id/contested-matches',
+    {
+      schema: {
+        params: editionIdParams,
+        response: {
+          200: EditionContestedMatchesResponseSchema,
+          404: ErrorResponseSchema,
+        },
+      },
+    },
+    async (request) => {
+      const editionId = request.params.id;
+      await loadEditionOrThrow(app, editionId);
+
+      const contestedRows = await app.db
+        .select()
+        .from(schema.matches)
+        .where(
+          and(eq(schema.matches.editionId, editionId), eq(schema.matches.status, 'CONTESTADA')),
+        )
+        .orderBy(asc(schema.matches.updatedAt));
+
+      if (contestedRows.length === 0) {
+        return { contests: [] };
+      }
+
+      const matchIds = contestedRows.map((match) => match.id);
+      const allParticipants = await app.db
+        .select()
+        .from(schema.matchParticipants)
+        .where(inArray(schema.matchParticipants.matchId, matchIds));
+
+      const participantsByMatchId = new Map<string, typeof allParticipants>();
+      for (const participant of allParticipants) {
+        const current = participantsByMatchId.get(participant.matchId) ?? [];
+        current.push(participant);
+        participantsByMatchId.set(participant.matchId, current);
+      }
+
+      const contests = await Promise.all(
+        contestedRows.map(async (match) => {
+          const [auditEvent] = await app.db
+            .select({ payload: schema.auditEvents.payload })
+            .from(schema.auditEvents)
+            .where(
+              and(
+                eq(schema.auditEvents.matchId, match.id),
+                eq(schema.auditEvents.eventType, 'MATCH_CONTESTED'),
+              ),
+            )
+            .orderBy(desc(schema.auditEvents.createdAt))
+            .limit(1);
+
+          const payload = auditEvent?.payload;
+          const contestReason =
+            typeof payload === 'object' &&
+            payload !== null &&
+            'reason' in payload &&
+            (typeof payload.reason === 'string' || payload.reason === null)
+              ? payload.reason
+              : undefined;
+
+          return {
+            match: mapMatch(match, participantsByMatchId.get(match.id) ?? []),
+            ...(contestReason !== undefined ? { contestReason } : {}),
+          };
+        }),
+      );
+
+      return { contests };
     },
   );
 }

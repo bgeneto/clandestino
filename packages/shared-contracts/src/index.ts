@@ -78,6 +78,8 @@ export {
   EditionMatchesResponseSchema,
   ContestMatchBodySchema,
   CorrectMatchResultBodySchema,
+  ContestedMatchSchema,
+  EditionContestedMatchesResponseSchema,
   type MatchStatus,
   type MatchParticipant,
   type Match,
@@ -87,6 +89,8 @@ export {
   type EditionMatchesResponse,
   type ContestMatchBody,
   type CorrectMatchResultBody,
+  type ContestedMatch,
+  type EditionContestedMatchesResponse,
 } from './match.js';
 
 export {

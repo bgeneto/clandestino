@@ -1,10 +1,10 @@
 # PERGUNTA
 
-Na academia de tênis de mesa "FitPong" temos um campeonato semanal chamado "Clandestino". A pontuação de cada jogador é contabilizada por sets ganhos (as partidas podem ser melhor de 3 ou 5 sets, dependendo da quantidade de jogadores nos grupos, se houver muitos jogadores - considerados acima de um limiar estabelecido - as partidas serão disputadas em três sets (melhor de 3). Dependendo do número de participantes nós dividimos em dois, três ou mais grupos (de no mínimo 4 jogadores cada). Depois os primeiros colocados de cada grupo disputam entre si e assim por diante... Até estabelecer as colocações/pontuações finais de cada jogador naquele dia. 
+Na academia de tênis de mesa "FitPong" temos um campeonato semanal chamado "Clandestino". A pontuação de cada jogador é contabilizada por sets ganhos (as partidas podem ser melhor de 3 ou 5 sets, dependendo da quantidade de jogadores nos grupos, se houver muitos jogadores - considerados acima de um limiar estabelecido - as partidas serão disputadas em três sets (melhor de 3). Dependendo do número de participantes nós dividimos em dois, três ou mais grupos (de no mínimo 4 jogadores cada). Depois os primeiros colocados de cada grupo disputam entre si e assim por diante... Até estabelecer as colocações/pontuações finais de cada jogador naquele dia.
 
-Atualmente tudo isso é feito no papel, em que cada jogador anota o resultado de sua própria partida numa tabela. 
+Atualmente tudo isso é feito no papel, em que cada jogador anota o resultado de sua própria partida numa tabela.
 
-Você acredita que seria interessante desenvolver um aplicativo para substituir o papel? Incluindo o sorteio dos grupos considerando os cabeças-de-chave (melhores jogadores não são sorteados, são colocados em grupos diferentes). Qual tech stack você recomendaria Neste caso? 
+Você acredita que seria interessante desenvolver um aplicativo para substituir o papel? Incluindo o sorteio dos grupos considerando os cabeças-de-chave (melhores jogadores não são sorteados, são colocados em grupos diferentes). Qual tech stack você recomendaria Neste caso?
 
 ## Sim — neste caso o aplicativo faz bastante sentido
 
@@ -25,9 +25,9 @@ Os principais ganhos seriam:
 - histórico individual de participações, partidas e sets;
 - possibilidade de acompanhar o torneio em tempo real pelo celular.
 
-Eu não começaria com um aplicativo nativo para Android e iOS. Para esse cenário, desenvolveria um **Aplicativo Web Progressivo — PWA**, instalável no celular e utilizável pelo navegador. Uma PWA pode ser adicionada à tela inicial e, com um trabalhador de serviço (*service worker*) e armazenamento local, continuar operacional mesmo durante interrupções da conexão. ([MDN Web Docs](https://developer.mozilla.org/en-US/docs/Web/Progressive_web_apps/Guides/Offline_and_background_operation?utm_source=chatgpt.com))
+Eu não começaria com um aplicativo nativo para Android e iOS. Para esse cenário, desenvolveria um **Aplicativo Web Progressivo — PWA**, instalável no celular e utilizável pelo navegador. Uma PWA pode ser adicionada à tela inicial e, com um trabalhador de serviço (_service worker_) e armazenamento local, continuar operacional mesmo durante interrupções da conexão. ([MDN Web Docs](https://developer.mozilla.org/en-US/docs/Web/Progressive_web_apps/Guides/Offline_and_background_operation?utm_source=chatgpt.com))
 
-------
+---
 
 # Arquitetura que recomendo
 
@@ -78,7 +78,7 @@ O PostgreSQL oferece essas garantias diretamente no modelo relacional. ([Postgre
 
 O Drizzle é uma boa escolha por manter o esquema próximo do SQL, preservar a tipagem no TypeScript e gerar migrações versionadas para PostgreSQL. ([Drizzle ORM](https://orm.drizzle.team/docs/get-started/postgresql-new?utm_source=chatgpt.com))
 
-------
+---
 
 # O componente mais importante: o motor de torneios
 
@@ -96,22 +96,22 @@ apps/
 O `tournament-engine` seria uma biblioteca determinística e sem dependência de banco de dados, contendo funções como:
 
 ```ts
-chooseGroupConfiguration()
-allocateSeededPlayers()
-drawUnseededPlayers()
-generateGroupMatches()
-validateMatchResult()
-calculateGroupStanding()
-resolveTies()
-generatePlacementStage()
-calculateFinalStanding()
+chooseGroupConfiguration();
+allocateSeededPlayers();
+drawUnseededPlayers();
+generateGroupMatches();
+validateMatchResult();
+calculateGroupStanding();
+resolveTies();
+generatePlacementStage();
+calculateFinalStanding();
 ```
 
 Isso é importante porque permite testar centenas ou milhares de combinações de participantes antes de utilizar o sistema em um campeonato real.
 
 O mesmo motor pode ser executado no servidor e parcialmente no navegador, mas o **servidor sempre recalcularia e validaria a classificação oficial**.
 
-------
+---
 
 # Modelagem das regras
 
@@ -129,10 +129,10 @@ type TournamentRules = {
   normalMatchBestOf: 3 | 5;
 
   protectedSeedCount: number;
-  seedingMethod: "fixed-heads" | "snake" | "pots";
+  seedingMethod: 'fixed-heads' | 'snake' | 'pots';
 
   groupRankingCriteria: RankingCriterion[];
-  placementStageFormat: "round-robin" | "knockout";
+  placementStageFormat: 'round-robin' | 'knockout';
 };
 ```
 
@@ -142,7 +142,7 @@ A regra do número de sets seria validada assim:
 - melhor de cinco: vence quem alcançar **três sets**;
 - resultados como `2 × 2`, `3 × 3` ou `3 × 2` em melhor de três seriam rejeitados.
 
-------
+---
 
 # Formação dos grupos
 
@@ -188,7 +188,7 @@ resultado completo
 
 Dessa maneira, o sorteio pode ser reproduzido posteriormente.
 
-------
+---
 
 # Fases de colocação
 
@@ -225,7 +225,7 @@ Essa modelagem também permite acomodar futuramente:
 - repescagem;
 - disputa específica de terceiro lugar.
 
-------
+---
 
 # Critérios de classificação e desempate
 
@@ -252,7 +252,7 @@ Também é importante distinguir:
 
 Essas grandezas não devem ser armazenadas em uma única coluna chamada `pontuacao`.
 
-------
+---
 
 # Registro dos resultados
 
@@ -296,7 +296,7 @@ Uma versão posterior pode registrar cada set:
 
 O detalhamento por pontos melhora as estatísticas, mas torna o preenchimento mais demorado. Eu o deixaria opcional inicialmente.
 
-------
+---
 
 # Funcionamento sem internet
 
@@ -327,7 +327,7 @@ servidor valida e confirma
 
 O TanStack Query possui mecanismos para persistência de cache e retomada de mutações pausadas; ainda assim, eu usaria uma **fila de saída explícita** no IndexedDB, porque resultados esportivos exigem rastreabilidade maior do que uma simples atualização otimista de interface. ([tanstack.com](https://tanstack.com/query/latest/docs/framework/preact/plugins/persistQueryClient?utm_source=chatgpt.com))
 
-------
+---
 
 # Modelo de dados inicial
 
@@ -358,7 +358,7 @@ Uma distinção importante:
 - `final_placement` representa a posição oficial daquela edição;
 - o ranking atual não deve ser usado para reinterpretar retrospectivamente sorteios antigos.
 
-------
+---
 
 # Perfis de acesso
 
@@ -385,7 +385,7 @@ No início, os jogadores não precisam criar uma conta convencional. Uma soluç�
 
 O organizador utilizaria autenticação mais forte.
 
-------
+---
 
 # Escopo recomendado para o MVP
 
@@ -437,7 +437,7 @@ Somente após existir uso recorrente:
 - suporte a outros formatos de campeonato;
 - uso por outras academias.
 
-------
+---
 
 # Minha recomendação final
 

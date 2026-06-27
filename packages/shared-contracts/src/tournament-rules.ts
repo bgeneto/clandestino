@@ -15,11 +15,7 @@ export const RankingCriterionSchema = Type.Union(
 export type RankingCriterion = Static<typeof RankingCriterionSchema>;
 
 export const SeedingMethodSchema = Type.Union(
-  [
-    Type.Literal('fixed-heads'),
-    Type.Literal('snake'),
-    Type.Literal('pots'),
-  ],
+  [Type.Literal('fixed-heads'), Type.Literal('snake'), Type.Literal('pots')],
   { $id: 'SeedingMethod' },
 );
 

@@ -36,9 +36,7 @@ export interface MatchResultInput {
   bestOf: 3 | 5;
 }
 
-export type MatchValidationResult =
-  | { valid: true }
-  | { valid: false; reason: string };
+export type MatchValidationResult = { valid: true } | { valid: false; reason: string };
 
 export interface StandingMatch {
   playerA: string;

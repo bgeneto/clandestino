@@ -50,9 +50,7 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
       }
 
       const token = generateSecureToken();
-      const expiresAt = new Date(
-        Date.now() + app.config.organizerMagicLinkTtlMinutes * 60_000,
-      );
+      const expiresAt = new Date(Date.now() + app.config.organizerMagicLinkTtlMinutes * 60_000);
 
       await app.db.insert(schema.organizerMagicTokens).values({
         email,
@@ -90,9 +88,7 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
       }
 
       const sessionToken = generateSecureToken();
-      const expiresAt = new Date(
-        Date.now() + app.config.organizerSessionTtlHours * 3_600_000,
-      );
+      const expiresAt = new Date(Date.now() + app.config.organizerSessionTtlHours * 3_600_000);
 
       await app.db.insert(schema.organizerSessions).values({
         email: consumed.email,
@@ -171,10 +167,7 @@ export async function registerPlayerRoutes(app: FastifyInstance): Promise<void> 
       const name = request.body.name.trim();
 
       try {
-        const [row] = await app.db
-          .insert(schema.players)
-          .values({ name })
-          .returning();
+        const [row] = await app.db.insert(schema.players).values({ name }).returning();
 
         if (!row) {
           throw badRequest('Não foi possível criar o jogador.');

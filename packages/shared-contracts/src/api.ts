@@ -38,9 +38,12 @@ export const SseEventTypeSchema = Type.Union(
     Type.Literal('standing_updated'),
     Type.Literal('match_confirmed'),
     Type.Literal('phase_published'),
+    Type.Literal('match_contested'),
   ],
   { $id: 'SseEventType' },
 );
+
+export type SseEventType = Static<typeof SseEventTypeSchema>;
 
 export const SseEventSchema = Type.Object(
   {
@@ -50,6 +53,8 @@ export const SseEventSchema = Type.Object(
   },
   { $id: 'SseEvent' },
 );
+
+export type SseEvent = Static<typeof SseEventSchema>;
 
 export const EditionQrResponseSchema = Type.Object(
   {

@@ -45,13 +45,15 @@ describe('mapSetsToParticipants', () => {
     const one = playerId(1);
     const two = playerId(2);
 
-    expect(
-      mapSetsToParticipants(one, one, two, 2, 1),
-    ).toEqual({ playerOneSets: 2, playerTwoSets: 1 });
+    expect(mapSetsToParticipants(one, one, two, 2, 1)).toEqual({
+      playerOneSets: 2,
+      playerTwoSets: 1,
+    });
 
-    expect(
-      mapSetsToParticipants(two, one, two, 2, 0),
-    ).toEqual({ playerOneSets: 0, playerTwoSets: 2 });
+    expect(mapSetsToParticipants(two, one, two, 2, 0)).toEqual({
+      playerOneSets: 0,
+      playerTwoSets: 2,
+    });
   });
 });
 

@@ -72,6 +72,4 @@ export const EditionRegistrationsResponseSchema = Type.Object(
   { $id: 'EditionRegistrationsResponse' },
 );
 
-export type EditionRegistrationsResponse = Static<
-  typeof EditionRegistrationsResponseSchema
->;
+export type EditionRegistrationsResponse = Static<typeof EditionRegistrationsResponseSchema>;

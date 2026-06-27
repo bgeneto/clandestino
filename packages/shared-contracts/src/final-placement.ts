@@ -21,6 +21,4 @@ export const EditionFinalPlacementsResponseSchema = Type.Object(
   { $id: 'EditionFinalPlacementsResponse' },
 );
 
-export type EditionFinalPlacementsResponse = Static<
-  typeof EditionFinalPlacementsResponseSchema
->;
+export type EditionFinalPlacementsResponse = Static<typeof EditionFinalPlacementsResponseSchema>;

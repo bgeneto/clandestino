@@ -10,24 +10,17 @@ import { Type } from '@sinclair/typebox';
 import { and, eq } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import { schema } from '../db/index.js';
+import { badRequest, conflict, forbidden, notFound, unprocessableEntity } from '../lib/errors.js';
 import {
-  badRequest,
-  conflict,
-  forbidden,
-  notFound,
-  unprocessableEntity,
-} from '../lib/errors.js';
-import {
+  confirmMatchResult,
   getResultSubmitter,
   loadMatch,
   mapSetsToParticipants,
-  maybeGeneratePlacementStage,
-  recalculateGroupStanding,
   validateCorrectedScore,
   validateSubmittedScore,
 } from '../lib/matches.js';
 import { mapMatch } from '../lib/mappers.js';
-import { GROUP_PHASE } from '../lib/draw.js';
+import { emitMatchConfirmed, emitMatchContested } from '../lib/sse-events.js';
 
 const matchIdParams = Type.Object({ id: Type.String({ format: 'uuid' }) });
 
@@ -43,68 +36,6 @@ async function loadEditionRules(app: FastifyInstance, editionId: string) {
   }
 
   return edition;
-}
-
-async function confirmMatchResult(
-  app: FastifyInstance,
-  matchId: string,
-  createdBy: string,
-  auditEventType: 'MATCH_CONFIRMED' | 'MATCH_CORRECTED',
-): Promise<ReturnType<typeof mapMatch>> {
-  const loaded = await loadMatch(app.db, matchId);
-  if (!loaded) {
-    throw notFound('Partida não encontrada.');
-  }
-
-  const { match, participants } = loaded;
-  const edition = await loadEditionRules(app, match.editionId);
-  const now = new Date();
-
-  await app.db.transaction(async (tx) => {
-    await tx
-      .update(schema.matches)
-      .set({ status: 'CONFIRMADA', updatedAt: now })
-      .where(eq(schema.matches.id, match.id));
-
-    await recalculateGroupStanding(tx, match.groupId, edition.rules);
-
-    if (match.phase === GROUP_PHASE) {
-      await maybeGeneratePlacementStage(
-        tx,
-        match.editionId,
-        edition.rules,
-        createdBy,
-      );
-    }
-
-    await tx.insert(schema.auditEvents).values({
-      editionId: match.editionId,
-      matchId: match.id,
-      eventType: auditEventType,
-      payload: {
-        groupId: match.groupId,
-        phase: match.phase,
-        playerOneId: match.playerOneId,
-        playerTwoId: match.playerTwoId,
-        setsWon: {
-          [match.playerOneId]: participants.find(
-            (participant) => participant.playerId === match.playerOneId,
-          )?.setsWon,
-          [match.playerTwoId]: participants.find(
-            (participant) => participant.playerId === match.playerTwoId,
-          )?.setsWon,
-        },
-      },
-      createdBy,
-    });
-  });
-
-  const updated = await loadMatch(app.db, matchId);
-  if (!updated) {
-    throw badRequest('Não foi possível confirmar o resultado.');
-  }
-
-  return mapMatch(updated.match, updated.participants);
 }
 
 export async function registerMatchRoutes(app: FastifyInstance): Promise<void> {
@@ -270,8 +201,13 @@ export async function registerMatchRoutes(app: FastifyInstance): Promise<void> {
         throw forbidden('O jogador que registrou o resultado não pode confirmá-lo.');
       }
 
-      const confirmedMatch = await confirmMatchResult(app, match.id, playerId, 'MATCH_CONFIRMED');
-      return { match: confirmedMatch };
+      const confirmed = await confirmMatchResult(app.db, match.id, playerId, 'MATCH_CONFIRMED');
+      emitMatchConfirmed(app, confirmed.editionId, {
+        matchId: confirmed.match.id,
+        groupId: confirmed.groupId,
+      });
+
+      return { match: confirmed.match };
     },
   );
 
@@ -342,6 +278,8 @@ export async function registerMatchRoutes(app: FastifyInstance): Promise<void> {
         });
       });
 
+      emitMatchContested(app, match.editionId, { matchId: match.id });
+
       const updated = await loadMatch(app.db, match.id);
       if (!updated) {
         throw badRequest('Não foi possível contestar o resultado.');
@@ -393,59 +331,20 @@ export async function registerMatchRoutes(app: FastifyInstance): Promise<void> {
         });
       }
 
-      const now = new Date();
       const organizer = request.organizerEmail ?? 'organizer';
 
-      await app.db.transaction(async (tx) => {
-        await tx
-          .update(schema.matchParticipants)
-          .set({ setsWon: request.body.setsWonByPlayerOne })
-          .where(
-            and(
-              eq(schema.matchParticipants.matchId, match.id),
-              eq(schema.matchParticipants.playerId, match.playerOneId),
-            ),
-          );
-
-        await tx
-          .update(schema.matchParticipants)
-          .set({ setsWon: request.body.setsWonByPlayerTwo })
-          .where(
-            and(
-              eq(schema.matchParticipants.matchId, match.id),
-              eq(schema.matchParticipants.playerId, match.playerTwoId),
-            ),
-          );
-
-        await tx
-          .update(schema.matches)
-          .set({ status: 'CONFIRMADA', updatedAt: now })
-          .where(eq(schema.matches.id, match.id));
-
-        await recalculateGroupStanding(tx, match.groupId, edition.rules);
-
-        if (match.phase === GROUP_PHASE) {
-          await maybeGeneratePlacementStage(tx, match.editionId, edition.rules, organizer);
-        }
-
-        await tx.insert(schema.auditEvents).values({
-          editionId: match.editionId,
-          matchId: match.id,
-          eventType: 'MATCH_CORRECTED',
-          payload: {
-            setsWonByPlayerOne: request.body.setsWonByPlayerOne,
-            setsWonByPlayerTwo: request.body.setsWonByPlayerTwo,
-          },
-          createdBy: organizer,
-        });
+      const confirmed = await confirmMatchResult(app.db, match.id, organizer, 'MATCH_CORRECTED', {
+        correctedSets: {
+          playerOneSets: request.body.setsWonByPlayerOne,
+          playerTwoSets: request.body.setsWonByPlayerTwo,
+        },
+      });
+      emitMatchConfirmed(app, confirmed.editionId, {
+        matchId: confirmed.match.id,
+        groupId: confirmed.groupId,
       });
 
-      const updated = await loadMatch(app.db, match.id);
-      if (!updated) {
-        throw badRequest('Não foi possível corrigir o resultado.');
-      }
-
-      return { match: mapMatch(updated.match, updated.participants) };
+      return { match: confirmed.match };
     },
   );
 }

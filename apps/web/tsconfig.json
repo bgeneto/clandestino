@@ -1,11 +1,15 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable", "WebWorker"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "jsx": "react-jsx",
     "rootDir": "src",
-    "outDir": "dist",
-    "composite": true,
-    "lib": ["ES2022", "DOM"]
+    "noEmit": true,
+    "types": ["vite/client", "vite-plugin-pwa/client"]
   },
-  "include": ["src/**/*.ts"],
+  "include": ["src/**/*.ts", "src/**/*.tsx"],
   "references": [{ "path": "../../packages/shared-contracts" }]
 }

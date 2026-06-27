@@ -9,30 +9,25 @@ import { registerEditionRoutes } from './routes/editions.js';
 import { registerEditionDrawRoutes } from './routes/edition-draw.js';
 import { registerEditionPlacementRoutes } from './routes/edition-placement.js';
 import { registerMatchRoutes } from './routes/matches.js';
+import { registerSsePlugin } from './plugins/sse.js';
+import { startAutoConfirmJob } from './jobs/auto-confirm.js';
 
 export async function createApp(config: ApiConfig) {
   const app = Fastify({
     logger: true,
   }).withTypeProvider<TypeBoxTypeProvider>();
 
-  app.addContentTypeParser(
-    'text/csv',
-    { parseAs: 'string' },
-    (_request, body, done) => {
-      done(null, body);
-    },
-  );
+  app.addContentTypeParser('text/csv', { parseAs: 'string' }, (_request, body, done) => {
+    done(null, body);
+  });
 
-  app.addContentTypeParser(
-    'application/csv',
-    { parseAs: 'string' },
-    (_request, body, done) => {
-      done(null, body);
-    },
-  );
+  app.addContentTypeParser('application/csv', { parseAs: 'string' }, (_request, body, done) => {
+    done(null, body);
+  });
 
   await registerConfigPlugin(app, config);
   await registerDbPlugin(app);
+  await registerSsePlugin(app);
   await registerAuthHooks(app);
 
   app.setErrorHandler((error, _request, reply) => {
@@ -72,6 +67,11 @@ export async function createApp(config: ApiConfig) {
   await registerEditionDrawRoutes(app);
   await registerMatchRoutes(app);
   await registerEditionPlacementRoutes(app);
+
+  const stopAutoConfirmJob = startAutoConfirmJob(app);
+  app.addHook('onClose', async () => {
+    stopAutoConfirmJob();
+  });
 
   app.setNotFoundHandler((_request, reply) => {
     reply.code(404).send({

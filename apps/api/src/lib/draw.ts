@@ -112,9 +112,6 @@ export function buildGeneratedGroupMatches(groups: DrawGroupResult[]): Generated
   );
 }
 
-export function resolveMatchBestOf(
-  participantCount: number,
-  rules: TournamentRules,
-): 3 | 5 {
+export function resolveMatchBestOf(participantCount: number, rules: TournamentRules): 3 | 5 {
   return getMatchBestOf(participantCount, rules);
 }

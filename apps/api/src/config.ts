@@ -33,10 +33,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ApiConfig {
     port: Number.parseInt(env.API_PORT ?? '3000', 10),
     databaseUrl,
     organizerAllowedEmails: parseAllowedEmails(env.ORGANIZER_ALLOWED_EMAILS),
-    organizerMagicLinkTtlMinutes: Number.parseInt(
-      env.ORGANIZER_MAGIC_LINK_TTL_MINUTES ?? '15',
-      10,
-    ),
+    organizerMagicLinkTtlMinutes: Number.parseInt(env.ORGANIZER_MAGIC_LINK_TTL_MINUTES ?? '15', 10),
     organizerSessionTtlHours: Number.parseInt(env.ORGANIZER_SESSION_TTL_HOURS ?? '168', 10),
     publicAppUrl: env.PUBLIC_APP_URL ?? 'http://localhost:5173',
     exposeMagicLinks: env.EXPOSE_MAGIC_LINKS === 'true' || env.NODE_ENV !== 'production',

@@ -1,8 +1,7 @@
 import { FormatRegistry } from '@sinclair/typebox';
 import { Type } from '@sinclair/typebox';
 
-const UUID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -18,9 +17,7 @@ FormatRegistry.Set(
 FormatRegistry.Set(
   'email',
   (value) =>
-    typeof value === 'string' &&
-    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value) &&
-    value.length <= 254,
+    typeof value === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value) && value.length <= 254,
 );
 
 export const UuidSchema = Type.String({ format: 'uuid' });

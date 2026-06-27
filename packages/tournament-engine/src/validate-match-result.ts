@@ -1,13 +1,8 @@
 import type { TournamentRules } from '@clandestino/shared-contracts';
 import type { MatchResultInput, MatchValidationResult } from './types.js';
 
-export function getMatchBestOf(
-  participantCount: number,
-  rules: TournamentRules,
-): 3 | 5 {
-  return participantCount >= rules.participantThresholdForBestOfThree
-    ? 3
-    : rules.normalMatchBestOf;
+export function getMatchBestOf(participantCount: number, rules: TournamentRules): 3 | 5 {
+  return participantCount >= rules.participantThresholdForBestOfThree ? 3 : rules.normalMatchBestOf;
 }
 
 export function validateMatchResult(

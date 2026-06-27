@@ -8,9 +8,7 @@ export const RequestOrganizerMagicLinkBodySchema = Type.Object(
   { $id: 'RequestOrganizerMagicLinkBody' },
 );
 
-export type RequestOrganizerMagicLinkBody = Static<
-  typeof RequestOrganizerMagicLinkBodySchema
->;
+export type RequestOrganizerMagicLinkBody = Static<typeof RequestOrganizerMagicLinkBodySchema>;
 
 export const RequestOrganizerMagicLinkResponseSchema = Type.Object(
   {
@@ -32,9 +30,7 @@ export const VerifyOrganizerMagicLinkBodySchema = Type.Object(
   { $id: 'VerifyOrganizerMagicLinkBody' },
 );
 
-export type VerifyOrganizerMagicLinkBody = Static<
-  typeof VerifyOrganizerMagicLinkBodySchema
->;
+export type VerifyOrganizerMagicLinkBody = Static<typeof VerifyOrganizerMagicLinkBodySchema>;
 
 export const OrganizerSessionResponseSchema = Type.Object(
   {

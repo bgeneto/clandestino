@@ -16,11 +16,8 @@ import {
   countEditionRegistrations,
   finalizeEditionPlacements,
 } from '../lib/matches.js';
-import {
-  mapEdition,
-  mapFinalPlacement,
-  mapGroupWithPlayers,
-} from '../lib/mappers.js';
+import { mapEdition, mapFinalPlacement, mapGroupWithPlayers } from '../lib/mappers.js';
+import { emitPhasePublished } from '../lib/sse-events.js';
 
 const editionIdParams = Type.Object({ id: Type.String({ format: 'uuid' }) });
 
@@ -60,7 +57,9 @@ export async function registerEditionPlacementRoutes(app: FastifyInstance): Prom
       const placementGroups = await app.db
         .select()
         .from(schema.groups)
-        .where(and(eq(schema.groups.editionId, editionId), eq(schema.groups.phase, PLACEMENT_PHASE)))
+        .where(
+          and(eq(schema.groups.editionId, editionId), eq(schema.groups.phase, PLACEMENT_PHASE)),
+        )
         .orderBy(asc(schema.groups.name));
 
       const [existingPlacementMatch] = await app.db
@@ -161,6 +160,8 @@ export async function registerEditionPlacementRoutes(app: FastifyInstance): Prom
       if (!updatedEdition) {
         throw badRequest('Não foi possível publicar a fase de colocação.');
       }
+
+      emitPhasePublished(app, editionId, { matchesGenerated });
 
       const groups = await app.db
         .select()

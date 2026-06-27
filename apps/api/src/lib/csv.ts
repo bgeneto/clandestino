@@ -42,7 +42,9 @@ export function parseImportScoresCsv(content: string): ParsedCsvRow[] {
       );
     }
 
-    const record = Object.fromEntries(headers.map((header, columnIndex) => [header, values[columnIndex] ?? '']));
+    const record = Object.fromEntries(
+      headers.map((header, columnIndex) => [header, values[columnIndex] ?? '']),
+    );
     const playerName = (record.player_name ?? '').trim();
     const pointsRaw = (record.accumulated_points ?? '').trim();
 
@@ -80,16 +82,12 @@ export function parseImportScoresCsv(content: string): ParsedCsvRow[] {
 
 function validateHeaders(headers: string[]): void {
   if (headers.length !== EXPECTED_HEADERS.length) {
-    throw badRequest(
-      `Cabeçalho inválido. Colunas esperadas: ${EXPECTED_HEADERS.join(', ')}.`,
-    );
+    throw badRequest(`Cabeçalho inválido. Colunas esperadas: ${EXPECTED_HEADERS.join(', ')}.`);
   }
 
   for (const expected of EXPECTED_HEADERS) {
     if (!headers.includes(expected)) {
-      throw badRequest(
-        `Cabeçalho inválido. Coluna obrigatória ausente: ${expected}.`,
-      );
+      throw badRequest(`Cabeçalho inválido. Coluna obrigatória ausente: ${expected}.`);
     }
   }
 }

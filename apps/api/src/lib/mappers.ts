@@ -106,10 +106,7 @@ export function mapGroupPlayer(row: GroupPlayerRow): GroupPlayer {
   };
 }
 
-export function mapGroupWithPlayers(
-  group: GroupRow,
-  players: GroupPlayerRow[],
-): GroupWithPlayers {
+export function mapGroupWithPlayers(group: GroupRow, players: GroupPlayerRow[]): GroupWithPlayers {
   return {
     group: mapGroup(group),
     players: players.map(mapGroupPlayer),
@@ -138,10 +135,7 @@ export function mapMatchParticipant(row: MatchParticipantRow): MatchParticipant 
   };
 }
 
-export function mapMatch(
-  row: MatchRow,
-  participants: MatchParticipantRow[],
-): Match {
+export function mapMatch(row: MatchRow, participants: MatchParticipantRow[]): Match {
   return {
     id: row.id,
     editionId: row.editionId,

@@ -4,8 +4,7 @@ import { schema } from '../db/index.js';
 import { hashToken } from '../lib/crypto.js';
 import { forbidden, unauthorized } from '../lib/errors.js';
 
-const UUID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function readHeaderValue(value: string | string[] | undefined): string | null {
   if (typeof value === 'string' && value.trim()) {
@@ -97,14 +96,8 @@ export async function registerAuthHooks(app: FastifyInstance): Promise<void> {
 
 declare module 'fastify' {
   interface FastifyInstance {
-    requireOrganizer: (
-      request: FastifyRequest,
-      reply: FastifyReply,
-    ) => Promise<void>;
-    requirePlayer: (
-      request: FastifyRequest,
-      reply: FastifyReply,
-    ) => Promise<void>;
+    requireOrganizer: (request: FastifyRequest, reply: FastifyReply) => Promise<void>;
+    requirePlayer: (request: FastifyRequest, reply: FastifyReply) => Promise<void>;
   }
 }
 

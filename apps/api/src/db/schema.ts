@@ -43,9 +43,7 @@ export const editionStatusEnum = pgEnum('edition_status', [
   'ENCERRADA',
 ]);
 
-const createdAt = timestamp('created_at', { withTimezone: true })
-  .notNull()
-  .defaultNow();
+const createdAt = timestamp('created_at', { withTimezone: true }).notNull().defaultNow();
 
 export const players = pgTable(
   'player',
@@ -83,10 +81,7 @@ export const editions = pgTable(
       .references(() => seasons.id, { onDelete: 'restrict', onUpdate: 'cascade' }),
     name: varchar('name', { length: 120 }).notNull(),
     date: date('date').notNull(),
-    rules: jsonb('rules')
-      .$type<TournamentRules>()
-      .notNull()
-      .default(DEFAULT_TOURNAMENT_RULES),
+    rules: jsonb('rules').$type<TournamentRules>().notNull().default(DEFAULT_TOURNAMENT_RULES),
     status: editionStatusEnum('status').notNull().default('RASCUNHO'),
     autoConfirmMinutes: integer('auto_confirm_minutes').notNull().default(15),
     createdAt,
@@ -107,9 +102,7 @@ export const editionRegistrations = pgTable(
     playerId: uuid('player_id')
       .notNull()
       .references(() => players.id, { onDelete: 'restrict', onUpdate: 'cascade' }),
-    registeredAt: timestamp('registered_at', { withTimezone: true })
-      .notNull()
-      .defaultNow(),
+    registeredAt: timestamp('registered_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
     primaryKey({
@@ -178,7 +171,9 @@ export const groupPlayers = pgTable(
       name: 'group_player_group_edition_fk',
       columns: [table.groupId, table.editionId],
       foreignColumns: [groups.id, groups.editionId],
-    }).onDelete('cascade').onUpdate('cascade'),
+    })
+      .onDelete('cascade')
+      .onUpdate('cascade'),
     uniqueIndex('group_player_edition_player_unique').on(table.editionId, table.playerId),
   ],
 );
@@ -208,7 +203,9 @@ export const matches = pgTable(
       name: 'match_group_edition_phase_fk',
       columns: [table.groupId, table.editionId, table.phase],
       foreignColumns: [groups.id, groups.editionId, groups.phase],
-    }).onDelete('cascade').onUpdate('cascade'),
+    })
+      .onDelete('cascade')
+      .onUpdate('cascade'),
     uniqueIndex('match_edition_phase_players_unique').on(
       table.editionId,
       table.phase,

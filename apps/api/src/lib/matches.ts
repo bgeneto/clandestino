@@ -17,11 +17,15 @@ import type { InferSelectModel } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import { schema } from '../db/index.js';
 import { GROUP_PHASE } from './draw.js';
-import { conflict } from './errors.js';
+import { badRequest, conflict, notFound } from './errors.js';
+import { mapMatch } from './mappers.js';
 
 export const PLACEMENT_PHASE = 'PLACEMENT_STAGE';
 
-type DbExecutor = Pick<FastifyInstance['db'], 'select' | 'insert' | 'update' | 'delete' | 'transaction'>;
+type DbExecutor = Pick<
+  FastifyInstance['db'],
+  'select' | 'insert' | 'update' | 'delete' | 'transaction'
+>;
 type Transaction = Parameters<Parameters<FastifyInstance['db']['transaction']>[0]>[0];
 
 type MatchRow = InferSelectModel<typeof schema.matches>;
@@ -76,9 +80,7 @@ export function toStandingMatch(
   };
 }
 
-export function parsePlacementGroupRange(
-  groupName: string,
-): { from: number; to: number } | null {
+export function parsePlacementGroupRange(groupName: string): { from: number; to: number } | null {
   const match = /^Placement (\d+)-(\d+)$/.exec(groupName);
   if (!match) {
     return null;
@@ -90,10 +92,7 @@ export function parsePlacementGroupRange(
   };
 }
 
-export async function loadMatch(
-  db: DbExecutor,
-  matchId: string,
-): Promise<LoadedMatch | null> {
+export async function loadMatch(db: DbExecutor, matchId: string): Promise<LoadedMatch | null> {
   const [match] = await db
     .select()
     .from(schema.matches)
@@ -112,10 +111,120 @@ export async function loadMatch(
   return { match, participants };
 }
 
-export async function getResultSubmitter(
+export type ConfirmAuditEventType = 'MATCH_CONFIRMED' | 'MATCH_CORRECTED' | 'AUTO_CONFIRMED';
+
+export interface ConfirmedMatchResult {
+  match: ReturnType<typeof mapMatch>;
+  editionId: string;
+  groupId: string;
+}
+
+export interface ConfirmMatchResultOptions {
+  correctedSets?: {
+    playerOneSets: number;
+    playerTwoSets: number;
+  };
+}
+
+export async function confirmMatchResult(
   db: DbExecutor,
   matchId: string,
-): Promise<string | null> {
+  createdBy: string,
+  auditEventType: ConfirmAuditEventType,
+  options?: ConfirmMatchResultOptions,
+): Promise<ConfirmedMatchResult> {
+  const loaded = await loadMatch(db, matchId);
+  if (!loaded) {
+    throw notFound('Partida não encontrada.');
+  }
+
+  const { match, participants } = loaded;
+
+  const [edition] = await db
+    .select()
+    .from(schema.editions)
+    .where(eq(schema.editions.id, match.editionId))
+    .limit(1);
+
+  if (!edition) {
+    throw notFound('Edição não encontrada.');
+  }
+
+  const now = new Date();
+  const correctedSets = options?.correctedSets;
+
+  await db.transaction(async (tx) => {
+    if (correctedSets) {
+      await tx
+        .update(schema.matchParticipants)
+        .set({ setsWon: correctedSets.playerOneSets })
+        .where(
+          and(
+            eq(schema.matchParticipants.matchId, match.id),
+            eq(schema.matchParticipants.playerId, match.playerOneId),
+          ),
+        );
+
+      await tx
+        .update(schema.matchParticipants)
+        .set({ setsWon: correctedSets.playerTwoSets })
+        .where(
+          and(
+            eq(schema.matchParticipants.matchId, match.id),
+            eq(schema.matchParticipants.playerId, match.playerTwoId),
+          ),
+        );
+    }
+
+    await tx
+      .update(schema.matches)
+      .set({ status: 'CONFIRMADA', updatedAt: now })
+      .where(eq(schema.matches.id, match.id));
+
+    await recalculateGroupStanding(tx, match.groupId, edition.rules);
+
+    if (match.phase === GROUP_PHASE) {
+      await maybeGeneratePlacementStage(tx, match.editionId, edition.rules, createdBy);
+    }
+
+    const playerOneSets =
+      correctedSets?.playerOneSets ??
+      participants.find((participant) => participant.playerId === match.playerOneId)?.setsWon;
+    const playerTwoSets =
+      correctedSets?.playerTwoSets ??
+      participants.find((participant) => participant.playerId === match.playerTwoId)?.setsWon;
+
+    await tx.insert(schema.auditEvents).values({
+      editionId: match.editionId,
+      matchId: match.id,
+      eventType: auditEventType,
+      payload: {
+        groupId: match.groupId,
+        phase: match.phase,
+        playerOneId: match.playerOneId,
+        playerTwoId: match.playerTwoId,
+        setsWon: {
+          [match.playerOneId]: playerOneSets,
+          [match.playerTwoId]: playerTwoSets,
+        },
+      },
+      createdBy,
+    });
+  });
+
+  const updated = await loadMatch(db, matchId);
+  if (!updated) {
+    throw badRequest('Não foi possível confirmar o resultado.');
+  }
+
+  return {
+    match: mapMatch(updated.match, updated.participants),
+    editionId: match.editionId,
+    groupId: match.groupId,
+  };
+}
+
+export async function getResultSubmitter(db: DbExecutor, matchId: string): Promise<string | null> {
   const [event] = await db
     .select({ payload: schema.auditEvents.payload })
     .from(schema.auditEvents)
@@ -186,10 +295,7 @@ export async function recalculateGroupStanding(
   );
 }
 
-export async function isGroupStageComplete(
-  db: DbExecutor,
-  editionId: string,
-): Promise<boolean> {
+export async function isGroupStageComplete(db: DbExecutor, editionId: string): Promise<boolean> {
   const [pendingMatch] = await db
     .select({ id: schema.matches.id })
     .from(schema.matches)
@@ -387,8 +493,7 @@ export async function buildPlacementGroupResults(
 
       const winnerId =
         playerOne.setsWon > playerTwo.setsWon ? match.playerOneId : match.playerTwoId;
-      const loserId =
-        winnerId === match.playerOneId ? match.playerTwoId : match.playerOneId;
+      const loserId = winnerId === match.playerOneId ? match.playerTwoId : match.playerOneId;
 
       results.push({
         positionRange: range,

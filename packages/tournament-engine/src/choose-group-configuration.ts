@@ -5,9 +5,7 @@ export function chooseGroupConfiguration(
   rules: TournamentRules,
 ): GroupConfiguration {
   if (playerCount < rules.minimumGroupSize) {
-    throw new Error(
-      `At least ${rules.minimumGroupSize} players are required, got ${playerCount}`,
-    );
+    throw new Error(`At least ${rules.minimumGroupSize} players are required, got ${playerCount}`);
   }
 
   const maxGroups = Math.floor(playerCount / rules.minimumGroupSize);
@@ -30,9 +28,7 @@ export function chooseGroupConfiguration(
     }
 
     if (
-      !groupSizes.every(
-        (size) => size >= rules.minimumGroupSize && size <= rules.maximumGroupSize,
-      )
+      !groupSizes.every((size) => size >= rules.minimumGroupSize && size <= rules.maximumGroupSize)
     ) {
       continue;
     }

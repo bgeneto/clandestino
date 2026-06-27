@@ -21,11 +21,7 @@ import {
   resolveMatchBestOf,
 } from '../lib/draw.js';
 import { badRequest, conflict, notFound } from '../lib/errors.js';
-import {
-  mapEdition,
-  mapGroupPlayer,
-  mapGroupWithPlayers,
-} from '../lib/mappers.js';
+import { mapEdition, mapGroupPlayer, mapGroupWithPlayers } from '../lib/mappers.js';
 
 const editionIdParams = Type.Object({ id: Type.String({ format: 'uuid' }) });
 
@@ -367,7 +363,11 @@ export async function registerEditionDrawRoutes(app: FastifyInstance): Promise<v
               status: 'AGENDADA' as const,
             })),
           )
-          .returning({ id: schema.matches.id, playerOneId: schema.matches.playerOneId, playerTwoId: schema.matches.playerTwoId });
+          .returning({
+            id: schema.matches.id,
+            playerOneId: schema.matches.playerOneId,
+            playerTwoId: schema.matches.playerTwoId,
+          });
 
         await tx.insert(schema.matchParticipants).values(
           insertedMatches.flatMap((match) => [

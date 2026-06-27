@@ -12,10 +12,7 @@ export function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
 }
 
-export function isOrganizerEmailAllowed(
-  email: string,
-  allowedEmails: readonly string[],
-): boolean {
+export function isOrganizerEmailAllowed(email: string, allowedEmails: readonly string[]): boolean {
   const normalized = normalizeEmail(email);
   return allowedEmails.some((allowed) => normalizeEmail(allowed) === normalized);
 }

@@ -60,25 +60,22 @@ describe('chooseGroupConfiguration', () => {
 describe('allocateSeededPlayers', () => {
   it('places at most one seed per group when seed count equals group count', () => {
     fc.assert(
-      fc.property(
-        fc.integer({ min: 2, max: 6 }),
-        (groupCount) => {
-          const seeds = Array.from({ length: groupCount }, (_, i) => playerId(i + 1));
-          const assignments = allocateSeededPlayers(seeds, groupCount);
-          const seedsPerGroup = new Map<number, number>();
+      fc.property(fc.integer({ min: 2, max: 6 }), (groupCount) => {
+        const seeds = Array.from({ length: groupCount }, (_, i) => playerId(i + 1));
+        const assignments = allocateSeededPlayers(seeds, groupCount);
+        const seedsPerGroup = new Map<number, number>();
 
-          for (const assignment of assignments) {
-            seedsPerGroup.set(
-              assignment.groupIndex,
-              (seedsPerGroup.get(assignment.groupIndex) ?? 0) + 1,
-            );
-          }
+        for (const assignment of assignments) {
+          seedsPerGroup.set(
+            assignment.groupIndex,
+            (seedsPerGroup.get(assignment.groupIndex) ?? 0) + 1,
+          );
+        }
 
-          for (let groupIndex = 0; groupIndex < groupCount; groupIndex++) {
-            expect(seedsPerGroup.get(groupIndex)).toBe(1);
-          }
-        },
-      ),
+        for (let groupIndex = 0; groupIndex < groupCount; groupIndex++) {
+          expect(seedsPerGroup.get(groupIndex)).toBe(1);
+        }
+      }),
     );
   });
 
@@ -137,9 +134,9 @@ describe('validateMatchResult', () => {
   it('accepts all valid completed scores', () => {
     for (const bestOf of [3, 5] as const) {
       for (const [a, b] of validScoresForBestOf(bestOf)) {
-        expect(validateMatchResult({ setsWonByReporter: a, setsWonByOpponent: b, bestOf }).valid).toBe(
-          true,
-        );
+        expect(
+          validateMatchResult({ setsWonByReporter: a, setsWonByOpponent: b, bestOf }).valid,
+        ).toBe(true);
       }
     }
   });
@@ -160,9 +157,9 @@ describe('validateMatchResult', () => {
     fc.assert(
       fc.property(fc.constantFrom(3 as const, 5 as const), (bestOf) => {
         for (const [a, b] of invalidScoresForBestOf(bestOf)) {
-          expect(validateMatchResult({ setsWonByReporter: a, setsWonByOpponent: b, bestOf }).valid).toBe(
-            false,
-          );
+          expect(
+            validateMatchResult({ setsWonByReporter: a, setsWonByOpponent: b, bestOf }).valid,
+          ).toBe(false);
         }
       }),
     );
@@ -195,11 +192,11 @@ describe('resolveTies', () => {
   ];
 
   it('orders by sets won, then set diff, then matches won', () => {
-    const ordered = resolveTies(
-      [playerId(1), playerId(2), playerId(3)],
-      matches,
-      ['SETS_WON', 'SET_DIFF', 'MATCHES_WON'],
-    );
+    const ordered = resolveTies([playerId(1), playerId(2), playerId(3)], matches, [
+      'SETS_WON',
+      'SET_DIFF',
+      'MATCHES_WON',
+    ]);
     expect(ordered[0]).toBe(playerId(1));
     expect(ordered[1]).toBe(playerId(2));
     expect(ordered[2]).toBe(playerId(3));
@@ -230,11 +227,12 @@ describe('resolveTies', () => {
       },
     ];
 
-    const ordered = resolveTies(
-      [playerId(1), playerId(2), playerId(3)],
-      tiedMatches,
-      ['SETS_WON', 'HEAD_TO_HEAD', 'SET_DIFF', 'MATCHES_WON'],
-    );
+    const ordered = resolveTies([playerId(1), playerId(2), playerId(3)], tiedMatches, [
+      'SETS_WON',
+      'HEAD_TO_HEAD',
+      'SET_DIFF',
+      'MATCHES_WON',
+    ]);
     expect(ordered[0]).toBe(playerId(2));
   });
 });

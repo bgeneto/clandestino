@@ -1,10 +1,6 @@
 import { DEFAULT_TOURNAMENT_RULES } from '@clandestino/shared-contracts';
 import { describe, expect, it } from 'vitest';
-import {
-  buildGeneratedGroupMatches,
-  executeDrawAlgorithm,
-  rankEditionPlayers,
-} from './draw.js';
+import { buildGeneratedGroupMatches, executeDrawAlgorithm, rankEditionPlayers } from './draw.js';
 
 function playerId(index: number): string {
   return `00000000-0000-4000-8000-${String(index).padStart(12, '0')}`;
@@ -50,9 +46,7 @@ describe('executeDrawAlgorithm', () => {
         playerId: playerId(index + 1),
         playerName: `Jogador ${index + 1}`,
       })),
-      new Map(
-        Array.from({ length: 16 }, (_, index) => [playerId(index + 1), 200 - index * 5]),
-      ),
+      new Map(Array.from({ length: 16 }, (_, index) => [playerId(index + 1), 200 - index * 5])),
       rules.protectedSeedCount,
     );
 
@@ -83,9 +77,7 @@ describe('executeDrawAlgorithm', () => {
         playerId: playerId(index + 1),
         playerName: `Jogador ${index + 1}`,
       })),
-      new Map(
-        Array.from({ length: 16 }, (_, index) => [playerId(index + 1), 200 - index * 5]),
-      ),
+      new Map(Array.from({ length: 16 }, (_, index) => [playerId(index + 1), 200 - index * 5])),
       rules.protectedSeedCount,
     );
     const input = {

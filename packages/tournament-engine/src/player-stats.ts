@@ -1,9 +1,5 @@
 import type { RankingCriterion } from '@clandestino/shared-contracts';
-import {
-  COUNTED_MATCH_STATUSES,
-  type PlayerMatchStats,
-  type StandingMatch,
-} from './types.js';
+import { COUNTED_MATCH_STATUSES, type PlayerMatchStats, type StandingMatch } from './types.js';
 
 export function extractPlayersFromMatches(matches: StandingMatch[]): string[] {
   const ids = new Set<string>();
@@ -64,11 +60,7 @@ export function computePlayerStats(
   return stats;
 }
 
-function headToHeadResult(
-  playerA: string,
-  playerB: string,
-  matches: StandingMatch[],
-): number {
+function headToHeadResult(playerA: string, playerB: string, matches: StandingMatch[]): number {
   for (const match of matches) {
     if (!COUNTED_MATCH_STATUSES.has(match.status)) {
       continue;
@@ -138,11 +130,6 @@ export function resolveTies(
 ): string[] {
   const stats = computePlayerStats(players, matches);
   return [...players].sort((leftId, rightId) =>
-    compareByCriteria(
-      stats.get(leftId)!,
-      stats.get(rightId)!,
-      criteria,
-      matches,
-    ),
+    compareByCriteria(stats.get(leftId)!, stats.get(rightId)!, criteria, matches),
   );
 }

@@ -10,10 +10,7 @@ function extraSeedGroupIndex(extraIndex: number, groupCount: number): number {
 }
 
 /** Distributes seeds: one per group first, then snake for additional protected seeds. */
-export function allocateSeededPlayers(
-  seeds: string[],
-  groupCount: number,
-): SeedAssignment[] {
+export function allocateSeededPlayers(seeds: string[], groupCount: number): SeedAssignment[] {
   if (groupCount < 1) {
     throw new Error('groupCount must be at least 1');
   }

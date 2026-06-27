@@ -9,10 +9,7 @@ declare module 'fastify' {
   }
 }
 
-export async function registerConfigPlugin(
-  app: FastifyInstance,
-  config: ApiConfig,
-): Promise<void> {
+export async function registerConfigPlugin(app: FastifyInstance, config: ApiConfig): Promise<void> {
   app.decorate('config', config);
 }
 

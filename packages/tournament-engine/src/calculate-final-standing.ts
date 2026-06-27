@@ -1,10 +1,7 @@
 import type { ScoringTable } from '@clandestino/shared-contracts';
 import type { FinalStandingEntry, PlacementGroupResult } from './types.js';
 
-export function pointsForPosition(
-  position: number,
-  scoringTable: ScoringTable,
-): number {
+export function pointsForPosition(position: number, scoringTable: ScoringTable): number {
   const entry = scoringTable.find((row) => row.position === position);
   return entry?.points ?? 0;
 }

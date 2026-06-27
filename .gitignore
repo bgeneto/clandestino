@@ -1,10 +1,36 @@
-node_modules
-dist
-coverage
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build output
+dist/
+build/
+*.tsbuildinfo
+
+# Test / coverage
+coverage/
+.vitest/
+
+# Logs
 *.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Environment / secrets
 .env
 .env.*
 !.env.example
+
+# Tooling caches
+.turbo/
+.cache/
+
+# Editor / agent working dirs
+.agents/
+.cursor/
+.vscode/
+.idea/
+
+# OS
 .DS_Store
-*.tsbuildinfo
-.turbo
+Thumbs.db

@@ -1,9 +1,4 @@
-export {
-  UuidSchema,
-  IsoDateTimeSchema,
-  IsoDateSchema,
-  JsonValueSchema,
-} from './common.js';
+export { UuidSchema, IsoDateTimeSchema, IsoDateSchema, JsonValueSchema } from './common.js';
 
 export {
   PlayerSchema,
@@ -128,6 +123,8 @@ export {
   ImportScoresResponseSchema,
   SseEventTypeSchema,
   SseEventSchema,
+  type SseEventType,
+  type SseEvent,
   EditionQrResponseSchema,
   GenerateMatchesResponseSchema,
   PublishPlacementResponseSchema,

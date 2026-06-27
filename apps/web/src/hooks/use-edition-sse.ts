@@ -6,9 +6,9 @@ import { queryKeys } from '../lib/query-keys.js';
 
 const SSE_QUERY_INVALIDATIONS: Record<SseEventType, (editionId: string) => readonly unknown[]> = {
   standing_updated: (editionId) => queryKeys.standings(editionId),
-  match_confirmed: (editionId) => queryKeys.matches(editionId),
+  match_confirmed: (editionId) => ['matches', editionId] as const,
   phase_published: (editionId) => queryKeys.groups(editionId),
-  match_contested: (editionId) => queryKeys.matches(editionId),
+  match_contested: (editionId) => ['matches', editionId] as const,
 };
 
 function parseSsePayload(raw: string): SseEvent | null {
@@ -45,7 +45,7 @@ export function useEditionSse(editionId: string | undefined): void {
       }
 
       if (payload.event === 'match_confirmed' || payload.event === 'match_contested') {
-        void queryClient.invalidateQueries({ queryKey: queryKeys.matches(payload.editionId) });
+        void queryClient.invalidateQueries({ queryKey: ['matches', payload.editionId] });
       }
     };
 

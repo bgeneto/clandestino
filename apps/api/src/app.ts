@@ -8,6 +8,7 @@ import { registerAuthRoutes, registerPlayerRoutes, registerSeasonRoutes } from '
 import { registerEditionRoutes } from './routes/editions.js';
 import { registerEditionDrawRoutes } from './routes/edition-draw.js';
 import { registerEditionPlacementRoutes } from './routes/edition-placement.js';
+import { registerEditionReadRoutes } from './routes/edition-read.js';
 import { registerMatchRoutes } from './routes/matches.js';
 import { registerSsePlugin } from './plugins/sse.js';
 import { startAutoConfirmJob } from './jobs/auto-confirm.js';
@@ -65,6 +66,7 @@ export async function createApp(config: ApiConfig) {
   await registerSeasonRoutes(app);
   await registerEditionRoutes(app);
   await registerEditionDrawRoutes(app);
+  await registerEditionReadRoutes(app);
   await registerMatchRoutes(app);
   await registerEditionPlacementRoutes(app);
 

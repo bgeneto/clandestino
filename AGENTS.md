@@ -8,9 +8,9 @@ Este arquivo orienta agentes de código (Cursor, Copilot, etc.) a trabalhar no r
 
 Leia antes de implementar:
 
-- [docs/Epic Brief — Clandestino.md](docs/Epic%20Brief%20—%20Clandestino.md) — escopo e decisões de produto
-- [docs/Tech Plan — Clandestino.md](docs/Tech%20Plan%20—%20Clandestino.md) — arquitetura e responsabilidades
-- [docs/Core Flows — Clandestino.md](docs/Core%20Flows%20—%20Clandestino.md) — fluxos de usuário
+- [Epic Brief — Clandestino.md](.agents/specs/Epic_Brief_—_Clandestino.md) — escopo e decisões de produto
+- [Tech Plan — Clandestino.md](.agents/specs/Tech_Plan_—_Clandestino.md) — arquitetura e responsabilidades
+- [Core Flows — Clandestino.md](.agents/specs/Core_Flows_—_Clandestino.md) — fluxos de usuário
 
 ## Arquitetura (não negociável)
 

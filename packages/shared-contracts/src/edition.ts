@@ -73,3 +73,25 @@ export const EditionRegistrationsResponseSchema = Type.Object(
 );
 
 export type EditionRegistrationsResponse = Static<typeof EditionRegistrationsResponseSchema>;
+
+export const EditionParticipantSchema = Type.Object(
+  {
+    playerId: UuidSchema,
+    playerName: Type.String({ minLength: 1 }),
+    rankPosition: Type.Integer({ minimum: 1 }),
+    accumulatedPoints: Type.Integer({ minimum: 0 }),
+    isSeed: Type.Boolean(),
+  },
+  { $id: 'EditionParticipant' },
+);
+
+export type EditionParticipant = Static<typeof EditionParticipantSchema>;
+
+export const EditionParticipantsResponseSchema = Type.Object(
+  {
+    participants: Type.Array(EditionParticipantSchema),
+  },
+  { $id: 'EditionParticipantsResponse' },
+);
+
+export type EditionParticipantsResponse = Static<typeof EditionParticipantsResponseSchema>;

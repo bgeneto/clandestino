@@ -135,7 +135,11 @@ export function mapMatchParticipant(row: MatchParticipantRow): MatchParticipant 
   };
 }
 
-export function mapMatch(row: MatchRow, participants: MatchParticipantRow[]): Match {
+export function mapMatch(
+  row: MatchRow,
+  participants: MatchParticipantRow[],
+  options?: { resultSubmittedByPlayerId?: string },
+): Match {
   return {
     id: row.id,
     editionId: row.editionId,
@@ -143,6 +147,9 @@ export function mapMatch(row: MatchRow, participants: MatchParticipantRow[]): Ma
     status: row.status,
     bestOf: row.bestOf as 3 | 5,
     participants: participants.map(mapMatchParticipant),
+    ...(options?.resultSubmittedByPlayerId
+      ? { resultSubmittedByPlayerId: options.resultSubmittedByPlayerId }
+      : {}),
     createdAt: toIsoDateTime(row.createdAt),
     updatedAt: toIsoDateTime(row.updatedAt),
   };

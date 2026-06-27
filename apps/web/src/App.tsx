@@ -1,21 +1,30 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { AppShell } from './components/AppShell.js';
 import { HomePage } from './pages/HomePage.js';
-
-function EditionPlaceholder() {
-  return (
-    <section className="rounded-2xl border border-slate-800 bg-slate-900/40 p-6 text-sm text-slate-300">
-      <p>Fluxo da edição em desenvolvimento (T9/T10).</p>
-    </section>
-  );
-}
+import { EditionLayout } from './pages/edition/EditionLayout.js';
+import { MyGroupPage } from './pages/edition/MyGroupPage.js';
+import { MyMatchesPage } from './pages/edition/MyMatchesPage.js';
+import { PlayerEntryPage } from './pages/edition/PlayerEntryPage.js';
+import { PlayerStandingsPage } from './pages/edition/PlayerStandingsPage.js';
+import { PublicEditionPage } from './pages/edition/PublicEditionPage.js';
+import { RegisterResultPage } from './pages/edition/RegisterResultPage.js';
+import { RequirePlayerSession } from './pages/edition/RequirePlayerSession.js';
 
 export function App() {
   return (
     <AppShell>
       <Routes>
         <Route path="/" element={<HomePage />} />
-        <Route path="/edicao/:editionId/*" element={<EditionPlaceholder />} />
+        <Route path="/edicao/:editionId" element={<EditionLayout />}>
+          <Route index element={<PublicEditionPage />} />
+          <Route path="entrar" element={<PlayerEntryPage />} />
+          <Route element={<RequirePlayerSession />}>
+            <Route path="partidas" element={<MyMatchesPage />} />
+            <Route path="partidas/:matchId/registrar" element={<RegisterResultPage />} />
+            <Route path="grupo" element={<MyGroupPage />} />
+            <Route path="classificacao" element={<PlayerStandingsPage />} />
+          </Route>
+        </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </AppShell>

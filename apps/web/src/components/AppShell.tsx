@@ -1,18 +1,13 @@
 import type { ReactNode } from 'react';
 import { ConnectionStatus } from './ConnectionStatus.js';
-import { useEditionSse } from '../hooks/use-edition-sse.js';
 import { useOfflineSync } from '../offline/register-sw.js';
-import { usePlayerSession } from '../hooks/use-player-session.js';
 
 type AppShellProps = {
   children: ReactNode;
 };
 
 export function AppShell({ children }: AppShellProps) {
-  const { session } = usePlayerSession();
-
   useOfflineSync();
-  useEditionSse(session?.editionId);
 
   return (
     <div className="flex min-h-dvh flex-col bg-slate-950 text-slate-100">

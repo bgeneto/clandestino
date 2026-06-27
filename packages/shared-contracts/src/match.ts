@@ -33,6 +33,7 @@ export const MatchSchema = Type.Object(
     status: MatchStatusSchema,
     bestOf: Type.Union([Type.Literal(3), Type.Literal(5)]),
     participants: Type.Array(MatchParticipantSchema, { minItems: 2, maxItems: 2 }),
+    resultSubmittedByPlayerId: Type.Optional(UuidSchema),
     createdAt: IsoDateTimeSchema,
     updatedAt: IsoDateTimeSchema,
   },
@@ -68,6 +69,15 @@ export const PlayerMatchesResponseSchema = Type.Object(
 );
 
 export type PlayerMatchesResponse = Static<typeof PlayerMatchesResponseSchema>;
+
+export const EditionMatchesResponseSchema = Type.Object(
+  {
+    matches: Type.Array(MatchSchema),
+  },
+  { $id: 'EditionMatchesResponse' },
+);
+
+export type EditionMatchesResponse = Static<typeof EditionMatchesResponseSchema>;
 
 export const ContestMatchBodySchema = Type.Object(
   {

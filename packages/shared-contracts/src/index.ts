@@ -51,6 +51,10 @@ export {
   type EditionRegistration,
   type RegisterPlayerBody,
   type EditionRegistrationsResponse,
+  EditionParticipantSchema,
+  EditionParticipantsResponseSchema,
+  type EditionParticipant,
+  type EditionParticipantsResponse,
 } from './edition.js';
 
 export {
@@ -71,6 +75,7 @@ export {
   SubmitMatchResultBodySchema,
   MatchResultResponseSchema,
   PlayerMatchesResponseSchema,
+  EditionMatchesResponseSchema,
   ContestMatchBodySchema,
   CorrectMatchResultBodySchema,
   type MatchStatus,
@@ -79,6 +84,7 @@ export {
   type SubmitMatchResultBody,
   type MatchResultResponse,
   type PlayerMatchesResponse,
+  type EditionMatchesResponse,
   type ContestMatchBody,
   type CorrectMatchResultBody,
 } from './match.js';

@@ -1,0 +1,165 @@
+import { useMemo, useState } from 'react';
+import { Link, Navigate, useNavigate, useOutletContext, useParams } from 'react-router-dom';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { EditionHeader } from '../../components/edition/EditionHeader.js';
+import { ScoreCounter } from '../../components/edition/ScoreCounter.js';
+import {
+  useEditionGroups,
+  useEditionParticipants,
+  usePlayerMatches,
+} from '../../hooks/use-edition-data.js';
+import { useOnlineStatus } from '../../hooks/use-online-status.js';
+import { validateScoreInput } from '../../lib/match-utils.js';
+import { submitMatchResultOfflineAware } from '../../offline/submit-match-result.js';
+import { queryKeys } from '../../lib/query-keys.js';
+import type { PlayerOutletContext } from './RequirePlayerSession.js';
+
+export function RegisterResultPage() {
+  const { edition, editionId, session } = useOutletContext<PlayerOutletContext>();
+  const { matchId } = useParams<{ matchId: string }>();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const online = useOnlineStatus();
+  const matchesQuery = usePlayerMatches(editionId, true);
+  const groupsQuery = useEditionGroups(editionId);
+  const participantsQuery = useEditionParticipants(editionId);
+
+  const match = useMemo(
+    () => (matchesQuery.data ?? []).find((entry) => entry.id === matchId),
+    [matchesQuery.data, matchId],
+  );
+
+  const opponentId = match?.participants.find(
+    (participant) => participant.playerId !== session.playerId,
+  )?.playerId;
+
+  const playerNames = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const participant of participantsQuery.data ?? []) {
+      map.set(participant.playerId, participant.playerName);
+    }
+    return map;
+  }, [participantsQuery.data]);
+
+  const groupName = useMemo(() => {
+    if (!match) {
+      return '';
+    }
+
+    return (
+      groupsQuery.data?.groups.find((entry) => entry.group.id === match.groupId)?.group.name ?? ''
+    );
+  }, [groupsQuery.data, match]);
+
+  const [reporterSets, setReporterSets] = useState(0);
+  const [opponentSets, setOpponentSets] = useState(0);
+  const [feedback, setFeedback] = useState<string | null>(null);
+
+  const validation = useMemo(() => {
+    if (!match) {
+      return { valid: false, reason: 'Partida não encontrada.' };
+    }
+
+    return validateScoreInput(reporterSets, opponentSets, match.bestOf);
+  }, [match, reporterSets, opponentSets]);
+
+  const submitMutation = useMutation({
+    mutationFn: async () => {
+      if (!match) {
+        throw new Error('Partida não encontrada.');
+      }
+
+      return submitMatchResultOfflineAware(match.id, {
+        setsWonByReporter: reporterSets,
+        setsWonByOpponent: opponentSets,
+      });
+    },
+    onSuccess: async (outcome) => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.matches(editionId, 'me') });
+
+      if (outcome.mode === 'queued') {
+        setFeedback('Resultado salvo na fila — será enviado ao reconectar.');
+      } else {
+        setFeedback('Resultado enviado! Aguardando confirmação do adversário.');
+      }
+
+      window.setTimeout(() => {
+        navigate(`/edicao/${editionId}/partidas`, { replace: true });
+      }, 900);
+    },
+  });
+
+  if (matchesQuery.isLoading) {
+    return <p className="text-sm text-slate-400">Carregando partida…</p>;
+  }
+
+  if (!match || match.status !== 'AGENDADA') {
+    return <Navigate to={`/edicao/${editionId}/partidas`} replace />;
+  }
+
+  return (
+    <div className="space-y-4 pb-6">
+      <div className="flex items-center gap-3">
+        <Link
+          to={`/edicao/${editionId}/partidas`}
+          className="rounded-lg bg-[#1a1a2e] px-3 py-2 text-sm text-white"
+          aria-label="Voltar"
+        >
+          ← Voltar
+        </Link>
+        <h1 className="text-lg font-bold text-[#1a1a2e]">Registrar resultado</h1>
+      </div>
+
+      <EditionHeader edition={edition} subtitle={`${groupName} · Melhor de ${match.bestOf} sets`} />
+      <section className="rounded-2xl bg-white p-5 shadow-sm">
+        <div className="flex items-center justify-around">
+          <ScoreCounter
+            label={session.playerName ?? 'Você'}
+            value={reporterSets}
+            max={match.bestOf}
+            onIncrement={() => setReporterSets((value) => Math.min(match.bestOf, value + 1))}
+            onDecrement={() => setReporterSets((value) => Math.max(0, value - 1))}
+          />
+          <span className="mt-6 text-xl font-bold text-slate-300">×</span>
+          <ScoreCounter
+            label={playerNames.get(opponentId ?? '') ?? 'Adversário'}
+            value={opponentSets}
+            max={match.bestOf}
+            onIncrement={() => setOpponentSets((value) => Math.min(match.bestOf, value + 1))}
+            onDecrement={() => setOpponentSets((value) => Math.max(0, value - 1))}
+          />
+        </div>
+        <p className="mt-4 text-center text-xs text-slate-500">
+          Vence quem ganhar {match.bestOf === 3 ? 2 : 3} sets primeiro
+        </p>
+      </section>
+
+      {!online ? (
+        <p className="rounded-lg bg-amber-50 px-3 py-2 text-center text-xs text-amber-900">
+          📶 Sem conexão — resultado será enviado ao reconectar
+        </p>
+      ) : null}
+
+      {!validation.valid && (reporterSets > 0 || opponentSets > 0) ? (
+        <p className="rounded-lg bg-rose-50 px-3 py-2 text-center text-sm text-rose-700">
+          {validation.reason}
+        </p>
+      ) : null}
+
+      {feedback ? (
+        <p className="rounded-lg bg-emerald-50 px-3 py-2 text-center text-sm text-emerald-800">
+          {feedback}
+        </p>
+      ) : null}
+
+      <button
+        type="button"
+        disabled={!validation.valid || submitMutation.isPending}
+        onClick={() => submitMutation.mutate()}
+        className="w-full rounded-xl bg-[#1a1a2e] px-4 py-3.5 text-base font-bold text-white disabled:opacity-40"
+      >
+        Enviar resultado
+      </button>
+    </div>
+  );
+}

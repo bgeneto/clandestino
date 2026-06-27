@@ -1,0 +1,78 @@
+import { Value } from '@sinclair/typebox/value';
+import { describe, expect, it } from 'vitest';
+import {
+  CreateEditionBodySchema,
+  DEFAULT_SCORING_TABLE,
+  DEFAULT_TOURNAMENT_RULES,
+  MatchSchema,
+  MatchStatusSchema,
+  PlayerSchema,
+  TournamentRulesSchema,
+} from './index.js';
+
+describe('shared-contracts schemas', () => {
+  it('exports all MatchStatus values', () => {
+    const statuses = [
+      'AGENDADA',
+      'AGUARDANDO_CONFIRMACAO',
+      'CONFIRMADA',
+      'CONTESTADA',
+      'CORRIGIDA',
+      'CANCELADA',
+    ] as const;
+
+    for (const status of statuses) {
+      expect(Value.Check(MatchStatusSchema, status)).toBe(true);
+    }
+  });
+
+  it('validates a player entity', () => {
+    const player = {
+      id: '550e8400-e29b-41d4-a716-446655440000',
+      name: 'Bruno Lima',
+      createdAt: '2026-06-27T12:00:00.000Z',
+    };
+
+    expect(Value.Check(PlayerSchema, player)).toBe(true);
+  });
+
+  it('validates tournament rules with defaults', () => {
+    expect(Value.Check(TournamentRulesSchema, DEFAULT_TOURNAMENT_RULES)).toBe(true);
+  });
+
+  it('rejects impossible match scores in entity shape', () => {
+    const match = {
+      id: '550e8400-e29b-41d4-a716-446655440001',
+      editionId: '550e8400-e29b-41d4-a716-446655440002',
+      groupId: '550e8400-e29b-41d4-a716-446655440003',
+      status: 'AGENDADA',
+      bestOf: 3,
+      participants: [
+        { playerId: '550e8400-e29b-41d4-a716-446655440004', setsWon: 0 },
+        { playerId: '550e8400-e29b-41d4-a716-446655440005', setsWon: 0 },
+      ],
+      createdAt: '2026-06-27T12:00:00.000Z',
+      updatedAt: '2026-06-27T12:00:00.000Z',
+    };
+
+    expect(Value.Check(MatchSchema, match)).toBe(true);
+  });
+
+  it('validates edition creation body', () => {
+    const body = {
+      seasonId: '550e8400-e29b-41d4-a716-446655440010',
+      name: 'Clandestino #42',
+      date: '2026-06-27',
+      rules: DEFAULT_TOURNAMENT_RULES,
+      autoConfirmMinutes: 15,
+    };
+
+    expect(Value.Check(CreateEditionBodySchema, body)).toBe(true);
+  });
+
+  it('provides a 20-position default scoring table', () => {
+    expect(DEFAULT_SCORING_TABLE).toHaveLength(20);
+    expect(DEFAULT_SCORING_TABLE[0]).toEqual({ position: 1, points: 200 });
+    expect(DEFAULT_SCORING_TABLE[19]).toEqual({ position: 20, points: 1 });
+  });
+});

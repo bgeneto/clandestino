@@ -1,7 +1,8 @@
-import type { ImportScoresCsvRow } from '@clandestino/shared-contracts';
+import {
+  resolveImportScoresCsvColumns,
+  type ImportScoresCsvRow,
+} from '@clandestino/shared-contracts';
 import { badRequest } from './errors.js';
-
-const EXPECTED_HEADERS = ['player_name', 'accumulated_points'] as const;
 
 export type ParsedCsvRow = ImportScoresCsvRow & { lineNumber: number };
 
@@ -21,8 +22,13 @@ export function parseImportScoresCsv(content: string): ParsedCsvRow[] {
     throw badRequest('O arquivo CSV está sem cabeçalho.');
   }
 
-  const headers = parseCsvLine(headerLine).map((header) => header.trim().toLowerCase());
-  validateHeaders(headers);
+  const headers = parseCsvLine(headerLine).map((header) => header.trim());
+  let columnIndexes;
+  try {
+    columnIndexes = resolveImportScoresCsvColumns(headers);
+  } catch (error) {
+    throw badRequest(error instanceof Error ? error.message : 'Cabeçalho inválido.');
+  }
 
   const rows: ParsedCsvRow[] = [];
   const seenPlayers = new Map<string, number>();
@@ -42,27 +48,20 @@ export function parseImportScoresCsv(content: string): ParsedCsvRow[] {
       );
     }
 
-    const record = Object.fromEntries(
-      headers.map((header, columnIndex) => [header, values[columnIndex] ?? '']),
-    );
-    const playerName = (record.player_name ?? '').trim();
-    const pointsRaw = (record.accumulated_points ?? '').trim();
+    const playerName = (values[columnIndexes.playerNameIndex] ?? '').trim();
+    const pointsRaw = (values[columnIndexes.accumulatedPointsIndex] ?? '').trim();
 
     if (!playerName) {
-      throw badRequest(`Linha ${lineNumber}: player_name é obrigatório.`);
+      throw badRequest(`Linha ${lineNumber}: Nome é obrigatório.`);
     }
 
     if (!/^-?\d+$/.test(pointsRaw)) {
-      throw badRequest(
-        `Linha ${lineNumber}: accumulated_points deve ser um número inteiro não negativo.`,
-      );
+      throw badRequest(`Linha ${lineNumber}: Pontuação deve ser um número inteiro não negativo.`);
     }
 
     const accumulatedPoints = Number.parseInt(pointsRaw, 10);
     if (accumulatedPoints < 0) {
-      throw badRequest(
-        `Linha ${lineNumber}: accumulated_points deve ser um número inteiro não negativo.`,
-      );
+      throw badRequest(`Linha ${lineNumber}: Pontuação deve ser um número inteiro não negativo.`);
     }
 
     const normalizedName = playerName.toLowerCase();
@@ -78,18 +77,6 @@ export function parseImportScoresCsv(content: string): ParsedCsvRow[] {
   }
 
   return rows;
-}
-
-function validateHeaders(headers: string[]): void {
-  if (headers.length !== EXPECTED_HEADERS.length) {
-    throw badRequest(`Cabeçalho inválido. Colunas esperadas: ${EXPECTED_HEADERS.join(', ')}.`);
-  }
-
-  for (const expected of EXPECTED_HEADERS) {
-    if (!headers.includes(expected)) {
-      throw badRequest(`Cabeçalho inválido. Coluna obrigatória ausente: ${expected}.`);
-    }
-  }
 }
 
 function parseCsvLine(line: string): string[] {

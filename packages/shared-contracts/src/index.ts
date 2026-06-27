@@ -128,6 +128,13 @@ export {
 } from './audit-event.js';
 
 export {
+  IMPORT_SCORES_CSV_FORMAT_HINT,
+  normalizeCsvHeader,
+  resolveImportScoresCsvColumns,
+  type ImportScoresCsvColumnIndexes,
+} from './csv-import.js';
+
+export {
   ErrorResponseSchema,
   ImportScoresCsvRowSchema,
   ImportScoresResponseSchema,

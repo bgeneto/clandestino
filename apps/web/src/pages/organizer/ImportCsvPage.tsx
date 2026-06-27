@@ -2,6 +2,10 @@ import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
 import type { ImportScoresCsvRow } from '@clandestino/shared-contracts';
+import {
+  IMPORT_SCORES_CSV_FORMAT_HINT,
+  resolveImportScoresCsvColumns,
+} from '@clandestino/shared-contracts';
 import { ApiError } from '../../lib/api-client.js';
 import { importSeasonScores } from '../../lib/organizer-api.js';
 import { useSeasons } from '../../hooks/use-organizer-data.js';
@@ -18,14 +22,19 @@ function parseCsvPreview(content: string): { rows: ImportScoresCsvRow[]; errors:
   }
 
   const headerLine = lines[0] ?? '';
-  const headers = headerLine.split(',').map((header) => header.trim().toLowerCase());
-  const nameIndex = headers.indexOf('player_name');
-  const pointsIndex = headers.indexOf('accumulated_points');
+  const headers = headerLine.split(',').map((header) => header.trim());
 
-  if (nameIndex === -1 || pointsIndex === -1) {
+  let columnIndexes;
+  try {
+    columnIndexes = resolveImportScoresCsvColumns(headers);
+  } catch (error) {
     return {
       rows: [],
-      errors: ['Cabeçalho inválido. Use: player_name,accumulated_points'],
+      errors: [
+        error instanceof Error
+          ? error.message
+          : `Cabeçalho inválido. Use: ${IMPORT_SCORES_CSV_FORMAT_HINT}`,
+      ],
     };
   }
 
@@ -36,16 +45,16 @@ function parseCsvPreview(content: string): { rows: ImportScoresCsvRow[]; errors:
     const lineNumber = index + 1;
     const line = lines[index] ?? '';
     const parts = line.split(',').map((part) => part.trim());
-    const playerName = parts[nameIndex] ?? '';
-    const points = Number.parseInt(parts[pointsIndex] ?? '', 10);
+    const playerName = parts[columnIndexes.playerNameIndex] ?? '';
+    const points = Number.parseInt(parts[columnIndexes.accumulatedPointsIndex] ?? '', 10);
 
     if (!playerName) {
-      errors.push(`Linha ${lineNumber}: player_name vazio.`);
+      errors.push(`Linha ${lineNumber}: Nome vazio.`);
       continue;
     }
 
     if (!Number.isFinite(points) || points < 0) {
-      errors.push(`Linha ${lineNumber}: accumulated_points inválido.`);
+      errors.push(`Linha ${lineNumber}: Pontuação inválida.`);
       continue;
     }
 
@@ -91,8 +100,9 @@ export function ImportCsvPage() {
         </Link>
         <h2 className="mt-3 text-xl font-semibold text-white">Importar pontuação CSV</h2>
         <p className="mt-2 text-sm text-slate-300">
-          Formato com cabeçalho:{' '}
-          <code className="text-slate-200">player_name,accumulated_points</code>
+          Colunas obrigatórias:{' '}
+          <code className="text-slate-200">{IMPORT_SCORES_CSV_FORMAT_HINT}</code>. Colunas extras
+          (ex.: posição) são ignoradas.
         </p>
       </div>
 
@@ -127,7 +137,7 @@ export function ImportCsvPage() {
               }}
               rows={8}
               className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2.5 font-mono text-sm text-white"
-              placeholder={'player_name,accumulated_points\nCarlos Mendes,1200\nAna Souza,980'}
+              placeholder={'Posição,Nome,Pontuação\n1,Carlos Mendes,1200\n2,Ana Souza,980'}
             />
           </label>
 

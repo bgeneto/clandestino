@@ -15,7 +15,27 @@ Bruno Lima,89`);
     ]);
   });
 
-  it('rejects unknown player names with line number in a later validation step', () => {
+  it('parses Portuguese headers and ignores extra position column', () => {
+    const rows = parseImportScoresCsv(`Posição,Nome,Pontuação
+1,LUCAS LIMA,3947
+2,FERNANDO,2850
+23,FÁTIMA,135`);
+
+    expect(rows).toEqual([
+      { playerName: 'LUCAS LIMA', accumulatedPoints: 3947, lineNumber: 2 },
+      { playerName: 'FERNANDO', accumulatedPoints: 2850, lineNumber: 3 },
+      { playerName: 'FÁTIMA', accumulatedPoints: 135, lineNumber: 4 },
+    ]);
+  });
+
+  it('accepts nome,pontos alias pair', () => {
+    const rows = parseImportScoresCsv(`nome,pontos
+Ana Souza,10`);
+
+    expect(rows).toEqual([{ playerName: 'Ana Souza', accumulatedPoints: 10, lineNumber: 2 }]);
+  });
+
+  it('rejects duplicate player names', () => {
     expect(() =>
       parseImportScoresCsv(`player_name,accumulated_points
 Ana Souza,10
@@ -23,10 +43,10 @@ Ana Souza,20`),
     ).toThrow(/linha 3/i);
   });
 
-  it('rejects invalid headers', () => {
+  it('rejects headers without required columns', () => {
     expect(() =>
-      parseImportScoresCsv(`nome,pontos
-Ana Souza,10`),
+      parseImportScoresCsv(`posição,nome
+Ana Souza`),
     ).toThrow(/cabeçalho inválido/i);
   });
 

@@ -114,6 +114,29 @@ describe.skipIf(!hasTestDb)('jogadores, temporadas e importação CSV (integraç
     expect(points.map((row) => Number(row.accumulated_points))).toEqual([120, 80]);
   });
 
+  it('importa CSV com cabeçalhos em português ignorando coluna de posição', async () => {
+    const seasonId = await createSeason('Temporada CSV PT');
+    await createPlayer('LUCAS LIMA');
+    await createPlayer('FÁTIMA');
+
+    const csv = 'Posição,Nome,Pontuação\n1,LUCAS LIMA,3947\n23,FÁTIMA,135\n';
+    const response = await app.inject({
+      method: 'POST',
+      url: `/seasons/${seasonId}/import-scores`,
+      headers: { ...organizerHeaders(organizerToken), 'content-type': 'text/csv' },
+      payload: csv,
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json<{ importedCount: number }>().importedCount).toBe(2);
+
+    const points = await adminQuery(
+      `SELECT accumulated_points FROM season_player_points WHERE season_id = $1 ORDER BY accumulated_points DESC`,
+      [seasonId],
+    );
+    expect(points.map((row) => Number(row.accumulated_points))).toEqual([3947, 135]);
+  });
+
   it('identifica a linha problemática quando o jogador não existe', async () => {
     const seasonId = await createSeason('Temporada CSV Erro');
     await createPlayer('Ana Souza');

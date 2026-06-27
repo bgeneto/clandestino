@@ -88,12 +88,25 @@ apps/api/src/
 
 ### `@clandestino/web`
 
-Ainda em stub (`apps/web/src/index.ts`). Quando implementar (T8–T10):
+React + Vite + PWA (`apps/web/`):
 
-- React + Vite + Tailwind + shadcn/ui
-- TanStack Query para dados remotos; invalidação via SSE
-- Dexie/IndexedDB para cache da edição ativa e fila offline
+- TanStack Query para dados remotos; invalidação via SSE (`use-edition-sse`)
+- Dexie/IndexedDB para cache da edição ativa e fila offline (`outbox`)
 - Sessão do jogador: `player_id` + `edition_id` no IndexedDB (sem JWT no MVP)
+- Em dev: `VITE_API_URL=/api` + proxy Vite → `localhost:3000`
+- Em produção: build estático (`pnpm build`) servido por reverse proxy
+
+### Docker e Compose
+
+| Arquivo                         | Função                                                         |
+| ------------------------------- | -------------------------------------------------------------- |
+| `docker-compose.yml`            | Serviços `db` (Postgres, porta host `5433`) e `api` (produção) |
+| `apps/api/Dockerfile`           | Build multi-stage da API                                       |
+| `apps/api/docker-entrypoint.sh` | `db:migrate` + seed opcional + `node dist/server.js`           |
+| `docker/postgres/init.sql`      | Cria `clandestino_test` na primeira inicialização              |
+| `.dockerignore`                 | Contexto de build enxuto                                       |
+
+**Agentes:** para validar rotas com banco real, use `docker compose up -d db` e defina `TEST_DATABASE_URL`. Não commite `.env` com credenciais.
 
 ## Convenções de código
 
@@ -112,13 +125,26 @@ Ainda em stub (`apps/web/src/index.ts`). Quando implementar (T8–T10):
 ### Testes
 
 ```bash
-pnpm test                    # raiz: shared-contracts + tournament-engine
-pnpm --filter @clandestino/api test
+pnpm test                              # raiz: shared-contracts + tournament-engine
+pnpm --filter @clandestino/api test    # unitários + integração (se TEST_DATABASE_URL)
 pnpm --filter @clandestino/tournament-engine test
+pnpm --filter @clandestino/web test
+pnpm typecheck                         # todos os workspaces
 ```
 
+**Unitários (sem PostgreSQL):** `packages/*`, `apps/api/src/lib/*.test.ts`.
+
+**Integração HTTP da API** (`apps/api/src/test/*.integration.test.ts`):
+
+- Usam `createApp` + Fastify `inject` contra PostgreSQL real.
+- Ignorados com `describe.skipIf(!hasTestDb)` quando `TEST_DATABASE_URL` está ausente.
+- Requerem `docker compose up -d db` e `TEST_DATABASE_URL=postgres://postgres:postgres@localhost:5433/clandestino_test`.
+- `fileParallelism: false` no Vitest da API — não paralelizar arquivos de integração.
+- Helpers em `apps/api/src/test/integration-setup.ts` (`migrateTestDb`, `truncateAll`, `loginOrganizer`).
+
+Ao alterar rotas de auth, partidas ou CSV, rode a suíte de integração antes de encerrar.
+
 - Lógica de torneio: prefira property-based (`fast-check`) para invariantes.
-- API: testes de integração/unit em `apps/api/src/**/*.test.ts`.
 - Não adicione testes triviais que só repetem o compilador.
 
 ### Build e typecheck
@@ -152,24 +178,66 @@ Ordem de dependência: `shared-contracts` → `tournament-engine` → `api` / `w
 - Expandir escopo do MVP (push, multi-academia, export CSV) sem tarefa explícita.
 - Criar commits ou PRs a menos que o usuário peça.
 
-## Ambiente de desenvolvimento
+## Ambientes: desenvolvimento e produção
+
+Consulte também [README.md](README.md) para o passo a passo humano. Resumo para agentes:
+
+### Desenvolvimento local
+
+| Item                | Valor / comando                                                |
+| ------------------- | -------------------------------------------------------------- |
+| Banco               | `docker compose up -d db` → `localhost:5433`                   |
+| `DATABASE_URL`      | `postgres://postgres:postgres@localhost:5433/clandestino`      |
+| `TEST_DATABASE_URL` | `postgres://postgres:postgres@localhost:5433/clandestino_test` |
+| `NODE_ENV`          | não definir ou `development` / `test`                          |
+| Magic link          | exposto na resposta JSON por padrão (testes sem e-mail)        |
+| API                 | `pnpm --filter @clandestino/api dev` → `:3000`                 |
+| PWA                 | `pnpm --filter @clandestino/web dev` → `:5173`, proxy `/api`   |
+| Migrações           | `pnpm --filter @clandestino/api db:migrate`                    |
+| Seed                | `pnpm --filter @clandestino/api db:seed` (opcional)            |
+| Config              | copiar `apps/api/.env.example` → `apps/api/.env`               |
+
+Fluxo mínimo após mudanças no schema:
 
 ```bash
-export DATABASE_URL="postgres://postgres:postgres@localhost:5432/clandestino"
+docker compose up -d db
+export DATABASE_URL="postgres://postgres:postgres@localhost:5433/clandestino"
 pnpm --filter @clandestino/api db:migrate
-pnpm --filter @clandestino/api dev
+export TEST_DATABASE_URL="postgres://postgres:postgres@localhost:5433/clandestino_test"
+pnpm --filter @clandestino/api test
+pnpm typecheck
 ```
 
-`DATABASE_URL` é obrigatória. Em dev, `EXPOSE_MAGIC_LINKS` (padrão fora de produção) inclui o magic link na resposta JSON para testes sem e-mail.
+### Produção (Docker Compose)
+
+| Item                       | Valor / regra                                                             |
+| -------------------------- | ------------------------------------------------------------------------- |
+| `NODE_ENV`                 | **`production`** (já no serviço `api` do Compose)                         |
+| Magic link                 | **nunca** na resposta HTTP — `EXPOSE_MAGIC_LINKS=true` é ignorado         |
+| `PUBLIC_APP_URL`           | URL pública HTTPS do PWA (magic links válidos)                            |
+| `ORGANIZER_ALLOWED_EMAILS` | e-mails reais do organizador                                              |
+| `SEED_ON_START`            | **`false`** — não rodar seed em produção                                  |
+| Subir stack                | `docker compose up -d --build`                                            |
+| Migrações                  | automáticas no entrypoint (`docker-entrypoint.sh`)                        |
+| PWA                        | `pnpm --filter @clandestino/web build` + servir `dist/` via reverse proxy |
+| `VITE_API_URL`             | URL pública da API no build do PWA                                        |
+
+**Segurança em produção (já implementada):**
+
+- Rate limit nas rotas `/auth/organizer/magic-link` e `/verify` (`AUTH_RATE_LIMIT_*`).
+- Limite de corpo na importação CSV (`CSV_IMPORT_MAX_BYTES`, retorna 413).
+- Sessão de jogador via headers `X-Player-Id` / `X-Edition-Id` — sem token por jogador no MVP; autorização verifica participação na partida/edição.
+
+**Agentes:** ao alterar `config.ts`, rotas de auth ou limites, valide com teste de integração e confirme comportamento com `NODE_ENV=production` (ver `auth.integration.test.ts`).
 
 ## Tarefas de implementação (docs/T*.md)
 
-| Tarefa                               | Pacote              | Status       |
-| ------------------------------------ | ------------------- | ------------ |
-| T1 — Monorepo e shared-contracts     | `shared-contracts`  | Concluído    |
-| T2 — tournament-engine               | `tournament-engine` | Concluído    |
-| T3+ — API (schema, rotas, jobs, SSE) | `api`               | Em andamento |
-| T8–T10 — Web PWA                     | `web`               | Pendente     |
+| Tarefa                               | Pacote              | Status    |
+| ------------------------------------ | ------------------- | --------- |
+| T1 — Monorepo e shared-contracts     | `shared-contracts`  | Concluído |
+| T2 — tournament-engine               | `tournament-engine` | Concluído |
+| T3+ — API (schema, rotas, jobs, SSE) | `api`               | Concluído |
+| T8–T10 — Web PWA                     | `web`               | Concluído |
 
 Ao pegar uma tarefa, leia o arquivo `docs/T*.md` correspondente e respeite critérios de aceitação e exclusões de escopo.
 
@@ -179,18 +247,22 @@ Ao pegar uma tarefa, leia o arquivo `docs/T*.md` correspondente e respeite crit�
 - [ ] Schemas/tipos atualizados em `shared-contracts` (se contrato mudou)
 - [ ] `pnpm typecheck` passa nos pacotes afetados
 - [ ] `pnpm test` passa nos pacotes afetados
-- [ ] Migração Drizzle gerada se `schema.ts` mudou
+- [ ] Se alterou rotas da API: `TEST_DATABASE_URL` definida e `pnpm --filter @clandestino/api test` verde
+- [ ] Migração Drizzle gerada se `schema.ts` mudou (`db:generate` + `db:migrate`)
 - [ ] Sem secrets em código ou commits (`.env` está no `.gitignore`)
+- [ ] Comportamento dev vs produção preservado (`NODE_ENV=production` não expõe magic links)
 - [ ] Diff mínimo e alinhado ao pedido do usuário
 
 ## Referência rápida de documentação
 
-| Preciso de…                     | Onde olhar                         |
-| ------------------------------- | ---------------------------------- |
-| Escopo do MVP                   | `docs/Epic Brief — Clandestino.md` |
-| Modelo de dados / SSE / offline | `docs/Tech Plan — Clandestino.md`  |
-| Fluxos de tela                  | `docs/Core Flows — Clandestino.md` |
-| Critérios de uma tarefa         | `docs/T1 — …`, `docs/T2 — …`       |
-| Schema do banco                 | `apps/api/src/db/schema.ts`        |
-| Env vars                        | `apps/api/src/config.ts`           |
-| Setup humano                    | `README.md`                        |
+| Preciso de…                     | Onde olhar                                  |
+| ------------------------------- | ------------------------------------------- |
+| Escopo do MVP                   | `docs/Epic Brief — Clandestino.md`          |
+| Modelo de dados / SSE / offline | `docs/Tech Plan — Clandestino.md`           |
+| Fluxos de tela                  | `docs/Core Flows — Clandestino.md`          |
+| Critérios de uma tarefa         | `docs/T1 — …`, `docs/T2 — …`                |
+| Schema do banco                 | `apps/api/src/db/schema.ts`                 |
+| Env vars e modos dev/prod       | `apps/api/src/config.ts`, `README.md`       |
+| Docker / Compose                | `docker-compose.yml`, `apps/api/Dockerfile` |
+| Testes de integração            | `apps/api/src/test/integration-setup.ts`    |
+| Setup humano                    | `README.md`                                 |

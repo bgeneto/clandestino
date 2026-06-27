@@ -122,9 +122,6 @@ export function ImportCsvPage() {
               Pontuações já importadas para esta temporada <strong>não serão alteradas</strong>.
             </li>
             <li>Somente jogadores sem pontuação na temporada receberão os valores do CSV.</li>
-            <li>
-              O ranking acumulado alimenta seeds e sorteios de edições futuras nesta temporada.
-            </li>
           </ul>
         </div>
       </div>

@@ -114,17 +114,17 @@ Adicione ao arquivo hosts da sua máquina:
 #### 3. Subir a stack
 
 ```bash
-./start dev              # db + api + web + caddy (migrações automáticas)
+./start dev              # db + api + web + caddy (em segundo plano, migrações automáticas)
 ./start dev --seed       # idem, com dados de exemplo no start
 ```
 
-O script verifica conflito com a stack prod, avisa se `clandestino.test` não estiver no hosts e delega migrações/seed ao start da API. Não é necessário `apps/api/.env` — as variáveis vêm do `docker-compose.dev.yml`.
+Ambos sobem a stack em segundo plano (`-d`). O script verifica conflito com a stack prod, avisa se `clandestino.test` não estiver no hosts e delega migrações/seed ao start da API. Não é necessário `apps/api/.env` — as variáveis vêm do `docker-compose.dev.yml`. Acompanhe os logs com `docker compose -f docker-compose.dev.yml logs -f`.
 
 Equivalente manual (troubleshooting):
 
 ```bash
-docker compose -f docker-compose.dev.yml up --build
-SEED_ON_START=true docker compose -f docker-compose.dev.yml up --build
+docker compose -f docker-compose.dev.yml up -d --build
+SEED_ON_START=true docker compose -f docker-compose.dev.yml up -d --build
 ```
 
 #### 4. Acessar

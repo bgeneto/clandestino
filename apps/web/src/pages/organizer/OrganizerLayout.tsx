@@ -6,9 +6,13 @@ export type OrganizerOutletContext = {
 };
 
 export function OrganizerLayout() {
-  const { session, isLoggedIn } = useOrganizerSession();
+  const { session, isLoading } = useOrganizerSession();
 
-  if (!isLoggedIn || !session) {
+  if (isLoading) {
+    return null;
+  }
+
+  if (!session) {
     return <Navigate to="/organizador" replace />;
   }
 

@@ -5,10 +5,14 @@ import type { EditionOutletContext } from './EditionLayout.js';
 
 export function RequirePlayerSession() {
   const { editionId } = useParams<{ editionId: string }>();
-  const { session, isLoggedIn } = usePlayerSession();
+  const { session, isLoading } = usePlayerSession();
   const context = useOutletContext<EditionOutletContext>();
 
-  if (!isLoggedIn || !session || session.editionId !== editionId) {
+  if (isLoading) {
+    return null;
+  }
+
+  if (!session || session.editionId !== editionId) {
     return <Navigate to={`/edicao/${editionId}/entrar`} replace />;
   }
 

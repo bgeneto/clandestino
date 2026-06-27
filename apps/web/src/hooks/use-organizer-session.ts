@@ -9,6 +9,7 @@ import {
 
 export function useOrganizerSession(): {
   session: OrganizerSession | undefined;
+  isLoading: boolean;
   isLoggedIn: boolean;
   setSession: (input: {
     sessionToken: string;
@@ -18,7 +19,12 @@ export function useOrganizerSession(): {
   clearSession: () => Promise<void>;
   refreshSession: () => Promise<OrganizerSession | undefined>;
 } {
-  const session = useLiveQuery(async () => getOrganizerSession(), []);
+  // `useLiveQuery` returns `undefined` while the IndexedDB read is in flight.
+  // `getOrganizerSession` resolves to `null` when there is no session, so we
+  // can tell "loading" apart from "logged out" and avoid redirect loops.
+  const sessionResult = useLiveQuery(async () => getOrganizerSession(), []);
+  const isLoading = sessionResult === undefined;
+  const session = sessionResult ?? undefined;
 
   const setSession = useCallback(
     async (input: { sessionToken: string; email: string; expiresAt: string }) =>
@@ -44,7 +50,8 @@ export function useOrganizerSession(): {
 
   return {
     session,
-    isLoggedIn: session !== undefined,
+    isLoading,
+    isLoggedIn: Boolean(sessionResult),
     setSession,
     clearSession,
     refreshSession,

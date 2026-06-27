@@ -5,6 +5,7 @@ import { clearPlayerSession, savePlayerSession } from '../lib/session.js';
 
 export function usePlayerSession(): {
   session: PlayerSession | undefined;
+  isLoading: boolean;
   isLoggedIn: boolean;
   setSession: (input: {
     playerId: string;
@@ -13,7 +14,14 @@ export function usePlayerSession(): {
   }) => Promise<PlayerSession>;
   clearSession: () => Promise<void>;
 } {
-  const session = useLiveQuery(() => db.session.get(SESSION_ROW_ID), []);
+  // `useLiveQuery` returns `undefined` while loading; mapping a missing row to
+  // `null` lets us distinguish "loading" from "logged out" to avoid redirect loops.
+  const sessionResult = useLiveQuery(
+    async () => (await db.session.get(SESSION_ROW_ID)) ?? null,
+    [],
+  );
+  const isLoading = sessionResult === undefined;
+  const session = sessionResult ?? undefined;
 
   const setSession = useCallback(
     async (input: { playerId: string; editionId: string; playerName?: string }) =>
@@ -25,7 +33,8 @@ export function usePlayerSession(): {
 
   return {
     session,
-    isLoggedIn: session !== undefined,
+    isLoading,
+    isLoggedIn: Boolean(sessionResult),
     setSession,
     clearSession,
   };

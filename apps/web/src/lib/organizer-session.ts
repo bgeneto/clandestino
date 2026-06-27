@@ -1,14 +1,14 @@
 import { db, ORGANIZER_SESSION_ROW_ID, type OrganizerSession } from '../db/clandestino-db.js';
 
-export async function getOrganizerSession(): Promise<OrganizerSession | undefined> {
+export async function getOrganizerSession(): Promise<OrganizerSession | null> {
   const session = await db.organizerSession.get(ORGANIZER_SESSION_ROW_ID);
   if (!session) {
-    return undefined;
+    return null;
   }
 
   if (new Date(session.expiresAt).getTime() <= Date.now()) {
     await clearOrganizerSession();
-    return undefined;
+    return null;
   }
 
   return session;
@@ -37,5 +37,5 @@ export async function clearOrganizerSession(): Promise<void> {
 
 export async function hasOrganizerSession(): Promise<boolean> {
   const session = await getOrganizerSession();
-  return session !== undefined;
+  return session !== null;
 }

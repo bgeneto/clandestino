@@ -214,7 +214,7 @@ Pré-requisito: `127.0.0.1 clandestino.test` no hosts (no WSL2, hosts do **Windo
 
 O script `./start` recusa subir dev se prod estiver rodando (e vice-versa). Seed em prod é bloqueado (`./start prod --seed` → erro). Para parar, `./stop` detecta a stack ativa; `./stop <env> --volumes` remove o volume do banco (pede confirmação).
 
-Equivalente manual: `docker compose -f docker-compose.dev.yml up --build`.
+`./start dev` sobe a stack em segundo plano (`-d`). Equivalente manual: `docker compose -f docker-compose.dev.yml up -d --build`.
 
 | Item              | Valor / regra no compose dev                                  |
 | ----------------- | ------------------------------------------------------------- |

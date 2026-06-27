@@ -38,8 +38,9 @@ Migrações rodam automaticamente no start da API.
 Seed nunca é permitido em prod.
 
 Parar:
-  docker compose -f docker-compose.dev.yml down   # dev
-  docker compose down                             # prod
+  ./stop            # detecta a stack ativa e para
+  ./stop dev        # para a stack dev
+  ./stop prod       # para a stack prod
 EOF
 }
 
@@ -109,10 +110,16 @@ start_dev() {
   log "Subindo stack de desenvolvimento (db + api + web + caddy)..."
   if [[ "${seed}" == "true" ]]; then
     log "Seed habilitado (SEED_ON_START=true)."
-    SEED_ON_START=true docker compose -f "${COMPOSE_DEV}" up --build
+    SEED_ON_START=true docker compose -f "${COMPOSE_DEV}" up -d --build
   else
-    SEED_ON_START=false docker compose -f "${COMPOSE_DEV}" up --build
+    SEED_ON_START=false docker compose -f "${COMPOSE_DEV}" up -d --build
   fi
+
+  log "Stack dev em segundo plano."
+  log "  PWA:        http://clandestino.test"
+  log "  API health: http://clandestino.test/api/health"
+  log "  Logs:       docker compose -f docker-compose.dev.yml logs -f"
+  log "  Parar:      ./stop dev"
 }
 
 start_prod() {
@@ -123,7 +130,7 @@ start_prod() {
 
   log "Stack prod em segundo plano."
   log "  API health: http://localhost:3000/health"
-  log "  Parar:      docker compose down"
+  log "  Parar:      ./stop prod"
 }
 
 main() {

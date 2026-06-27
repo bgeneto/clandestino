@@ -18,9 +18,9 @@
     "@clandestino/shared-contracts": "workspace:*"
   },
   "devDependencies": {
-    "@sinclair/typebox": "^0.34.33",
-    "fast-check": "^4.1.1",
-    "typescript": "^5.8.3",
-    "vitest": "^3.2.4"
+    "@sinclair/typebox": "^0.34.49",
+    "fast-check": "^4.8.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.9"
   }
 }

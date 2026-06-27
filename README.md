@@ -42,9 +42,9 @@ clandestino/
 
 ## Pré-requisitos
 
-- Node.js ≥ 20
+- Node.js ≥ 24
 - pnpm 9 (`corepack enable` ou `npm i -g pnpm`)
-- PostgreSQL 15+ (local ou container)
+- PostgreSQL 17+ (local ou container)
 
 ## Primeiros passos
 
@@ -64,15 +64,19 @@ export DATABASE_URL="postgres://postgres:postgres@localhost:5432/clandestino"
 
 Variáveis opcionais (ver `apps/api/src/config.ts`):
 
-| Variável                           | Padrão                      | Descrição                               |
-| ---------------------------------- | --------------------------- | --------------------------------------- |
-| `API_HOST`                         | `0.0.0.0`                   | Host do servidor Fastify                |
-| `API_PORT`                         | `3000`                      | Porta da API                            |
-| `PUBLIC_APP_URL`                   | `http://localhost:5173`     | URL base do PWA (magic links)           |
-| `ORGANIZER_ALLOWED_EMAILS`         | `organizador@fitpong.local` | E-mails autorizados (vírgula)           |
-| `ORGANIZER_MAGIC_LINK_TTL_MINUTES` | `15`                        | Validade do magic link                  |
-| `ORGANIZER_SESSION_TTL_HOURS`      | `168`                       | Validade da sessão do organizador       |
-| `EXPOSE_MAGIC_LINKS`               | `true` fora de produção     | Retorna o link na resposta da API (dev) |
+| Variável                           | Padrão                      | Descrição                                           |
+| ---------------------------------- | --------------------------- | --------------------------------------------------- |
+| `API_HOST`                         | `0.0.0.0`                   | Host do servidor Fastify                            |
+| `API_PORT`                         | `3000`                      | Porta da API                                        |
+| `PUBLIC_APP_URL`                   | `http://localhost:5173`     | URL base do PWA (magic links)                       |
+| `ORGANIZER_ALLOWED_EMAILS`         | `organizador@fitpong.local` | E-mails autorizados (vírgula)                       |
+| `ORGANIZER_MAGIC_LINK_TTL_MINUTES` | `15`                        | Validade do magic link                              |
+| `ORGANIZER_SESSION_TTL_HOURS`      | `168`                       | Validade da sessão do organizador                   |
+| `EXPOSE_MAGIC_LINKS`               | `true` fora de produção     | Retorna o link na resposta (dev); nunca em produção |
+| `AUTH_RATE_LIMIT_MAX`              | `10`                        | Máx. requisições nas rotas de magic link            |
+| `AUTH_RATE_LIMIT_WINDOW_MINUTES`   | `15`                        | Janela do rate limit de autenticação                |
+| `CSV_IMPORT_MAX_BYTES`             | `1048576`                   | Limite do corpo na importação CSV                   |
+| `TEST_DATABASE_URL`                | —                           | Banco usado pela suíte de integração                |
 
 ### 3. Migrar e popular o banco
 
@@ -95,6 +99,38 @@ Health check: `GET http://localhost:3000/health`
 pnpm build
 pnpm test
 pnpm typecheck
+```
+
+## Docker (banco e API)
+
+O `docker-compose.yml` na raiz sobe o PostgreSQL e, opcionalmente, a API.
+
+```bash
+# Apenas o banco (a porta 5433 do host mapeia para 5432 do container)
+docker compose up -d db
+
+# Migrar e popular usando o banco do container
+export DATABASE_URL="postgres://postgres:postgres@localhost:5433/clandestino"
+pnpm --filter @clandestino/api db:migrate
+pnpm --filter @clandestino/api db:seed
+
+# Stack completa (API constrói via apps/api/Dockerfile e migra no start)
+docker compose up -d
+curl http://localhost:3000/health   # {"status":"ok"}
+```
+
+O container de banco também cria `clandestino_test` (ver `docker/postgres/init.sql`),
+usado pela suíte de integração da API.
+
+### Testes de integração HTTP da API
+
+Os testes em `apps/api/src/test/*.integration.test.ts` exercitam rotas reais
+(Fastify `inject`) contra um PostgreSQL de verdade. São ignorados automaticamente
+quando `TEST_DATABASE_URL` não está definida.
+
+```bash
+export TEST_DATABASE_URL="postgres://postgres:postgres@localhost:5433/clandestino_test"
+pnpm --filter @clandestino/api test
 ```
 
 ## Scripts principais

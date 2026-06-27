@@ -1,4 +1,5 @@
 import Fastify from 'fastify';
+import rateLimit from '@fastify/rate-limit';
 import type { TypeBoxTypeProvider } from '@fastify/type-provider-typebox';
 import type { ApiConfig } from './config.js';
 import { ApiError } from './lib/errors.js';
@@ -27,6 +28,19 @@ export async function createApp(config: ApiConfig) {
   });
 
   await registerConfigPlugin(app, config);
+
+  // Rate limiting desativado por padrão (global: false); habilitado por rota
+  // (ver rotas de magic link) para evitar abuso/spam sem afetar SSE e leitura.
+  await app.register(rateLimit, {
+    global: false,
+    errorResponseBuilder: () => {
+      const message = 'Muitas tentativas. Aguarde alguns minutos e tente novamente.';
+      // Inclui statusCode/message para que tanto o envio direto do plugin quanto
+      // o caminho de erro do Fastify resultem em 429 com corpo { error }.
+      return { statusCode: 429, error: message, message };
+    },
+  });
+
   await registerDbPlugin(app);
   await registerSsePlugin(app);
   await registerAuthHooks(app);
@@ -49,6 +63,20 @@ export async function createApp(config: ApiConfig) {
       reply.code(400).send({
         error: 'Dados da requisição inválidos.',
         details: (error as { validation: unknown }).validation,
+      });
+      return;
+    }
+
+    // Erros do próprio Fastify (ex.: corpo grande demais → 413) trazem um
+    // statusCode 4xx. Honramos esse código em vez de mascarar como 500.
+    const frameworkError = error as { statusCode?: number; message?: string };
+    if (
+      typeof frameworkError.statusCode === 'number' &&
+      frameworkError.statusCode >= 400 &&
+      frameworkError.statusCode < 500
+    ) {
+      reply.code(frameworkError.statusCode).send({
+        error: frameworkError.message || 'Requisição inválida.',
       });
       return;
     }

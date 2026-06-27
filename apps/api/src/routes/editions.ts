@@ -218,6 +218,7 @@ export async function registerEditionRoutes(app: FastifyInstance): Promise<void>
     '/seasons/:id/import-scores',
     {
       preHandler: app.requireOrganizer,
+      bodyLimit: app.config.csvImportMaxBytes,
       schema: {
         params: Type.Object({ id: Type.String({ format: 'uuid' }) }),
         response: {

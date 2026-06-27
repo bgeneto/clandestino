@@ -20,10 +20,10 @@
     "test": "vitest run --config vitest.config.ts"
   },
   "dependencies": {
-    "@sinclair/typebox": "^0.34.33"
+    "@sinclair/typebox": "^0.34.49"
   },
   "devDependencies": {
-    "typescript": "^5.8.3",
-    "vitest": "^3.2.4"
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.9"
   }
 }

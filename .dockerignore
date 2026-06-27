@@ -1,0 +1,36 @@
+# Dependencies (reinstalled inside the image)
+**/node_modules
+.pnpm-store
+
+# Build output (rebuilt inside the image)
+**/dist
+**/build
+**/*.tsbuildinfo
+
+# Tests / coverage
+**/coverage
+**/.vitest
+
+# Local env / secrets
+**/.env
+**/.env.*
+!**/.env.example
+
+# Tooling caches
+.turbo
+.cache
+
+# Editor / agent working dirs
+.agents
+.cursor
+.vscode
+.idea
+
+# VCS / docs we don't need at build time
+.git
+.gitignore
+**/*.log
+
+# OS
+.DS_Store
+Thumbs.db

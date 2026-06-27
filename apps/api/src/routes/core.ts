@@ -30,15 +30,24 @@ import { consumeMagicToken } from '../plugins/auth.js';
 export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
   const typed = app.withTypeProvider<TypeBoxTypeProvider>();
 
+  const authRateLimit = {
+    rateLimit: {
+      max: app.config.authRateLimitMax,
+      timeWindow: app.config.authRateLimitWindowMinutes * 60_000,
+    },
+  };
+
   typed.post(
     '/auth/organizer/magic-link',
     {
+      config: authRateLimit,
       schema: {
         body: RequestOrganizerMagicLinkBodySchema,
         response: {
           200: RequestOrganizerMagicLinkResponseSchema,
           400: ErrorResponseSchema,
           403: ErrorResponseSchema,
+          429: ErrorResponseSchema,
         },
       },
     },
@@ -72,12 +81,14 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
   typed.post(
     '/auth/organizer/verify',
     {
+      config: authRateLimit,
       schema: {
         body: VerifyOrganizerMagicLinkBodySchema,
         response: {
           200: OrganizerSessionResponseSchema,
           400: ErrorResponseSchema,
           401: ErrorResponseSchema,
+          429: ErrorResponseSchema,
         },
       },
     },

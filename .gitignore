@@ -25,6 +25,9 @@ pnpm-debug.log*
 .turbo/
 .cache/
 
+# Local Postgres data volume (bind-mounted by docker compose)
+clandestino-db/
+
 # Editor / agent working dirs
 .agents/
 .cursor/

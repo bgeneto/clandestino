@@ -247,7 +247,7 @@ Também é importante distinguir:
 - **sets ganhos na fase**;
 - **saldo de sets**;
 - **partidas vencidas**;
-- **pontuação do campeonato semanal**;
+- **pontuação do campeonato na semana**;
 - **pontuação acumulada no ranking da temporada**.
 
 Essas grandezas não devem ser armazenadas em uma única coluna chamada `pontuacao`.
@@ -394,7 +394,7 @@ O organizador utilizaria autenticação mais forte.
 Eu implementaria somente:
 
 - cadastro de jogadores;
-- criação da edição semanal;
+- criação da edição do dia/semana;
 - inscrição dos participantes;
 - ranking utilizado como referência;
 - configuração do número de grupos;

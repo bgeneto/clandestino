@@ -20,7 +20,7 @@ export function OrganizerDashboardPage() {
           className="rounded-2xl border border-slate-800 bg-slate-900/40 px-5 py-4 text-white transition hover:border-brand"
         >
           <p className="font-medium">Nova edição</p>
-          <p className="mt-1 text-sm text-slate-400">Criar torneio semanal e inscrever jogadores</p>
+          <p className="mt-1 text-sm text-slate-400">Criar torneio e inscrever jogadores</p>
         </Link>
 
         <Link

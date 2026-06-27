@@ -1,0 +1,26 @@
+# Reverse proxy de DESENVOLVIMENTO — espelha o roteamento de produção.
+#
+#   http://clandestino.test
+#     /api/*  -> api:3000   (prefixo /api removido, igual à produção)
+#     /*      -> web:5173   (Vite dev server, com HMR via WebSocket)
+#
+# Adicione ao hosts da sua máquina:  127.0.0.1  clandestino.test
+# (no WSL2, edite o hosts do Windows: C:\Windows\System32\drivers\etc\hosts)
+
+http://clandestino.test {
+	# API: remove o prefixo /api e encaminha à API.
+	# flush_interval -1 desativa o buffer para suportar SSE (use-edition-sse).
+	@api path /api/*
+	handle @api {
+		uri strip_prefix /api
+		reverse_proxy api:3000 {
+			flush_interval -1
+		}
+	}
+
+	# PWA: Vite dev server (inclui upgrade de WebSocket para HMR).
+	handle {
+		encode gzip
+		reverse_proxy web:5173
+	}
+}

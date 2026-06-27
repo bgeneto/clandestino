@@ -1,6 +1,6 @@
 # Clandestino
 
-Sistema web progressivo (PWA) para gerenciar o campeonato semanal de tênis de mesa **Clandestino** da academia **FitPong**. Substitui o processo manual em papel — sorteio de grupos, registro de partidas e apuração de classificação — por um app mobile-first com ranking acumulado da temporada.
+Sistema web progressivo (PWA) para gerenciar o campeonato de tênis de mesa **Clandestino** da academia **FitPong**. Substitui o processo manual em papel — sorteio de grupos, registro de partidas e apuração de classificação — por um app mobile-first com ranking acumulado da temporada.
 
 ## O que o sistema faz
 
@@ -36,8 +36,11 @@ clandestino/
 │   ├── shared-contracts/    # Tipos e schemas compartilhados
 │   └── tournament-engine/   # Sorteio, validação e classificação (sem I/O)
 ├── docker/
+│   ├── caddy/               # Caddyfile.dev (reverse proxy local)
 │   └── postgres/            # init.sql (cria clandestino_test)
-├── docker-compose.yml       # PostgreSQL + API (produção local / staging)
+├── docker-compose.yml       # PostgreSQL + API (produção)
+├── docker-compose.dev.yml   # Dev: db + api + web + Caddy (clandestino.test)
+├── Dockerfile.dev           # Imagem compartilhada do compose dev
 ├── docs/                    # Brief, tech plan, fluxos e tarefas
 ├── AGENTS.md                # Guia para agentes de IA
 └── README.md
@@ -55,18 +58,20 @@ clandestino/
 
 O comportamento da API depende de `NODE_ENV` e das variáveis abaixo. Use esta tabela como referência rápida.
 
-| Aspecto                     | Desenvolvimento                                     | Produção                                            |
-| --------------------------- | --------------------------------------------------- | --------------------------------------------------- |
-| `NODE_ENV`                  | ausente, `development` ou `test`                    | `production`                                        |
-| Magic link na resposta JSON | **Sim** (padrão) — facilita testes sem e-mail       | **Nunca** — mesmo com `EXPOSE_MAGIC_LINKS=true`     |
-| API                         | `pnpm dev` no host (hot reload)                     | Imagem Docker (`docker compose up api`)             |
-| PWA                         | `pnpm dev` no host (Vite, proxy `/api` → `:3000`)   | `pnpm build` + servir `apps/web/dist` (Caddy/nginx) |
-| Banco                       | Container (`:5433`) ou Postgres local (`:5432`)     | Container na rede interna do Compose                |
-| Seed                        | `db:seed` manual ou `SEED_ON_START=true` no Compose | **Não** usar seed (`SEED_ON_START=false`)           |
-| `PUBLIC_APP_URL`            | `http://localhost:5173`                             | URL pública HTTPS do PWA                            |
-| `ORGANIZER_ALLOWED_EMAILS`  | `organizador@fitpong.local`                         | E-mails reais do organizador                        |
-| Rate limit (magic link)     | Ativo (padrão 10 req / 15 min)                      | Ativo                                               |
-| Testes de integração        | `TEST_DATABASE_URL` → `clandestino_test`            | Não rodam em deploy                                 |
+| Aspecto                     | Desenvolvimento (host)                            | Desenvolvimento (Caddy)                        | Produção                                            |
+| --------------------------- | ------------------------------------------------- | ---------------------------------------------- | --------------------------------------------------- |
+| `NODE_ENV`                  | ausente, `development` ou `test`                  | `development` (no `docker-compose.dev.yml`)    | `production`                                        |
+| Magic link na resposta JSON | **Sim** (padrão) — facilita testes sem e-mail     | **Sim**                                        | **Nunca** — mesmo com `EXPOSE_MAGIC_LINKS=true`     |
+| Subir tudo                  | `pnpm dev` em terminais separados                 | `docker compose -f docker-compose.dev.yml up`  | `docker compose up -d --build` + build do PWA       |
+| URL do app                  | `http://localhost:5173`                           | `http://clandestino.test` (hosts + Caddy)      | URL pública HTTPS                                   |
+| API                         | `pnpm dev` no host (hot reload)                   | container `api` (hot reload via volume)        | Imagem Docker (`docker compose up api`)             |
+| PWA                         | `pnpm dev` no host (Vite, proxy `/api` → `:3000`) | container `web` (Vite atrás do Caddy)          | `pnpm build` + servir `apps/web/dist` (Caddy/nginx) |
+| Banco                       | Container (`:5433`) ou Postgres local (`:5432`)   | container `db` (`:5433`)                       | Container na rede interna do Compose                |
+| Seed                        | `db:seed` manual                                  | `SEED_ON_START=true` no compose dev (opcional) | **Não** usar seed (`SEED_ON_START=false`)           |
+| `PUBLIC_APP_URL`            | `http://localhost:5173`                           | `http://clandestino.test`                      | URL pública HTTPS do PWA                            |
+| `ORGANIZER_ALLOWED_EMAILS`  | `organizador@fitpong.local`                       | `organizador@fitpong.local`                    | E-mails reais do organizador                        |
+| Rate limit (magic link)     | Ativo (padrão 10 req / 15 min)                    | Ativo (padrão 10 req / 15 min)                 | Ativo                                               |
+| Testes de integração        | `TEST_DATABASE_URL` → `clandestino_test`          | idem (banco exposto em `:5433`)                | Não rodam em deploy                                 |
 
 Arquivos de exemplo: `apps/api/.env.example`, `apps/web/.env.example`.
 
@@ -74,15 +79,87 @@ Arquivos de exemplo: `apps/api/.env.example`, `apps/web/.env.example`.
 
 ## Desenvolvimento local
 
-Fluxo recomendado: **banco no Docker**, API e PWA no host (hot reload).
+Dois fluxos válidos:
 
-### 1. Instalar dependências
+| Fluxo                          | Quando usar                                                                      | Comando principal                                     |
+| ------------------------------ | -------------------------------------------------------------------------------- | ----------------------------------------------------- |
+| **Caddy (`clandestino.test`)** | Testar no browser com roteamento igual à produção, sem subir API/PWA manualmente | `docker compose -f docker-compose.dev.yml up --build` |
+| **Host (localhost)**           | Iterar com hot reload direto no terminal; depuração mais simples                 | `pnpm dev` em `api` e `web`                           |
+
+### Stack completa via Caddy (`clandestino.test`) — recomendado para testar no browser
+
+Um único comando sobe **PostgreSQL + API + PWA + Caddy**. O proxy encaminha `/api/*` para a API e `/*` para o Vite — mesmo padrão de produção. Hot reload em `apps/api` e `apps/web` (código montado por volume).
+
+Arquivos: `docker-compose.dev.yml`, `Dockerfile.dev`, `docker/caddy/Caddyfile.dev`.
+
+#### 1. Pré-requisitos
+
+```bash
+pnpm install   # só na primeira vez; a imagem dev também instala deps no build
+```
+
+#### 2. Hosts
+
+Adicione ao arquivo hosts da sua máquina:
+
+```text
+127.0.0.1   clandestino.test
+```
+
+- Linux/macOS: `/etc/hosts`
+- **WSL2:** edite o hosts do **Windows** (`C:\Windows\System32\drivers\etc\hosts`) — o navegador roda no Windows e o WSL2 encaminha `localhost` automaticamente.
+
+#### 3. Subir a stack
+
+```bash
+# primeiro build (ou após mudar Dockerfile.dev / dependências)
+docker compose -f docker-compose.dev.yml up --build
+
+# em segundo plano
+docker compose -f docker-compose.dev.yml up --build -d
+
+# com dados de exemplo (seed) no start
+SEED_ON_START=true docker compose -f docker-compose.dev.yml up --build
+```
+
+Migrações rodam automaticamente no start do serviço `api`. Não é necessário `apps/api/.env` para este fluxo — as variáveis vêm do `docker-compose.dev.yml`.
+
+#### 4. Acessar
+
+| Recurso         | URL                                  |
+| --------------- | ------------------------------------ |
+| PWA             | `http://clandestino.test`            |
+| API (via proxy) | `http://clandestino.test/api/health` |
+
+- Magic link do organizador: `POST http://clandestino.test/api/auth/organizer/magic-link` com `{"email":"organizador@fitpong.local"}` — o campo `magicLink` vem na resposta JSON (`NODE_ENV=development`).
+- Roteamento do Caddy: `/api/*` → `api:3000` (remove o prefixo `/api`); `/*` → Vite (`web:5173`, HMR via WebSocket).
+
+#### 5. Parar / logs / rebuild
+
+```bash
+docker compose -f docker-compose.dev.yml down          # mantém dados em ./clandestino-db
+docker compose -f docker-compose.dev.yml logs -f     # acompanhar todos os serviços
+docker compose -f docker-compose.dev.yml logs -f api # só a API
+docker compose -f docker-compose.dev.yml up --build  # após mudar packages/* (pré-compilados na imagem)
+```
+
+Observações:
+
+- Editou `packages/shared-contracts` ou `packages/tournament-engine`? Rebuild da imagem (`--build`) — eles são consumidos via `./dist`.
+- O banco usa o mesmo volume (`./clandestino-db`) e porta host (`5433`) do `docker-compose.yml` padrão.
+- Não rode `docker-compose.yml` e `docker-compose.dev.yml` ao mesmo tempo — ambos usam a porta `5433` e o volume do Postgres.
+
+---
+
+### Host: banco no Docker, API e PWA no terminal (hot reload)
+
+#### 1. Instalar dependências
 
 ```bash
 pnpm install
 ```
 
-### 2. Subir o PostgreSQL
+#### 2. Subir o PostgreSQL
 
 ```bash
 docker compose up -d db
@@ -90,7 +167,7 @@ docker compose up -d db
 
 O banco fica em `localhost:5433` (mapeamento `5433:5432`). Na primeira inicialização, `docker/postgres/init.sql` cria também o banco `clandestino_test` para testes de integração.
 
-### 3. Configurar variáveis de ambiente
+#### 3. Configurar variáveis de ambiente
 
 Copie os exemplos e ajuste se necessário:
 
@@ -113,14 +190,14 @@ O PWA em dev (`apps/web/.env`) usa proxy do Vite — o padrão já funciona:
 VITE_API_URL=/api
 ```
 
-### 4. Migrar e popular o banco
+#### 4. Migrar e popular o banco
 
 ```bash
 pnpm --filter @clandestino/api db:migrate
 pnpm --filter @clandestino/api db:seed   # opcional — jogadores e edição de exemplo
 ```
 
-### 5. Subir API e PWA
+#### 5. Subir API e PWA
 
 Em terminais separados:
 
@@ -274,21 +351,24 @@ Fonte da verdade: `apps/api/src/config.ts`.
 
 ## Scripts principais
 
-| Comando                                      | Descrição                             |
-| -------------------------------------------- | ------------------------------------- |
-| `pnpm build`                                 | Compila todos os workspaces           |
-| `pnpm test`                                  | Testes da raiz (contracts + engine)   |
-| `pnpm typecheck`                             | TypeScript em todos os pacotes        |
-| `pnpm --filter @clandestino/api dev`         | API com hot reload                    |
-| `pnpm --filter @clandestino/api start`       | API compilada (`node dist/server.js`) |
-| `pnpm --filter @clandestino/api db:generate` | Gera migrações Drizzle                |
-| `pnpm --filter @clandestino/api db:migrate`  | Aplica migrações                      |
-| `pnpm --filter @clandestino/api db:seed`     | Dados de desenvolvimento              |
-| `pnpm --filter @clandestino/api test`        | Testes unitários + integração         |
-| `pnpm --filter @clandestino/web dev`         | PWA com Vite                          |
-| `pnpm --filter @clandestino/web build`       | Build de produção do PWA              |
-| `docker compose up -d db`                    | Só PostgreSQL                         |
-| `docker compose up -d --build`               | PostgreSQL + API (produção)           |
+| Comando                                                                  | Descrição                             |
+| ------------------------------------------------------------------------ | ------------------------------------- |
+| `pnpm build`                                                             | Compila todos os workspaces           |
+| `pnpm test`                                                              | Testes da raiz (contracts + engine)   |
+| `pnpm typecheck`                                                         | TypeScript em todos os pacotes        |
+| `pnpm --filter @clandestino/api dev`                                     | API com hot reload                    |
+| `pnpm --filter @clandestino/api start`                                   | API compilada (`node dist/server.js`) |
+| `pnpm --filter @clandestino/api db:generate`                             | Gera migrações Drizzle                |
+| `pnpm --filter @clandestino/api db:migrate`                              | Aplica migrações                      |
+| `pnpm --filter @clandestino/api db:seed`                                 | Dados de desenvolvimento              |
+| `pnpm --filter @clandestino/api test`                                    | Testes unitários + integração         |
+| `pnpm --filter @clandestino/web dev`                                     | PWA com Vite                          |
+| `pnpm --filter @clandestino/web build`                                   | Build de produção do PWA              |
+| `docker compose up -d db`                                                | Só PostgreSQL (fluxo host)            |
+| `docker compose -f docker-compose.dev.yml up --build`                    | Dev completo: db + api + web + Caddy  |
+| `SEED_ON_START=true docker compose -f docker-compose.dev.yml up --build` | Idem, com seed no start               |
+| `docker compose -f docker-compose.dev.yml down`                          | Para a stack dev (mantém volume DB)   |
+| `docker compose up -d --build`                                           | PostgreSQL + API (produção)           |
 
 ---
 

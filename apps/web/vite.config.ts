@@ -2,6 +2,18 @@ import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
+// Permite rodar atrás de um reverse proxy (ex.: Caddy em clandestino.test).
+// Sem env definida, o comportamento de dev local (localhost:5173) é mantido.
+const allowedHosts = process.env.VITE_ALLOWED_HOSTS
+  ? process.env.VITE_ALLOWED_HOSTS.split(',')
+      .map((host) => host.trim())
+      .filter((host) => host.length > 0)
+  : undefined;
+
+const hmrClientPort = process.env.VITE_HMR_CLIENT_PORT
+  ? Number(process.env.VITE_HMR_CLIENT_PORT)
+  : undefined;
+
 export default defineConfig({
   plugins: [
     react(),
@@ -15,7 +27,7 @@ export default defineConfig({
       manifest: {
         name: 'Clandestino',
         short_name: 'Clandestino',
-        description: 'Campeonato semanal de tênis de mesa — FitPong',
+        description: 'Campeonato de tênis de mesa — FitPong',
         theme_color: '#0f172a',
         background_color: '#0f172a',
         display: 'standalone',
@@ -51,7 +63,10 @@ export default defineConfig({
     }),
   ],
   server: {
+    host: true,
     port: 5173,
+    allowedHosts,
+    hmr: hmrClientPort ? { clientPort: hmrClientPort } : undefined,
     proxy: {
       '/api': {
         target: 'http://localhost:3000',

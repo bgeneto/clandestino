@@ -7,8 +7,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "pnpm -r typecheck",
-    "format": "prettier --write .",
-    "format:check": "prettier --check .",
+    "format": "prettier --write --ignore-unknown apps packages docker docs \"*\" \".*\"",
+    "format:check": "prettier --check --ignore-unknown apps packages docker docs \"*\" \".*\"",
     "prepare": "simple-git-hooks"
   },
   "simple-git-hooks": {

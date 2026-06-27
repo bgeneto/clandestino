@@ -1,0 +1,116 @@
+# ---------------------------------------------------------------------------
+# Stack de DESENVOLVIMENTO com hot reload, atrás de um reverse proxy Caddy.
+# Espelha o roteamento de produção (Caddy -> API + PWA) num único host.
+#
+#   1) hosts:  127.0.0.1  clandestino.test   (no WSL2, no hosts do Windows)
+#   2) docker compose -f docker-compose.dev.yml up --build
+#   3) abra  http://clandestino.test
+#
+# Para popular dados de exemplo no start: SEED_ON_START=true docker compose ...
+# ---------------------------------------------------------------------------
+
+name: clandestino-dev
+
+# node_modules e dist dos pacotes ficam como volumes anônimos para que o
+# bind mount do repositório (./:/app) não sobrescreva o que foi instalado/
+# compilado dentro da imagem (os symlinks do pnpm do host não valem aqui).
+x-dev-volumes: &dev-volumes
+  - ./:/app
+  - /app/node_modules
+  - /app/apps/api/node_modules
+  - /app/apps/web/node_modules
+  - /app/packages/shared-contracts/node_modules
+  - /app/packages/tournament-engine/node_modules
+  - /app/packages/shared-contracts/dist
+  - /app/packages/tournament-engine/dist
+
+x-dev-build: &dev-build
+  context: .
+  dockerfile: Dockerfile.dev
+
+services:
+  db:
+    image: postgres:18-alpine
+    container_name: clandestino-dev-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: clandestino
+    ports:
+      - '5433:5432'
+    volumes:
+      # Postgres 18+ armazena os dados em subdiretório versionado sob
+      # /var/lib/postgresql (ex.: /var/lib/postgresql/18/docker). Monte o
+      # volume na raiz, não em /data, senão o entrypoint falha no boot.
+      - clandestino-db-dev:/var/lib/postgresql
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d clandestino']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build: *dev-build
+    container_name: clandestino-dev-api
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://postgres:postgres@db:5432/clandestino
+      API_HOST: 0.0.0.0
+      API_PORT: '3000'
+      # Dev: magic link exposto na resposta JSON (NODE_ENV != production).
+      NODE_ENV: development
+      PUBLIC_APP_URL: http://clandestino.test
+      ORGANIZER_ALLOWED_EMAILS: organizador@fitpong.local
+      # Popula dados de exemplo no start quando "true".
+      SEED_ON_START: ${SEED_ON_START:-false}
+    volumes: *dev-volumes
+    command:
+      - sh
+      - -c
+      - |
+        pnpm --filter @clandestino/api db:migrate
+        if [ "$${SEED_ON_START}" = "true" ]; then
+          echo "[dev] Populando dados de exemplo (seed)..."
+          pnpm --filter @clandestino/api db:seed
+        fi
+        exec pnpm --filter @clandestino/api dev
+
+  web:
+    build: *dev-build
+    container_name: clandestino-dev-web
+    restart: unless-stopped
+    depends_on:
+      - api
+    environment:
+      # Mesma origem via Caddy: requests vão para clandestino.test/api/*.
+      VITE_API_URL: /api
+      # Vite 8 bloqueia Host desconhecido sem isto.
+      VITE_ALLOWED_HOSTS: clandestino.test
+      # HMR via proxy na porta pública (80).
+      VITE_HMR_CLIENT_PORT: '80'
+    volumes: *dev-volumes
+    command: pnpm --filter @clandestino/web dev
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: clandestino-dev-caddy
+    restart: unless-stopped
+    depends_on:
+      - api
+      - web
+    ports:
+      - '80:80'
+    volumes:
+      - ./docker/caddy/Caddyfile.dev:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  caddy_data:
+  caddy_config:
+  clandestino-db-dev:

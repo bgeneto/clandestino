@@ -9,8 +9,8 @@ export function HomePage() {
       <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
         <h2 className="text-xl font-semibold text-white">Clandestino</h2>
         <p className="mt-2 text-sm leading-6 text-slate-300">
-          Campeonato semanal de tênis de mesa da FitPong. Escaneie o QR code da edição ou acesse o
-          link público para acompanhar ao vivo.
+          Campeonato de tênis de mesa da FitPong. Escaneie o QR code da edição ou acesse o link
+          público para acompanhar ao vivo.
         </p>
       </div>
 

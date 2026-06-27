@@ -1,0 +1,167 @@
+#!/usr/bin/env bash
+# ---------------------------------------------------------------------------
+# Clandestino — wrapper seguro para parar os ambientes dev e prod.
+#
+#   ./stop                 # detecta a stack ativa e para
+#   ./stop dev               # para a stack de desenvolvimento
+#   ./stop prod              # para a stack de produção
+#   ./stop dev --volumes     # para e REMOVE o volume do banco (destrutivo)
+#   ./stop --help
+#
+# Sem --volumes, os dados do Postgres são preservados (apenas `down`).
+# ---------------------------------------------------------------------------
+set -euo pipefail
+
+readonly ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+readonly COMPOSE_DEV="${ROOT_DIR}/docker-compose.dev.yml"
+readonly COMPOSE_PROD="${ROOT_DIR}/docker-compose.yml"
+
+usage() {
+  cat <<'EOF'
+Uso: ./stop [dev|prod] [opções]
+
+Ambientes:
+  (nenhum)         Detecta automaticamente a stack ativa e para
+  dev              Para a stack de desenvolvimento (db + api + web + caddy)
+  prod             Para a stack de produção (db + api)
+
+Opções:
+  --volumes        Remove também o volume do banco (DESTRUTIVO — apaga dados)
+  --help, -h       Mostra esta ajuda
+
+Exemplos:
+  ./stop
+  ./stop dev
+  ./stop prod
+  ./stop dev --volumes
+
+Sem --volumes, os dados do Postgres são preservados.
+EOF
+}
+
+log() {
+  printf '[stop] %s\n' "$*"
+}
+
+warn() {
+  printf '[stop] AVISO: %s\n' "$*" >&2
+}
+
+die() {
+  printf '[stop] ERRO: %s\n' "$*" >&2
+  exit 1
+}
+
+require_docker() {
+  if ! command -v docker >/dev/null 2>&1; then
+    die "Docker não encontrado. Instale Docker e tente novamente."
+  fi
+  if ! docker compose version >/dev/null 2>&1; then
+    die "docker compose não disponível. Instale Docker Compose v2."
+  fi
+}
+
+compose_file_for() {
+  case "$1" in
+    dev) printf '%s' "${COMPOSE_DEV}" ;;
+    prod) printf '%s' "${COMPOSE_PROD}" ;;
+    *) die "Ambiente inválido: $1" ;;
+  esac
+}
+
+compose_running() {
+  local compose_file="$1"
+  local ids
+  ids="$(docker compose -f "${compose_file}" ps -q 2>/dev/null || true)"
+  [[ -n "${ids}" ]]
+}
+
+detect_env() {
+  local dev_up="false"
+  local prod_up="false"
+  compose_running "${COMPOSE_DEV}" && dev_up="true"
+  compose_running "${COMPOSE_PROD}" && prod_up="true"
+
+  if [[ "${dev_up}" == "true" && "${prod_up}" == "true" ]]; then
+    die "Ambas as stacks (dev e prod) estão ativas. Especifique: ./stop dev | ./stop prod"
+  elif [[ "${dev_up}" == "true" ]]; then
+    printf 'dev'
+  elif [[ "${prod_up}" == "true" ]]; then
+    printf 'prod'
+  else
+    die "Nenhuma stack ativa encontrada. Nada a parar."
+  fi
+}
+
+confirm_volumes() {
+  local env="$1"
+  warn "--volumes vai REMOVER o volume do banco da stack ${env} (dados perdidos)."
+  printf '[stop] Digite "sim" para confirmar: '
+  local answer=""
+  read -r answer
+  if [[ "${answer}" != "sim" ]]; then
+    die "Cancelado — volume preservado."
+  fi
+}
+
+stop_stack() {
+  local env="$1"
+  local remove_volumes="$2"
+  local compose_file
+  compose_file="$(compose_file_for "${env}")"
+
+  if ! compose_running "${compose_file}"; then
+    log "Stack ${env} não está ativa. Nada a parar."
+    return 0
+  fi
+
+  if [[ "${remove_volumes}" == "true" ]]; then
+    confirm_volumes "${env}"
+    log "Parando stack ${env} e removendo volumes..."
+    docker compose -f "${compose_file}" down --volumes
+  else
+    log "Parando stack ${env} (dados preservados)..."
+    docker compose -f "${compose_file}" down
+  fi
+
+  log "Stack ${env} parada."
+}
+
+main() {
+  require_docker
+
+  local env=""
+  local remove_volumes="false"
+
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --help | -h)
+        usage
+        exit 0
+        ;;
+      --volumes)
+        remove_volumes="true"
+        shift
+        ;;
+      dev | prod)
+        if [[ -n "${env}" ]]; then
+          die "Especifique apenas um ambiente: dev ou prod."
+        fi
+        env="$1"
+        shift
+        ;;
+      *)
+        die "Argumento desconhecido: $1 (use --help)"
+        ;;
+    esac
+  done
+
+  if [[ -z "${env}" ]]; then
+    env="$(detect_env)"
+    log "Stack ativa detectada: ${env}"
+  fi
+
+  stop_stack "${env}" "${remove_volumes}"
+}
+
+main "$@"

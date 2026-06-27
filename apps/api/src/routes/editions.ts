@@ -9,7 +9,7 @@ import {
   RegisterPlayerBodySchema,
 } from '@clandestino/shared-contracts';
 import { Type } from '@sinclair/typebox';
-import { eq, sql } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import { schema } from '../db/index.js';
 import { parseImportScoresCsv } from '../lib/csv.js';
@@ -248,35 +248,55 @@ export async function registerEditionRoutes(app: FastifyInstance): Promise<void>
 
       const parsedRows = parseImportScoresCsv(csvContent);
       const importedScores: Array<{ playerName: string; accumulatedPoints: number }> = [];
+      let createdPlayersCount = 0;
+      let skippedExistingCount = 0;
 
       await app.db.transaction(async (tx) => {
         for (const row of parsedRows) {
-          const [player] = await tx
+          const playerName = row.playerName.trim();
+          let [player] = await tx
             .select({ id: schema.players.id, name: schema.players.name })
             .from(schema.players)
-            .where(sql`lower(trim(${schema.players.name})) = lower(${row.playerName})`)
+            .where(sql`lower(trim(${schema.players.name})) = lower(${playerName})`)
             .limit(1);
 
           if (!player) {
-            throw badRequest(
-              `Linha ${row.lineNumber}: jogador "${row.playerName}" não encontrado.`,
-            );
+            const [created] = await tx
+              .insert(schema.players)
+              .values({ name: playerName })
+              .returning({ id: schema.players.id, name: schema.players.name });
+
+            if (!created) {
+              throw badRequest(
+                `Linha ${row.lineNumber}: não foi possível cadastrar "${playerName}".`,
+              );
+            }
+
+            player = created;
+            createdPlayersCount += 1;
           }
 
-          await tx
-            .insert(schema.seasonPlayerPoints)
-            .values({
-              seasonId,
-              playerId: player.id,
-              accumulatedPoints: row.accumulatedPoints,
-            })
-            .onConflictDoUpdate({
-              target: [schema.seasonPlayerPoints.seasonId, schema.seasonPlayerPoints.playerId],
-              set: {
-                accumulatedPoints: row.accumulatedPoints,
-                updatedAt: new Date(),
-              },
-            });
+          const [existingPoints] = await tx
+            .select({ playerId: schema.seasonPlayerPoints.playerId })
+            .from(schema.seasonPlayerPoints)
+            .where(
+              and(
+                eq(schema.seasonPlayerPoints.seasonId, seasonId),
+                eq(schema.seasonPlayerPoints.playerId, player.id),
+              ),
+            )
+            .limit(1);
+
+          if (existingPoints) {
+            skippedExistingCount += 1;
+            continue;
+          }
+
+          await tx.insert(schema.seasonPlayerPoints).values({
+            seasonId,
+            playerId: player.id,
+            accumulatedPoints: row.accumulatedPoints,
+          });
 
           importedScores.push({
             playerName: player.name,
@@ -289,6 +309,8 @@ export async function registerEditionRoutes(app: FastifyInstance): Promise<void>
           eventType: 'CSV_IMPORTED',
           payload: {
             importedCount: importedScores.length,
+            createdPlayersCount,
+            skippedExistingCount,
             scores: importedScores,
           },
           createdBy: request.organizerEmail ?? 'organizer',
@@ -298,6 +320,8 @@ export async function registerEditionRoutes(app: FastifyInstance): Promise<void>
       return {
         seasonId,
         importedCount: importedScores.length,
+        createdPlayersCount,
+        skippedExistingCount,
         scores: importedScores,
       };
     },

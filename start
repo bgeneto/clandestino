@@ -1,0 +1,185 @@
+#!/usr/bin/env bash
+# ---------------------------------------------------------------------------
+# Clandestino — wrapper seguro para subir ambientes dev e prod via Docker Compose.
+#
+#   ./start dev            # stack dev (db + api + web + caddy)
+#   ./start dev --seed       # idem, com seed de exemplo no start
+#   ./start prod             # stack prod (db + api)
+#   ./start --help
+#
+# Migrações: automáticas no start da API (dev command / prod entrypoint).
+# Seed: só permitido em dev (--seed → SEED_ON_START=true).
+# ---------------------------------------------------------------------------
+set -euo pipefail
+
+readonly ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+readonly COMPOSE_DEV="${ROOT_DIR}/docker-compose.dev.yml"
+readonly COMPOSE_PROD="${ROOT_DIR}/docker-compose.yml"
+readonly DEV_HOST="clandestino.test"
+
+usage() {
+  cat <<'EOF'
+Uso: ./start <dev|prod> [opções]
+
+Ambientes:
+  dev              Sobe db + api + web + caddy (hot reload, http://clandestino.test)
+  prod             Sobe db + api em produção local (http://localhost:3000)
+
+Opções:
+  --seed           (só dev) Popula dados de exemplo após migrar
+  --help, -h       Mostra esta ajuda
+
+Exemplos:
+  ./start dev
+  ./start dev --seed
+  ./start prod
+
+Migrações rodam automaticamente no start da API.
+Seed nunca é permitido em prod.
+
+Parar:
+  docker compose -f docker-compose.dev.yml down   # dev
+  docker compose down                             # prod
+EOF
+}
+
+log() {
+  printf '[start] %s\n' "$*"
+}
+
+warn() {
+  printf '[start] AVISO: %s\n' "$*" >&2
+}
+
+die() {
+  printf '[start] ERRO: %s\n' "$*" >&2
+  exit 1
+}
+
+require_docker() {
+  if ! command -v docker >/dev/null 2>&1; then
+    die "Docker não encontrado. Instale Docker e tente novamente."
+  fi
+  if ! docker compose version >/dev/null 2>&1; then
+    die "docker compose não disponível. Instale Docker Compose v2."
+  fi
+}
+
+compose_running() {
+  local compose_file="$1"
+  local ids
+  ids="$(docker compose -f "${compose_file}" ps -q 2>/dev/null || true)"
+  [[ -n "${ids}" ]]
+}
+
+assert_no_other_stack() {
+  local target="$1"
+  if [[ "${target}" == "dev" ]]; then
+    if compose_running "${COMPOSE_PROD}"; then
+      die "A stack prod está rodando. Pare antes: docker compose down"
+    fi
+  else
+    if compose_running "${COMPOSE_DEV}"; then
+      die "A stack dev está rodando. Pare antes: docker compose -f docker-compose.dev.yml down"
+    fi
+  fi
+}
+
+warn_hosts_entry() {
+  local hosts_file=""
+  if [[ -r /etc/hosts ]]; then
+    hosts_file="/etc/hosts"
+  fi
+
+  if [[ -n "${hosts_file}" ]] && grep -qE "[[:space:]]${DEV_HOST}([[:space:]]|$)" "${hosts_file}" 2>/dev/null; then
+    return 0
+  fi
+
+  warn "Entrada '${DEV_HOST}' não encontrada em /etc/hosts."
+  warn "Adicione:  127.0.0.1   ${DEV_HOST}"
+  warn "No WSL2, edite o hosts do Windows (C:\\Windows\\System32\\drivers\\etc\\hosts)."
+}
+
+start_dev() {
+  local seed="${1:-false}"
+
+  assert_no_other_stack "dev"
+  warn_hosts_entry
+
+  log "Subindo stack de desenvolvimento (db + api + web + caddy)..."
+  if [[ "${seed}" == "true" ]]; then
+    log "Seed habilitado (SEED_ON_START=true)."
+    SEED_ON_START=true docker compose -f "${COMPOSE_DEV}" up --build
+  else
+    SEED_ON_START=false docker compose -f "${COMPOSE_DEV}" up --build
+  fi
+}
+
+start_prod() {
+  assert_no_other_stack "prod"
+
+  log "Subindo stack de produção local (db + api)..."
+  SEED_ON_START=false docker compose -f "${COMPOSE_PROD}" up -d --build
+
+  log "Stack prod em segundo plano."
+  log "  API health: http://localhost:3000/health"
+  log "  Parar:      docker compose down"
+}
+
+main() {
+  require_docker
+
+  local env=""
+  local seed="false"
+
+  if [[ $# -eq 0 ]]; then
+    usage
+    exit 1
+  fi
+
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --help | -h)
+        usage
+        exit 0
+        ;;
+      --seed)
+        seed="true"
+        shift
+        ;;
+      dev | prod)
+        if [[ -n "${env}" ]]; then
+          die "Especifique apenas um ambiente: dev ou prod."
+        fi
+        env="$1"
+        shift
+        ;;
+      *)
+        die "Argumento desconhecido: $1 (use --help)"
+        ;;
+    esac
+  done
+
+  if [[ -z "${env}" ]]; then
+    usage
+    exit 1
+  fi
+
+  if [[ "${env}" == "prod" && "${seed}" == "true" ]]; then
+    die "Seed não é permitido em prod. Use: ./start dev --seed"
+  fi
+
+  case "${env}" in
+    dev)
+      start_dev "${seed}"
+      ;;
+    prod)
+      start_prod
+      ;;
+    *)
+      die "Ambiente inválido: ${env}"
+      ;;
+  esac
+}
+
+main "$@"

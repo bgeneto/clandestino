@@ -26,6 +26,8 @@ export const ImportScoresResponseSchema = Type.Object(
   {
     seasonId: Type.String({ format: 'uuid' }),
     importedCount: Type.Integer({ minimum: 0 }),
+    createdPlayersCount: Type.Integer({ minimum: 0 }),
+    skippedExistingCount: Type.Integer({ minimum: 0 }),
     scores: Type.Array(ImportScoresCsvRowSchema),
   },
   { $id: 'ImportScoresResponse' },

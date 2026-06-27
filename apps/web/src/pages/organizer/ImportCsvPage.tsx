@@ -69,6 +69,7 @@ export function ImportCsvPage() {
   const [seasonId, setSeasonId] = useState('');
   const [csvContent, setCsvContent] = useState('');
   const [confirmed, setConfirmed] = useState(false);
+  const [acknowledged, setAcknowledged] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -79,7 +80,16 @@ export function ImportCsvPage() {
     mutationFn: () => importSeasonScores(effectiveSeasonId, csvContent),
     onSuccess: (response) => {
       setConfirmed(true);
-      setFeedback(`Importados ${response.importedCount} jogadores com sucesso.`);
+      const parts = [
+        `${response.importedCount} pontuação(ões) importada(s)`,
+        response.createdPlayersCount > 0
+          ? `${response.createdPlayersCount} jogador(es) cadastrado(s) automaticamente`
+          : null,
+        response.skippedExistingCount > 0
+          ? `${response.skippedExistingCount} linha(s) ignorada(s) (pontuação já existente)`
+          : null,
+      ].filter(Boolean);
+      setFeedback(`Importação concluída: ${parts.join('; ')}.`);
       setError(null);
     },
     onError: (mutationError) => {
@@ -104,6 +114,19 @@ export function ImportCsvPage() {
           <code className="text-slate-200">{IMPORT_SCORES_CSV_FORMAT_HINT}</code>. Colunas extras
           (ex.: posição) são ignoradas.
         </p>
+        <div className="mt-4 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+          <p className="font-medium text-amber-50">Antes de confirmar, saiba o que acontece:</p>
+          <ul className="mt-2 list-inside list-disc space-y-1">
+            <li>Jogadores ausentes no cadastro serão criados automaticamente.</li>
+            <li>
+              Pontuações já importadas para esta temporada <strong>não serão alteradas</strong>.
+            </li>
+            <li>Somente jogadores sem pontuação na temporada receberão os valores do CSV.</li>
+            <li>
+              O ranking acumulado alimenta seeds e sorteios de edições futuras nesta temporada.
+            </li>
+          </ul>
+        </div>
       </div>
 
       {seasonsQuery.isLoading ? (
@@ -132,6 +155,7 @@ export function ImportCsvPage() {
               onChange={(event) => {
                 setCsvContent(event.target.value);
                 setConfirmed(false);
+                setAcknowledged(false);
                 setFeedback(null);
                 setError(null);
               }}
@@ -182,12 +206,26 @@ export function ImportCsvPage() {
             </p>
           ) : null}
 
+          <label className="flex items-start gap-2 text-sm text-slate-300">
+            <input
+              type="checkbox"
+              checked={acknowledged}
+              onChange={(event) => setAcknowledged(event.target.checked)}
+              className="mt-1 rounded border-slate-600 bg-slate-950"
+            />
+            <span>
+              Entendo que jogadores ausentes serão cadastrados e pontuações já existentes não serão
+              sobrescritas.
+            </span>
+          </label>
+
           <button
             type="button"
             disabled={
               importMutation.isPending ||
               preview.rows.length === 0 ||
               preview.errors.length > 0 ||
+              !acknowledged ||
               confirmed
             }
             onClick={() => void importMutation.mutateAsync()}

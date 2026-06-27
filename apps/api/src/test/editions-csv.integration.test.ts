@@ -99,7 +99,14 @@ describe.skipIf(!hasTestDb)('jogadores, temporadas e importação CSV (integraç
     });
 
     expect(response.statusCode).toBe(200);
-    expect(response.json<{ importedCount: number }>().importedCount).toBe(2);
+    const body = response.json<{
+      importedCount: number;
+      createdPlayersCount: number;
+      skippedExistingCount: number;
+    }>();
+    expect(body.importedCount).toBe(2);
+    expect(body.createdPlayersCount).toBe(0);
+    expect(body.skippedExistingCount).toBe(0);
 
     const audits = await adminQuery(
       `SELECT event_type FROM audit_event WHERE season_id = $1 AND event_type = 'CSV_IMPORTED'`,
@@ -128,7 +135,14 @@ describe.skipIf(!hasTestDb)('jogadores, temporadas e importação CSV (integraç
     });
 
     expect(response.statusCode).toBe(200);
-    expect(response.json<{ importedCount: number }>().importedCount).toBe(2);
+    const body = response.json<{
+      importedCount: number;
+      createdPlayersCount: number;
+      skippedExistingCount: number;
+    }>();
+    expect(body.importedCount).toBe(2);
+    expect(body.createdPlayersCount).toBe(0);
+    expect(body.skippedExistingCount).toBe(0);
 
     const points = await adminQuery(
       `SELECT accumulated_points FROM season_player_points WHERE season_id = $1 ORDER BY accumulated_points DESC`,
@@ -137,8 +151,8 @@ describe.skipIf(!hasTestDb)('jogadores, temporadas e importação CSV (integraç
     expect(points.map((row) => Number(row.accumulated_points))).toEqual([3947, 135]);
   });
 
-  it('identifica a linha problemática quando o jogador não existe', async () => {
-    const seasonId = await createSeason('Temporada CSV Erro');
+  it('cadastra jogadores ausentes automaticamente durante a importação', async () => {
+    const seasonId = await createSeason('Temporada CSV Auto');
     await createPlayer('Ana Souza');
 
     const csv = 'player_name,accumulated_points\nAna Souza,120\nFantasma,50\n';
@@ -149,15 +163,64 @@ describe.skipIf(!hasTestDb)('jogadores, temporadas e importação CSV (integraç
       payload: csv,
     });
 
-    expect(response.statusCode).toBe(400);
-    expect(response.json<{ error: string }>().error).toMatch(/Linha 3.*Fantasma/);
+    expect(response.statusCode).toBe(200);
+    const body = response.json<{
+      importedCount: number;
+      createdPlayersCount: number;
+      skippedExistingCount: number;
+    }>();
+    expect(body.importedCount).toBe(2);
+    expect(body.createdPlayersCount).toBe(1);
+    expect(body.skippedExistingCount).toBe(0);
 
-    // Transação revertida: nenhuma pontuação persistida.
+    const players = await adminQuery(`SELECT name FROM player ORDER BY name`);
+    expect(players.map((row) => row.name)).toEqual(['Ana Souza', 'Fantasma']);
+
     const points = await adminQuery(
-      `SELECT count(*)::int AS total FROM season_player_points WHERE season_id = $1`,
+      `SELECT accumulated_points FROM season_player_points WHERE season_id = $1 ORDER BY accumulated_points DESC`,
       [seasonId],
     );
-    expect(Number(points[0]?.total)).toBe(0);
+    expect(points.map((row) => Number(row.accumulated_points))).toEqual([120, 50]);
+  });
+
+  it('não sobrescreve pontuações existentes ao reimportar CSV', async () => {
+    const seasonId = await createSeason('Temporada CSV Reimport');
+    await createPlayer('Ana Souza');
+    await createPlayer('Bruno Lima');
+
+    const firstCsv = 'player_name,accumulated_points\nAna Souza,120\nBruno Lima,80\n';
+    const firstResponse = await app.inject({
+      method: 'POST',
+      url: `/seasons/${seasonId}/import-scores`,
+      headers: { ...organizerHeaders(organizerToken), 'content-type': 'text/csv' },
+      payload: firstCsv,
+    });
+    expect(firstResponse.statusCode).toBe(200);
+
+    const secondCsv =
+      'player_name,accumulated_points\nAna Souza,999\nBruno Lima,1\nCarlos Novo,40\n';
+    const secondResponse = await app.inject({
+      method: 'POST',
+      url: `/seasons/${seasonId}/import-scores`,
+      headers: { ...organizerHeaders(organizerToken), 'content-type': 'text/csv' },
+      payload: secondCsv,
+    });
+
+    expect(secondResponse.statusCode).toBe(200);
+    const body = secondResponse.json<{
+      importedCount: number;
+      createdPlayersCount: number;
+      skippedExistingCount: number;
+    }>();
+    expect(body.importedCount).toBe(1);
+    expect(body.createdPlayersCount).toBe(1);
+    expect(body.skippedExistingCount).toBe(2);
+
+    const points = await adminQuery(
+      `SELECT accumulated_points FROM season_player_points WHERE season_id = $1 ORDER BY accumulated_points DESC`,
+      [seasonId],
+    );
+    expect(points.map((row) => Number(row.accumulated_points))).toEqual([120, 80, 40]);
   });
 
   it('rejeita CSV acima do limite de tamanho do corpo (413)', async () => {

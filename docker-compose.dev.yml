@@ -3,10 +3,10 @@
 # Espelha o roteamento de produção (Caddy -> API + PWA) num único host.
 #
 #   1) hosts:  127.0.0.1  clandestino.test   (no WSL2, no hosts do Windows)
-#   2) docker compose -f docker-compose.dev.yml up --build
+#   2) ./start dev
 #   3) abra  http://clandestino.test
 #
-# Para popular dados de exemplo no start: SEED_ON_START=true docker compose ...
+# Para popular dados de exemplo no start: ./start dev --seed
 # ---------------------------------------------------------------------------
 
 name: clandestino-dev

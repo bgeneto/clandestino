@@ -6,9 +6,6 @@ export const WIZARD_MIN_GROUP_SIZE = 3;
 /** Maximum recommended players per group before showing a warning in the wizard. */
 export const WIZARD_WARN_GROUP_SIZE = 6;
 
-/** Total round-robin matches above which melhor de 3 is recommended. */
-export const WIZARD_BEST_OF_THREE_MATCH_THRESHOLD = 30;
-
 export function maxGroupCount(
   playerCount: number,
   minimumGroupSize = WIZARD_MIN_GROUP_SIZE,
@@ -96,10 +93,6 @@ export function suggestGroupCount(
   }
 
   return bestGroupCount;
-}
-
-export function recommendMatchBestOf(totalMatches: number): 3 | 5 {
-  return totalMatches > WIZARD_BEST_OF_THREE_MATCH_THRESHOLD ? 3 : 5;
 }
 
 export interface SeedCandidate {

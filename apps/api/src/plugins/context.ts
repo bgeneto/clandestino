@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import { createDb, createPool, type Db } from '../db/index.js';
+import { createDb, createSqlite, type Db } from '../db/index.js';
 import type { ApiConfig } from '../config.js';
 
 declare module 'fastify' {
@@ -14,11 +14,11 @@ export async function registerConfigPlugin(app: FastifyInstance, config: ApiConf
 }
 
 export async function registerDbPlugin(app: FastifyInstance): Promise<void> {
-  const pool = createPool(app.config.databaseUrl);
-  const db = createDb(pool);
+  const sqlite = createSqlite(app.config.databaseUrl);
+  const db = createDb(sqlite);
 
   app.decorate('db', db);
   app.addHook('onClose', async () => {
-    await pool.end();
+    sqlite.close();
   });
 }

@@ -20,7 +20,6 @@ import {
   executeExplicitDrawAlgorithm,
   rankEditionPlayers,
   rankEditionPlayersWithSeeds,
-  resolveMatchBestOf,
 } from '../lib/draw.js';
 import { badRequest, conflict, notFound } from '../lib/errors.js';
 import { mapEdition, mapGroupPlayer, mapGroupWithPlayers } from '../lib/mappers.js';
@@ -104,8 +103,8 @@ export async function registerEditionDrawRoutes(app: FastifyInstance): Promise<v
       let updatedRules = edition.rules;
 
       if (explicitDraw) {
-        const { groupCount, groupSizes, seedPlayerIds, matchBestOf } = request.body;
-        if (!groupCount || !groupSizes || !seedPlayerIds || !matchBestOf) {
+        const { groupCount, groupSizes, seedPlayerIds } = request.body;
+        if (!groupCount || !groupSizes || !seedPlayerIds) {
           throw badRequest('Configuração explícita do sorteio incompleta.');
         }
 
@@ -134,8 +133,6 @@ export async function registerEditionDrawRoutes(app: FastifyInstance): Promise<v
           ...edition.rules,
           minimumGroupSize: 3,
           protectedSeedCount: groupCount,
-          normalMatchBestOf: matchBestOf,
-          participantThresholdForBestOfThree: 9999,
         };
 
         rankedPlayers = rankEditionPlayersWithSeeds(registrations, pointsByPlayerId, seedPlayerIds);
@@ -407,12 +404,6 @@ export async function registerEditionDrawRoutes(app: FastifyInstance): Promise<v
         })),
       }));
 
-      const registrationCount = await app.db
-        .select({ playerId: schema.editionRegistrations.playerId })
-        .from(schema.editionRegistrations)
-        .where(eq(schema.editionRegistrations.editionId, editionId));
-
-      const bestOf = resolveMatchBestOf(registrationCount.length, edition.rules);
       const generatedMatches = buildGeneratedGroupMatches(drawGroups);
 
       const [updatedEdition] = await app.db.transaction(async (tx) => {
@@ -425,7 +416,6 @@ export async function registerEditionDrawRoutes(app: FastifyInstance): Promise<v
               phase: GROUP_PHASE,
               playerOneId: match.playerOneId,
               playerTwoId: match.playerTwoId,
-              bestOf,
               status: 'AGENDADA' as const,
             })),
           )
@@ -494,13 +484,11 @@ function isExplicitDrawRequest(body: {
   groupCount?: number;
   groupSizes?: number[];
   seedPlayerIds?: string[];
-  matchBestOf?: 3 | 5;
 }): boolean {
   return (
     body.groupCount !== undefined ||
     body.groupSizes !== undefined ||
-    body.seedPlayerIds !== undefined ||
-    body.matchBestOf !== undefined
+    body.seedPlayerIds !== undefined
   );
 }
 

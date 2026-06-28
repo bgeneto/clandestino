@@ -21,7 +21,7 @@ packages/
   shared-contracts/    ← tipos TypeScript + schemas TypeBox (api ↔ web)
   tournament-engine/   ← lógica pura de torneio (zero I/O, zero HTTP, zero DB)
 apps/
-  api/                 ← Fastify + Drizzle + PostgreSQL (fonte da verdade)
+  api/                 ← Fastify + Drizzle + SQLite (fonte da verdade)
   web/                 ← React + Vite + PWA (cliente; offline via IndexedDB)
 ```
 
@@ -33,7 +33,7 @@ apps/
 
 3. **Contratos compartilhados em `shared-contracts`.** Tipos de domínio (`Player`, `Championship`, `Edition`, `Match`, `EditionRules`, etc.) e schemas TypeBox de request/response pertencem a `@clandestino/shared-contracts`. API e web importam daqui — não duplique tipos entre apps.
 
-4. **Validação em duas camadas.** `tournament-engine` valida regras de domínio (ex.: placar impossível). Fastify + TypeBox valida formato de entrada/saída HTTP. PostgreSQL + constraints Drizzle impede estados inválidos persistidos.
+4. **Validação em duas camadas.** `tournament-engine` valida regras de domínio (ex.: placar impossível). Fastify + TypeBox valida formato de entrada/saída HTTP. SQLite + constraints Drizzle impede estados inválidos persistidos.
 
 5. **Regras configuráveis por edição.** Não codifique limiares fixos (“acima de 24 jogadores, melhor de 3”) em código de rota. Use `EditionRules` / `edition.rules` (jsonb).
 
@@ -101,20 +101,19 @@ React + Vite + PWA (`apps/web/`):
 
 ### Docker e Compose
 
-| Arquivo                         | Função                                                            |
-| ------------------------------- | ----------------------------------------------------------------- |
-| `start`                         | Wrapper: `./start dev`, `./start dev --seed`, `./start prod`      |
-| `stop`                          | Wrapper: `./stop [dev\|prod] [--volumes]` (auto-detecta a stack)  |
-| `docker-compose.yml`            | Serviços `db` (Postgres, porta host `5433`) e `api` (produção)    |
-| `docker-compose.dev.yml`        | Dev completo: `db` + `api` + `web` + `caddy` (`clandestino.test`) |
-| `Dockerfile.dev`                | Imagem compartilhada dev (deps + build de `packages/*`)           |
-| `docker/caddy/Caddyfile.dev`    | Reverse proxy dev: `/api/*` → API, `/*` → Vite                    |
-| `apps/api/Dockerfile`           | Build multi-stage da API (produção)                               |
-| `apps/api/docker-entrypoint.sh` | `db:migrate` + seed opcional + `node dist/server.js`              |
-| `docker/postgres/init.sql`      | Cria `clandestino_test` na primeira inicialização                 |
-| `.dockerignore`                 | Contexto de build enxuto                                          |
+| Arquivo                         | Função                                                           |
+| ------------------------------- | ---------------------------------------------------------------- |
+| `start`                         | Wrapper: `./start dev`, `./start dev --seed`, `./start prod`     |
+| `stop`                          | Wrapper: `./stop [dev\|prod] [--volumes]` (auto-detecta a stack) |
+| `docker-compose.yml`            | Serviço `api` (produção) com volume SQLite `clandestino-data`    |
+| `docker-compose.dev.yml`        | Dev completo: `api` + `web` + `caddy` (`clandestino.test`)       |
+| `Dockerfile.dev`                | Imagem compartilhada dev (deps + build de `packages/*`)          |
+| `docker/caddy/Caddyfile.dev`    | Reverse proxy dev: `/api/*` → API, `/*` → Vite                   |
+| `apps/api/Dockerfile`           | Build multi-stage da API (produção)                              |
+| `apps/api/docker-entrypoint.sh` | `db:migrate` + seed opcional + `node dist/server.js`             |
+| `.dockerignore`                 | Contexto de build enxuto                                         |
 
-**Agentes:** para testar no browser, prefira `./start dev`. Para stack prod local, `./start prod`. Para integração com banco real sem stack completa, use `docker compose up -d db` + `TEST_DATABASE_URL`. Não commite `.env` com credenciais.
+**Agentes:** para testar no browser, prefira `./start dev`. Para stack prod local, `./start prod`. Para integração, defina `TEST_DATABASE_URL=file:./data/clandestino_test.db` — sem Docker. Não commite `.env` com credenciais.
 
 ## Convenções de código
 
@@ -140,13 +139,13 @@ pnpm --filter @clandestino/web test
 pnpm typecheck                         # todos os workspaces
 ```
 
-**Unitários (sem PostgreSQL):** `packages/*`, `apps/api/src/lib/*.test.ts`.
+**Unitários (sem banco):** `packages/*`, `apps/api/src/lib/*.test.ts`.
 
 **Integração HTTP da API** (`apps/api/src/test/*.integration.test.ts`):
 
-- Usam `createApp` + Fastify `inject` contra PostgreSQL real.
+- Usam `createApp` + Fastify `inject` contra SQLite real.
 - Ignorados com `describe.skipIf(!hasTestDb)` quando `TEST_DATABASE_URL` está ausente.
-- Requerem `docker compose up -d db` e `TEST_DATABASE_URL=postgres://postgres:postgres@localhost:5433/clandestino_test`.
+- Requerem `TEST_DATABASE_URL=file:./data/clandestino_test.db` (arquivo separado do dev).
 - `fileParallelism: false` no Vitest da API — não paralelizar arquivos de integração.
 - Helpers em `apps/api/src/test/integration-setup.ts` (`migrateTestDb`, `truncateAll`, `loginOrganizer`).
 
@@ -194,27 +193,27 @@ Consulte também [README.md](README.md) para o passo a passo humano. Resumo para
 
 Dois fluxos — escolha conforme a tarefa:
 
-| Fluxo                          | Quando                                                                             | Subir                                  |
-| ------------------------------ | ---------------------------------------------------------------------------------- | -------------------------------------- |
-| **Caddy (`clandestino.test`)** | Testar UI no browser com proxy igual à produção; não subir `api`/`web` manualmente | `./start dev`                          |
-| **Host (`localhost`)**         | Depuração em terminal, testes de integração, mudanças só na API                    | `docker compose up -d db` + `pnpm dev` |
+| Fluxo                          | Quando                                                                             | Subir                       |
+| ------------------------------ | ---------------------------------------------------------------------------------- | --------------------------- |
+| **Caddy (`clandestino.test`)** | Testar UI no browser com proxy igual à produção; não subir `api`/`web` manualmente | `./start dev`               |
+| **Host (`localhost`)**         | Depuração em terminal, testes de integração, mudanças só na API                    | `pnpm dev` + `DATABASE_URL` |
 
 #### Stack Caddy (browser / E2E manual)
 
 Pré-requisito: `127.0.0.1 clandestino.test` no hosts (no WSL2, hosts do **Windows**).
 
 ```bash
-# subir tudo (db + api + web + caddy); migrações automáticas no start da api
+# subir tudo (api + web + caddy); migrações automáticas no start da api
 ./start dev
 
 # com seed de exemplo
 ./start dev --seed
 
-# parar (volume clandestino-db-dev preservado)
+# parar (volume clandestino-data-dev preservado)
 ./stop dev
 ```
 
-O script `./start` recusa subir dev se prod estiver rodando (e vice-versa). Seed em prod é bloqueado (`./start prod --seed` → erro). Para parar, `./stop` detecta a stack ativa; `./stop <env> --volumes` remove o volume do banco (pede confirmação).
+O script `./start` recusa subir dev se prod estiver rodando (e vice-versa). Seed em prod é bloqueado (`./start prod --seed` → erro). Para parar, `./stop` detecta a stack ativa; `./stop <env> --volumes` remove o volume SQLite (pede confirmação).
 
 `./start dev` sobe a stack em segundo plano (`-d`). Equivalente manual: `docker compose -f docker-compose.dev.yml up -d --build`.
 
@@ -229,32 +228,31 @@ O script `./start` recusa subir dev se prod estiver rodando (e vice-versa). Seed
 | Seed              | `./start dev --seed` (opcional)                               |
 | Hot reload        | `apps/api` e `apps/web` montados por volume                   |
 | Rebuild da imagem | após mudar `Dockerfile.dev`, deps ou `packages/*` (`--build`) |
-| Conflito          | não rodar junto com `docker-compose.yml` (mesma porta `5433`) |
+| Banco SQLite      | volume `clandestino-data-dev` → `/app/data/clandestino.db`    |
 
 Não depende de `apps/api/.env` — variáveis vêm do `docker-compose.dev.yml`.
 
 #### Host (API/PWA no terminal)
 
-| Item                | Valor / comando                                                |
-| ------------------- | -------------------------------------------------------------- |
-| Banco               | `docker compose up -d db` → `localhost:5433`                   |
-| `DATABASE_URL`      | `postgres://postgres:postgres@localhost:5433/clandestino`      |
-| `TEST_DATABASE_URL` | `postgres://postgres:postgres@localhost:5433/clandestino_test` |
-| `NODE_ENV`          | não definir ou `development` / `test`                          |
-| Magic link          | exposto na resposta JSON por padrão (testes sem e-mail)        |
-| API                 | `pnpm --filter @clandestino/api dev` → `:3000`                 |
-| PWA                 | `pnpm --filter @clandestino/web dev` → `:5173`, proxy `/api`   |
-| Migrações           | `pnpm --filter @clandestino/api db:migrate`                    |
-| Seed                | `pnpm --filter @clandestino/api db:seed` (opcional)            |
-| Config              | copiar `apps/api/.env.example` → `apps/api/.env`               |
+| Item                | Valor / comando                                              |
+| ------------------- | ------------------------------------------------------------ |
+| Banco               | arquivo `data/clandestino.db` (criado automaticamente)       |
+| `DATABASE_URL`      | `file:./data/clandestino.db`                                 |
+| `TEST_DATABASE_URL` | `file:./data/clandestino_test.db`                            |
+| `NODE_ENV`          | não definir ou `development` / `test`                        |
+| Magic link          | exposto na resposta JSON por padrão (testes sem e-mail)      |
+| API                 | `pnpm --filter @clandestino/api dev` → `:3000`               |
+| PWA                 | `pnpm --filter @clandestino/web dev` → `:5173`, proxy `/api` |
+| Migrações           | `pnpm --filter @clandestino/api db:migrate`                  |
+| Seed                | `pnpm --filter @clandestino/api db:seed` (opcional)          |
+| Config              | copiar `apps/api/.env.example` → `apps/api/.env`             |
 
 Fluxo mínimo após mudanças no schema (host):
 
 ```bash
-docker compose up -d db
-export DATABASE_URL="postgres://postgres:postgres@localhost:5433/clandestino"
+export DATABASE_URL="file:./data/clandestino.db"
 pnpm --filter @clandestino/api db:migrate
-export TEST_DATABASE_URL="postgres://postgres:postgres@localhost:5433/clandestino_test"
+export TEST_DATABASE_URL="file:./data/clandestino_test.db"
 pnpm --filter @clandestino/api test
 pnpm typecheck
 ```

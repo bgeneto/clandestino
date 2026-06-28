@@ -6,6 +6,7 @@ import { ApiError } from '../../lib/api-client.js';
 import { createEdition } from '../../lib/organizer-api.js';
 import { useChampionship, useChampionshipEditions } from '../../hooks/use-organizer-data.js';
 import { createEditionWizardDraft } from '../../offline/edition-wizard-draft.js';
+import { Alert } from '../../components/ui/Alert.js';
 
 function todayIsoDate(): string {
   const now = new Date();
@@ -76,11 +77,7 @@ export function CreateEditionPage() {
   });
 
   if (!championshipId) {
-    return (
-      <section className="rounded-2xl border border-danger-surface bg-danger-surface p-6 text-sm text-danger-foreground">
-        Campeonato não informado.
-      </section>
-    );
+    return <Alert variant="danger">Campeonato não informado.</Alert>;
   }
 
   return (
@@ -103,9 +100,7 @@ export function CreateEditionPage() {
       {championshipQuery.isLoading ? (
         <p className="text-sm text-subtle">Carregando campeonato…</p>
       ) : championshipQuery.isError ? (
-        <div className="rounded-2xl border border-warning-surface bg-warning-surface p-4 text-sm text-warning-foreground">
-          Campeonato não encontrado.
-        </div>
+        <Alert variant="warning">Campeonato não encontrado.</Alert>
       ) : (
         <form
           className="space-y-4 rounded-2xl border border-line bg-card p-6"
@@ -160,18 +155,14 @@ export function CreateEditionPage() {
             </p>
           ) : null}
 
-          {error ? (
-            <p className="rounded-lg border border-danger-surface bg-danger-surface px-3 py-2 text-sm text-danger-foreground">
-              {error}
-            </p>
-          ) : null}
+          {error ? <Alert variant="danger">{error}</Alert> : null}
 
           <button
             type="submit"
             disabled={createMutation.isPending}
             className="w-full rounded-lg bg-brand px-4 py-2.5 font-medium text-white disabled:opacity-60"
           >
-            {createMutation.isPending ? 'Criando…' : 'Continuar para check-in'}
+            {createMutation.isPending ? 'Criando…' : 'Continuar para check-in →'}
           </button>
         </form>
       )}

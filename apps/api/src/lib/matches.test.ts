@@ -18,23 +18,22 @@ function playerId(index: number): string {
 }
 
 describe('validateSubmittedScore', () => {
-  it('rejects a 2x2 score in best of 3', () => {
-    const result = validateSubmittedScore(2, 2, 3, DEFAULT_TOURNAMENT_RULES);
+  it('rejects a tied score', () => {
+    const result = validateSubmittedScore(2, 2);
     expect(result.valid).toBe(false);
   });
 
-  it('accepts a valid 2x0 score in best of 3', () => {
-    const result = validateSubmittedScore(2, 0, 3, DEFAULT_TOURNAMENT_RULES);
+  it('accepts a valid score', () => {
+    const result = validateSubmittedScore(4, 2);
     expect(result.valid).toBe(true);
   });
 });
 
 describe('validateMatchResult', () => {
-  it('rejects impossible 2x2 scores in best of 3', () => {
+  it('rejects tied scores', () => {
     const result = validateMatchResult({
       setsWonByReporter: 2,
       setsWonByOpponent: 2,
-      bestOf: 3,
     });
     expect(result.valid).toBe(false);
   });
@@ -179,7 +178,7 @@ describe('parsePlacementGroupRange', () => {
 
 describe('validateCorrectedScore', () => {
   it('rejects invalid organizer corrections', () => {
-    const result = validateCorrectedScore(2, 2, 3, DEFAULT_TOURNAMENT_RULES);
+    const result = validateCorrectedScore(2, 2);
     expect(result.valid).toBe(false);
   });
 });

@@ -23,43 +23,19 @@ x-dev-volumes: &dev-volumes
   - /app/packages/tournament-engine/node_modules
   - /app/packages/shared-contracts/dist
   - /app/packages/tournament-engine/dist
+  - clandestino-data-dev:/app/data
 
 x-dev-build: &dev-build
   context: .
   dockerfile: Dockerfile.dev
 
 services:
-  db:
-    image: postgres:18-alpine
-    container_name: clandestino-dev-db
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: clandestino
-    ports:
-      - '5433:5432'
-    volumes:
-      # Postgres 18+ armazena os dados em subdiretório versionado sob
-      # /var/lib/postgresql (ex.: /var/lib/postgresql/18/docker). Monte o
-      # volume na raiz, não em /data, senão o entrypoint falha no boot.
-      - clandestino-db-dev:/var/lib/postgresql
-      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
-    healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U postgres -d clandestino']
-      interval: 5s
-      timeout: 5s
-      retries: 10
-
   api:
     build: *dev-build
     container_name: clandestino-dev-api
     restart: unless-stopped
-    depends_on:
-      db:
-        condition: service_healthy
     environment:
-      DATABASE_URL: postgres://postgres:postgres@db:5432/clandestino
+      DATABASE_URL: file:/app/data/clandestino.db
       API_HOST: 0.0.0.0
       API_PORT: '3000'
       # Dev: magic link exposto na resposta JSON (NODE_ENV != production).
@@ -93,6 +69,7 @@ services:
       VITE_ALLOWED_HOSTS: clandestino.test
       # HMR via proxy na porta pública (80).
       VITE_HMR_CLIENT_PORT: '80'
+      VITE_SHOW_PLAYER_SHUFFLE: ${VITE_SHOW_PLAYER_SHUFFLE:-false}
     volumes: *dev-volumes
     command: pnpm --filter @clandestino/web dev
 
@@ -113,4 +90,4 @@ services:
 volumes:
   caddy_data:
   caddy_config:
-  clandestino-db-dev:
+  clandestino-data-dev:

@@ -1,11 +1,9 @@
 import { Link, useOutletContext } from 'react-router-dom';
 import { useChampionships } from '../../hooks/use-organizer-data.js';
-import { useOrganizerSession } from '../../hooks/use-organizer-session.js';
 import type { OrganizerOutletContext } from './OrganizerLayout.js';
 
 export function OrganizerDashboardPage() {
   const { organizerEmail } = useOutletContext<OrganizerOutletContext>();
-  const { clearSession } = useOrganizerSession();
   const championshipsQuery = useChampionships();
 
   const championships = championshipsQuery.data ?? [];
@@ -24,7 +22,7 @@ export function OrganizerDashboardPage() {
           to="/organizador/campeonato/novo"
           className="rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white"
         >
-          Novo campeonato
+          Novo Campeonato
         </Link>
       </div>
 
@@ -50,14 +48,6 @@ export function OrganizerDashboardPage() {
           ))}
         </div>
       )}
-
-      <button
-        type="button"
-        onClick={() => void clearSession()}
-        className="w-full rounded-lg border border-line px-4 py-2 text-sm text-muted"
-      >
-        Sair
-      </button>
     </section>
   );
 }

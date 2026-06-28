@@ -54,7 +54,7 @@ export function SeedsStep({ draft, onChange, onContinue, onBack }: SeedsStepProp
       <div>
         <h3 className="text-lg font-semibold text-foreground">Cabeças de Chave (Seeds)</h3>
         <p className="mt-1 text-sm text-muted">
-          Escolha {groupCount} seed(s), um por grupo. Os melhores pontuados já vêm pré-selecionados.
+          Escolha {groupCount} cabeças de chave (seeds), um para cada grupo.
         </p>
       </div>
 
@@ -93,7 +93,7 @@ export function SeedsStep({ draft, onChange, onContinue, onBack }: SeedsStepProp
         })}
       </div>
 
-      <p className="text-sm text-subtle">
+      <p className="text-sm font-semibold text-muted">
         Seeds selecionados: {selectedSeedIds.size} / {groupCount}
       </p>
 

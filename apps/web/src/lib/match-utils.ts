@@ -1,5 +1,8 @@
 import type { Group, Match, MatchStatus } from '@clandestino/shared-contracts';
+import { MAX_SETS_SCORE } from '@clandestino/shared-contracts';
 import { validateMatchResult } from '@clandestino/tournament-engine';
+
+export { MAX_SETS_SCORE };
 
 export const MATCH_STATUS_LABELS: Record<MatchStatus, string> = {
   AGENDADA: 'Agendada',
@@ -64,12 +67,10 @@ export function groupMatchesByPhase(
 export function validateScoreInput(
   setsWonByReporter: number,
   setsWonByOpponent: number,
-  bestOf: 3 | 5,
 ): { valid: boolean; reason?: string } {
   const result = validateMatchResult({
     setsWonByReporter,
     setsWonByOpponent,
-    bestOf,
   });
 
   if (result.valid) {
@@ -85,17 +86,13 @@ export function validateScoreInput(
 function translateValidationReason(reason: string | undefined): string {
   switch (reason) {
     case 'Match cannot end in a tie':
-      return 'O placar não pode terminar empatado (ex.: 2×2 em melhor de 3).';
-    case 'Winner does not have enough sets to win':
-      return 'O vencedor precisa atingir a quantidade de sets para vencer.';
-    case 'Loser has too many sets for a completed match':
-      return 'O perdedor tem sets demais para um placar válido.';
-    case 'Total sets played exceeds best-of format':
-      return 'A soma dos sets excede o formato da partida.';
-    case 'Sets won exceeds maximum for format':
-      return 'Um jogador tem sets acima do permitido.';
+      return 'O placar não pode terminar empatado.';
+    case 'Sets won exceeds maximum':
+      return `Cada jogador pode ter no máximo ${MAX_SETS_SCORE} sets.`;
+    case 'Sets won cannot be negative':
+      return 'O placar não pode ter valores negativos.';
     default:
-      return 'Placar inválido para o formato da partida.';
+      return 'Placar inválido.';
   }
 }
 

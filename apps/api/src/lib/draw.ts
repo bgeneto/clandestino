@@ -5,7 +5,6 @@ import {
   drawUnseededPlayers,
   executeExplicitDraw,
   generateGroupMatches,
-  getMatchBestOf,
 } from '@clandestino/tournament-engine';
 import type { DrawGroupInput } from '@clandestino/tournament-engine';
 
@@ -134,8 +133,4 @@ export function buildGeneratedGroupMatches(groups: DrawGroupResult[]): Generated
       playerTwoId: match.playerA < match.playerB ? match.playerB : match.playerA,
     })),
   );
-}
-
-export function resolveMatchBestOf(participantCount: number, rules: TournamentRules): 3 | 5 {
-  return getMatchBestOf(participantCount, rules);
 }

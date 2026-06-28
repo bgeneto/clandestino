@@ -2,8 +2,6 @@
 set -euo pipefail
 
 # Aplica as migrações Drizzle antes de subir a API.
-# O compose já garante que o Postgres está saudável (depends_on: service_healthy),
-# mas mantemos o migrate aqui para que o container seja autossuficiente.
 echo "[entrypoint] Aplicando migrações Drizzle..."
 pnpm --filter @clandestino/api db:migrate
 

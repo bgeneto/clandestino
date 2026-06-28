@@ -102,7 +102,6 @@ export type EditionWizardDraft = {
   checkedInPlayers: WizardDraftPlayer[];
   groupCount?: number;
   groupSizes?: number[];
-  matchBestOf?: 3 | 5;
   seedPlayerIds?: string[];
   drawRandomSeed?: string;
   drawPreview?: WizardDrawPreviewGroup[];

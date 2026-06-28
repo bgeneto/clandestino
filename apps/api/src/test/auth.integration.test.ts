@@ -3,7 +3,7 @@ import type { FastifyInstance } from 'fastify';
 import { hashToken } from '../lib/crypto.js';
 import {
   adminQuery,
-  closeAdminPool,
+  closeTestDb,
   createTestApp,
   hasTestDb,
   loginOrganizer,
@@ -27,7 +27,7 @@ describe.skipIf(!hasTestDb)('autenticação do organizador (integração HTTP)',
 
   afterAll(async () => {
     await app.close();
-    await closeAdminPool();
+    await closeTestDb();
   });
 
   it('expõe o magic link fora de produção e o token é de uso único', async () => {
@@ -72,9 +72,9 @@ describe.skipIf(!hasTestDb)('autenticação do organizador (integração HTTP)',
     const rawToken = 'token-de-teste-expirado-1234567890';
     // Inserção direta de token já expirado para validar o caminho de expiração.
     await adminQuery(
-      `INSERT INTO organizer_magic_token (email, token_hash, expires_at)
-       VALUES ($1, $2, now() - interval '1 minute')`,
-      [ALLOWED_EMAIL, hashToken(rawToken)],
+      `INSERT INTO organizer_magic_token (id, email, token_hash, expires_at, created_at)
+       VALUES (?, ?, ?, ?, ?)`,
+      [crypto.randomUUID(), ALLOWED_EMAIL, hashToken(rawToken), Date.now() - 60_000, Date.now()],
     );
 
     const verify = await app.inject({

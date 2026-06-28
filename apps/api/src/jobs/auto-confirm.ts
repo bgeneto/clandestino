@@ -34,7 +34,7 @@ export async function runAutoConfirmCycle(app: FastifyInstance): Promise<number>
     .where(
       and(
         eq(schema.matches.status, 'AGUARDANDO_CONFIRMACAO'),
-        sql`${schema.matches.updatedAt} + (${schema.editions.autoConfirmMinutes} * interval '1 minute') <= ${now}`,
+        sql`${schema.matches.updatedAt} <= (${now.getTime()} - ${schema.editions.autoConfirmMinutes} * 60000)`,
       ),
     );
 

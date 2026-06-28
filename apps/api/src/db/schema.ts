@@ -1,22 +1,15 @@
 import { relations, sql } from 'drizzle-orm';
 import {
-  boolean,
   check,
-  date,
   foreignKey,
   index,
   integer,
-  jsonb,
-  pgEnum,
-  pgTable,
   primaryKey,
+  sqliteTable,
   text,
-  timestamp,
   unique,
   uniqueIndex,
-  uuid,
-  varchar,
-} from 'drizzle-orm/pg-core';
+} from 'drizzle-orm/sqlite-core';
 import {
   DEFAULT_SCORING_TABLE,
   DEFAULT_TOURNAMENT_RULES,
@@ -25,88 +18,98 @@ import {
   type ScoringTable,
 } from '@clandestino/shared-contracts';
 
-export const matchStatusEnum = pgEnum('match_status', [
+const MATCH_STATUSES = [
   'AGENDADA',
   'AGUARDANDO_CONFIRMACAO',
   'CONFIRMADA',
   'CONTESTADA',
   'CORRIGIDA',
   'CANCELADA',
-]);
+] as const;
 
-export const editionStatusEnum = pgEnum('edition_status', [
+const EDITION_STATUSES = [
   'RASCUNHO',
   'INSCRICOES_ABERTAS',
   'SORTEIO_PUBLICADO',
   'EM_ANDAMENTO',
   'FASE_COLOCACAO',
   'ENCERRADA',
-]);
+] as const;
 
-const createdAt = timestamp('created_at', { withTimezone: true }).notNull().defaultNow();
+const createdAt = integer('created_at', { mode: 'timestamp_ms' })
+  .notNull()
+  .$defaultFn(() => new Date());
 
-export const players = pgTable(
+export const players = sqliteTable(
   'player',
   {
-    id: uuid('id').primaryKey().defaultRandom(),
-    name: varchar('name', { length: 120 }).notNull(),
+    id: text('id')
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    name: text('name').notNull(),
     createdAt,
   },
   (table) => [uniqueIndex('player_name_unique').on(table.name)],
 );
 
-export const championships = pgTable(
+export const championships = sqliteTable(
   'championship',
   {
-    id: uuid('id').primaryKey().defaultRandom(),
-    name: varchar('name', { length: 120 }).notNull(),
-    scoringTable: jsonb('scoring_table')
+    id: text('id')
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    name: text('name').notNull(),
+    scoringTable: text('scoring_table', { mode: 'json' })
       .$type<ScoringTable>()
       .notNull()
       .default(DEFAULT_SCORING_TABLE),
-    defaultEditionRules: jsonb('default_edition_rules').$type<EditionRules>(),
+    defaultEditionRules: text('default_edition_rules', { mode: 'json' }).$type<EditionRules>(),
     createdAt,
   },
   (table) => [
     uniqueIndex('championship_name_unique').on(table.name),
-    check(
-      'championship_scoring_table_is_array',
-      sql`jsonb_typeof(${table.scoringTable}) = 'array'`,
-    ),
+    check('championship_scoring_table_is_array', sql`json_type(${table.scoringTable}) = 'array'`),
   ],
 );
 
-export const editions = pgTable(
+export const editions = sqliteTable(
   'edition',
   {
-    id: uuid('id').primaryKey().defaultRandom(),
-    championshipId: uuid('championship_id')
+    id: text('id')
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    championshipId: text('championship_id')
       .notNull()
       .references(() => championships.id, { onDelete: 'restrict', onUpdate: 'cascade' }),
-    name: varchar('name', { length: 120 }).notNull(),
-    date: date('date').notNull(),
-    rules: jsonb('rules').$type<EditionRules>().notNull().default(DEFAULT_TOURNAMENT_RULES),
-    status: editionStatusEnum('status').notNull().default('RASCUNHO'),
+    name: text('name').notNull(),
+    date: text('date').notNull(),
+    rules: text('rules', { mode: 'json' })
+      .$type<EditionRules>()
+      .notNull()
+      .default(DEFAULT_TOURNAMENT_RULES),
+    status: text('status', { enum: EDITION_STATUSES }).notNull().default('RASCUNHO'),
     autoConfirmMinutes: integer('auto_confirm_minutes').notNull().default(15),
     createdAt,
   },
   (table) => [
     uniqueIndex('edition_championship_name_unique').on(table.championshipId, table.name),
-    check('edition_rules_is_object', sql`jsonb_typeof(${table.rules}) = 'object'`),
+    check('edition_rules_is_object', sql`json_type(${table.rules}) = 'object'`),
     check('edition_auto_confirm_minutes_positive', sql`${table.autoConfirmMinutes} > 0`),
   ],
 );
 
-export const editionRegistrations = pgTable(
+export const editionRegistrations = sqliteTable(
   'edition_registration',
   {
-    editionId: uuid('edition_id')
+    editionId: text('edition_id')
       .notNull()
       .references(() => editions.id, { onDelete: 'cascade', onUpdate: 'cascade' }),
-    playerId: uuid('player_id')
+    playerId: text('player_id')
       .notNull()
       .references(() => players.id, { onDelete: 'restrict', onUpdate: 'cascade' }),
-    registeredAt: timestamp('registered_at', { withTimezone: true }).notNull().defaultNow(),
+    registeredAt: integer('registered_at', { mode: 'timestamp_ms' })
+      .notNull()
+      .$defaultFn(() => new Date()),
   },
   (table) => [
     primaryKey({
@@ -116,23 +119,27 @@ export const editionRegistrations = pgTable(
   ],
 );
 
-export const drawSnapshots = pgTable(
+export const drawSnapshots = sqliteTable(
   'draw_snapshot',
   {
-    id: uuid('id').primaryKey().defaultRandom(),
-    editionId: uuid('edition_id')
+    id: text('id')
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    editionId: text('edition_id')
       .notNull()
       .references(() => editions.id, { onDelete: 'cascade', onUpdate: 'cascade' }),
-    playerId: uuid('player_id')
+    playerId: text('player_id')
       .notNull()
       .references(() => players.id, { onDelete: 'restrict', onUpdate: 'cascade' }),
     accumulatedPoints: integer('accumulated_points').notNull(),
     rankPosition: integer('rank_position').notNull(),
-    isSeed: boolean('is_seed').notNull().default(false),
-    algorithm: varchar('algorithm', { length: 120 }).notNull(),
-    randomSeed: varchar('random_seed', { length: 120 }).notNull(),
-    drawnAt: timestamp('drawn_at', { withTimezone: true }).notNull().defaultNow(),
-    drawnBy: varchar('drawn_by', { length: 120 }).notNull(),
+    isSeed: integer('is_seed', { mode: 'boolean' }).notNull().default(false),
+    algorithm: text('algorithm').notNull(),
+    randomSeed: text('random_seed').notNull(),
+    drawnAt: integer('drawn_at', { mode: 'timestamp_ms' })
+      .notNull()
+      .$defaultFn(() => new Date()),
+    drawnBy: text('drawn_by').notNull(),
   },
   (table) => [
     uniqueIndex('draw_snapshot_edition_player_unique').on(table.editionId, table.playerId),
@@ -142,15 +149,17 @@ export const drawSnapshots = pgTable(
   ],
 );
 
-export const groups = pgTable(
+export const groups = sqliteTable(
   'group',
   {
-    id: uuid('id').primaryKey().defaultRandom(),
-    editionId: uuid('edition_id')
+    id: text('id')
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    editionId: text('edition_id')
       .notNull()
       .references(() => editions.id, { onDelete: 'cascade', onUpdate: 'cascade' }),
-    name: varchar('name', { length: 32 }).notNull(),
-    phase: varchar('phase', { length: 64 }).notNull(),
+    name: text('name').notNull(),
+    phase: text('phase').notNull(),
   },
   (table) => [
     uniqueIndex('group_edition_phase_name_unique').on(table.editionId, table.phase, table.name),
@@ -159,15 +168,15 @@ export const groups = pgTable(
   ],
 );
 
-export const groupPlayers = pgTable(
+export const groupPlayers = sqliteTable(
   'group_player',
   {
-    groupId: uuid('group_id').notNull(),
-    editionId: uuid('edition_id').notNull(),
-    playerId: uuid('player_id')
+    groupId: text('group_id').notNull(),
+    editionId: text('edition_id').notNull(),
+    playerId: text('player_id')
       .notNull()
       .references(() => players.id, { onDelete: 'restrict', onUpdate: 'cascade' }),
-    isSeed: boolean('is_seed').notNull().default(false),
+    isSeed: integer('is_seed', { mode: 'boolean' }).notNull().default(false),
   },
   (table) => [
     primaryKey({ name: 'group_player_pk', columns: [table.groupId, table.playerId] }),
@@ -182,25 +191,31 @@ export const groupPlayers = pgTable(
   ],
 );
 
-export const matches = pgTable(
+export const matches = sqliteTable(
   'match',
   {
-    id: uuid('id').primaryKey().defaultRandom(),
-    editionId: uuid('edition_id')
+    id: text('id')
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    editionId: text('edition_id')
       .notNull()
       .references(() => editions.id, { onDelete: 'cascade', onUpdate: 'cascade' }),
-    groupId: uuid('group_id').notNull(),
-    phase: varchar('phase', { length: 64 }).notNull(),
-    playerOneId: uuid('player_one_id')
+    groupId: text('group_id').notNull(),
+    phase: text('phase').notNull(),
+    playerOneId: text('player_one_id')
       .notNull()
       .references(() => players.id, { onDelete: 'restrict', onUpdate: 'cascade' }),
-    playerTwoId: uuid('player_two_id')
+    playerTwoId: text('player_two_id')
       .notNull()
       .references(() => players.id, { onDelete: 'restrict', onUpdate: 'cascade' }),
-    status: matchStatusEnum('status').$type<MatchStatus>().notNull().default('AGENDADA'),
-    bestOf: integer('best_of').notNull(),
+    status: text('status', { enum: MATCH_STATUSES })
+      .$type<MatchStatus>()
+      .notNull()
+      .default('AGENDADA'),
     createdAt,
-    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: integer('updated_at', { mode: 'timestamp_ms' })
+      .notNull()
+      .$defaultFn(() => new Date()),
   },
   (table) => [
     foreignKey({
@@ -217,18 +232,17 @@ export const matches = pgTable(
       table.playerTwoId,
     ),
     index('match_edition_status_idx').on(table.editionId, table.status),
-    check('match_best_of_valid', sql`${table.bestOf} in (3, 5)`),
     check('match_players_ordered', sql`${table.playerOneId} < ${table.playerTwoId}`),
   ],
 );
 
-export const matchParticipants = pgTable(
+export const matchParticipants = sqliteTable(
   'match_participant',
   {
-    matchId: uuid('match_id')
+    matchId: text('match_id')
       .notNull()
       .references(() => matches.id, { onDelete: 'cascade', onUpdate: 'cascade' }),
-    playerId: uuid('player_id')
+    playerId: text('player_id')
       .notNull()
       .references(() => players.id, { onDelete: 'restrict', onUpdate: 'cascade' }),
     setsWon: integer('sets_won').notNull().default(0),
@@ -236,17 +250,20 @@ export const matchParticipants = pgTable(
   (table) => [
     primaryKey({ name: 'match_participant_pk', columns: [table.matchId, table.playerId] }),
     check('match_participant_sets_won_non_negative', sql`${table.setsWon} >= 0`),
+    check('match_participant_sets_won_max', sql`${table.setsWon} <= 7`),
   ],
 );
 
-export const standings = pgTable(
+export const standings = sqliteTable(
   'standing',
   {
-    id: uuid('id').primaryKey().defaultRandom(),
-    groupId: uuid('group_id')
+    id: text('id')
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    groupId: text('group_id')
       .notNull()
       .references(() => groups.id, { onDelete: 'cascade', onUpdate: 'cascade' }),
-    playerId: uuid('player_id')
+    playerId: text('player_id')
       .notNull()
       .references(() => players.id, { onDelete: 'restrict', onUpdate: 'cascade' }),
     setsWon: integer('sets_won').notNull().default(0),
@@ -263,14 +280,16 @@ export const standings = pgTable(
   ],
 );
 
-export const finalPlacements = pgTable(
+export const finalPlacements = sqliteTable(
   'final_placement',
   {
-    id: uuid('id').primaryKey().defaultRandom(),
-    editionId: uuid('edition_id')
+    id: text('id')
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    editionId: text('edition_id')
       .notNull()
       .references(() => editions.id, { onDelete: 'cascade', onUpdate: 'cascade' }),
-    playerId: uuid('player_id')
+    playerId: text('player_id')
       .notNull()
       .references(() => players.id, { onDelete: 'restrict', onUpdate: 'cascade' }),
     position: integer('position').notNull(),
@@ -284,17 +303,19 @@ export const finalPlacements = pgTable(
   ],
 );
 
-export const championshipPlayerPoints = pgTable(
+export const championshipPlayerPoints = sqliteTable(
   'championship_player_points',
   {
-    championshipId: uuid('championship_id')
+    championshipId: text('championship_id')
       .notNull()
       .references(() => championships.id, { onDelete: 'cascade', onUpdate: 'cascade' }),
-    playerId: uuid('player_id')
+    playerId: text('player_id')
       .notNull()
       .references(() => players.id, { onDelete: 'restrict', onUpdate: 'cascade' }),
     accumulatedPoints: integer('accumulated_points').notNull(),
-    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: integer('updated_at', { mode: 'timestamp_ms' })
+      .notNull()
+      .$defaultFn(() => new Date()),
   },
   (table) => [
     primaryKey({
@@ -305,14 +326,16 @@ export const championshipPlayerPoints = pgTable(
   ],
 );
 
-export const organizerMagicTokens = pgTable(
+export const organizerMagicTokens = sqliteTable(
   'organizer_magic_token',
   {
-    id: uuid('id').primaryKey().defaultRandom(),
-    email: varchar('email', { length: 254 }).notNull(),
-    tokenHash: varchar('token_hash', { length: 64 }).notNull(),
-    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
-    usedAt: timestamp('used_at', { withTimezone: true }),
+    id: text('id')
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    email: text('email').notNull(),
+    tokenHash: text('token_hash').notNull(),
+    expiresAt: integer('expires_at', { mode: 'timestamp_ms' }).notNull(),
+    usedAt: integer('used_at', { mode: 'timestamp_ms' }),
     createdAt,
   },
   (table) => [
@@ -321,13 +344,15 @@ export const organizerMagicTokens = pgTable(
   ],
 );
 
-export const organizerSessions = pgTable(
+export const organizerSessions = sqliteTable(
   'organizer_session',
   {
-    id: uuid('id').primaryKey().defaultRandom(),
-    email: varchar('email', { length: 254 }).notNull(),
-    tokenHash: varchar('token_hash', { length: 64 }).notNull(),
-    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    id: text('id')
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    email: text('email').notNull(),
+    tokenHash: text('token_hash').notNull(),
+    expiresAt: integer('expires_at', { mode: 'timestamp_ms' }).notNull(),
     createdAt,
   },
   (table) => [
@@ -336,31 +361,33 @@ export const organizerSessions = pgTable(
   ],
 );
 
-export const auditEvents = pgTable(
+export const auditEvents = sqliteTable(
   'audit_event',
   {
-    id: uuid('id').primaryKey().defaultRandom(),
-    editionId: uuid('edition_id').references(() => editions.id, {
+    id: text('id')
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    editionId: text('edition_id').references(() => editions.id, {
       onDelete: 'cascade',
       onUpdate: 'cascade',
     }),
-    championshipId: uuid('championship_id').references(() => championships.id, {
+    championshipId: text('championship_id').references(() => championships.id, {
       onDelete: 'cascade',
       onUpdate: 'cascade',
     }),
-    matchId: uuid('match_id').references(() => matches.id, {
+    matchId: text('match_id').references(() => matches.id, {
       onDelete: 'set null',
       onUpdate: 'cascade',
     }),
-    eventType: varchar('event_type', { length: 80 }).notNull(),
-    payload: jsonb('payload').$type<unknown>().notNull().default({}),
+    eventType: text('event_type').notNull(),
+    payload: text('payload', { mode: 'json' }).$type<unknown>().notNull().default({}),
     createdAt,
-    createdBy: varchar('created_by', { length: 120 }).notNull(),
+    createdBy: text('created_by').notNull(),
   },
   (table) => [
     index('audit_event_edition_created_at_idx').on(table.editionId, table.createdAt),
     index('audit_event_championship_created_at_idx').on(table.championshipId, table.createdAt),
-    check('audit_event_payload_is_object', sql`jsonb_typeof(${table.payload}) = 'object'`),
+    check('audit_event_payload_is_object', sql`json_type(${table.payload}) = 'object'`),
     check(
       'audit_event_scope_required',
       sql`${table.editionId} IS NOT NULL OR ${table.championshipId} IS NOT NULL`,

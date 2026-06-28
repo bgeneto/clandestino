@@ -1,6 +1,6 @@
 import 'dotenv/config';
 import { DEFAULT_EDITION_RULES, DEFAULT_SCORING_TABLE } from '@clandestino/shared-contracts';
-import { createDb, createPool, schema } from './index.js';
+import { createDb, createSqlite, schema } from './index.js';
 
 const playerIds = [
   '00000000-0000-4000-8000-000000000001',
@@ -37,8 +37,8 @@ const groupAId = '30000000-0000-4000-8000-000000000001';
 const groupBId = '30000000-0000-4000-8000-000000000002';
 
 async function main() {
-  const pool = createPool();
-  const db = createDb(pool);
+  const sqlite = createSqlite();
+  const db = createDb(sqlite);
 
   try {
     await db.transaction(async (tx) => {
@@ -56,13 +56,13 @@ async function main() {
         .insert(schema.championships)
         .values([
           {
-            id: championshipAguasClaras2026Id,
-            name: 'Clandestino 2026 - Águas Claras',
+            id: championshipAsaSul2026Id,
+            name: 'Clandestino 2026 - Asa Sul',
             scoringTable: DEFAULT_SCORING_TABLE,
           },
           {
-            id: championshipAsaSul2026Id,
-            name: 'Clandestino 2026 - Asa Sul',
+            id: championshipAguasClaras2026Id,
+            name: 'Clandestino 2026 - Águas Claras',
             scoringTable: DEFAULT_SCORING_TABLE,
           },
           {
@@ -78,7 +78,7 @@ async function main() {
         .values([
           {
             id: editionOpeningId,
-            championshipId: championshipAguasClaras2026Id,
+            championshipId: championshipAsaSul2026Id,
             name: 'Clandestino #1',
             date: '2026-07-04',
             rules: DEFAULT_EDITION_RULES,
@@ -87,7 +87,7 @@ async function main() {
           },
           {
             id: editionWinterId,
-            championshipId: championshipAguasClaras2026Id,
+            championshipId: championshipAsaSul2026Id,
             name: 'Clandestino #2',
             date: '2026-08-01',
             rules: DEFAULT_EDITION_RULES,
@@ -111,7 +111,7 @@ async function main() {
         .insert(schema.championshipPlayerPoints)
         .values(
           playerIds.map((playerId, index) => ({
-            championshipId: championshipAguasClaras2026Id,
+            championshipId: championshipAsaSul2026Id,
             playerId,
             accumulatedPoints: Math.max(0, 220 - index * 18),
           })),
@@ -203,7 +203,6 @@ async function main() {
             ...match,
             editionId: editionOpeningId,
             phase: 'GROUP_STAGE',
-            bestOf: 5,
           })),
         )
         .onConflictDoNothing();
@@ -272,7 +271,7 @@ async function main() {
 
     console.log('Development seed completed.');
   } finally {
-    await pool.end();
+    sqlite.close();
   }
 }
 

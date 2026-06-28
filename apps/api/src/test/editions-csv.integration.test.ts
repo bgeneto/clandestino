@@ -3,7 +3,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import {
   adminQuery,
-  closeAdminPool,
+  closeTestDb,
   createTestApp,
   hasTestDb,
   loginOrganizer,
@@ -28,7 +28,7 @@ describe.skipIf(!hasTestDb)('jogadores, campeonatos e importação CSV (integra�
 
   afterAll(async () => {
     await app.close();
-    await closeAdminPool();
+    await closeTestDb();
   });
 
   async function createChampionship(name: string): Promise<string> {
@@ -79,7 +79,7 @@ describe.skipIf(!hasTestDb)('jogadores, campeonatos e importação CSV (integra�
       method: 'POST',
       url: '/players',
       headers: organizerHeaders(organizerToken),
-      payload: { name: 'a' },
+      payload: { name: '  a  ' },
     });
 
     expect(response.statusCode).toBe(400);
@@ -163,13 +163,13 @@ describe.skipIf(!hasTestDb)('jogadores, campeonatos e importação CSV (integra�
     expect(body.skippedExistingCount).toBe(0);
 
     const audits = await adminQuery(
-      `SELECT event_type FROM audit_event WHERE championship_id = $1 AND event_type = 'CSV_IMPORTED'`,
+      `SELECT event_type FROM audit_event WHERE championship_id = ? AND event_type = 'CSV_IMPORTED'`,
       [championshipId],
     );
     expect(audits.length).toBe(1);
 
     const points = await adminQuery(
-      `SELECT accumulated_points FROM championship_player_points WHERE championship_id = $1 ORDER BY accumulated_points DESC`,
+      `SELECT accumulated_points FROM championship_player_points WHERE championship_id = ? ORDER BY accumulated_points DESC`,
       [championshipId],
     );
     expect(points.map((row) => Number(row.accumulated_points))).toEqual([120, 80]);
@@ -199,7 +199,7 @@ describe.skipIf(!hasTestDb)('jogadores, campeonatos e importação CSV (integra�
     expect(body.skippedExistingCount).toBe(0);
 
     const points = await adminQuery(
-      `SELECT accumulated_points FROM championship_player_points WHERE championship_id = $1 ORDER BY accumulated_points DESC`,
+      `SELECT accumulated_points FROM championship_player_points WHERE championship_id = ? ORDER BY accumulated_points DESC`,
       [championshipId],
     );
     expect(points.map((row) => Number(row.accumulated_points))).toEqual([3947, 135]);
@@ -231,7 +231,7 @@ describe.skipIf(!hasTestDb)('jogadores, campeonatos e importação CSV (integra�
     expect(players.map((row) => row.name)).toEqual(['ANA SOUZA', 'FANTASMA']);
 
     const points = await adminQuery(
-      `SELECT accumulated_points FROM championship_player_points WHERE championship_id = $1 ORDER BY accumulated_points DESC`,
+      `SELECT accumulated_points FROM championship_player_points WHERE championship_id = ? ORDER BY accumulated_points DESC`,
       [championshipId],
     );
     expect(points.map((row) => Number(row.accumulated_points))).toEqual([120, 50]);
@@ -271,7 +271,7 @@ describe.skipIf(!hasTestDb)('jogadores, campeonatos e importação CSV (integra�
     expect(body.skippedExistingCount).toBe(2);
 
     const points = await adminQuery(
-      `SELECT accumulated_points FROM championship_player_points WHERE championship_id = $1 ORDER BY accumulated_points DESC`,
+      `SELECT accumulated_points FROM championship_player_points WHERE championship_id = ? ORDER BY accumulated_points DESC`,
       [championshipId],
     );
     expect(points.map((row) => Number(row.accumulated_points))).toEqual([120, 80, 40]);
@@ -299,11 +299,11 @@ describe.skipIf(!hasTestDb)('jogadores, campeonatos e importação CSV (integra�
     });
 
     const pointsA = await adminQuery(
-      `SELECT accumulated_points FROM championship_player_points WHERE championship_id = $1`,
+      `SELECT accumulated_points FROM championship_player_points WHERE championship_id = ?`,
       [championshipA],
     );
     const pointsB = await adminQuery(
-      `SELECT accumulated_points FROM championship_player_points WHERE championship_id = $1`,
+      `SELECT accumulated_points FROM championship_player_points WHERE championship_id = ?`,
       [championshipB],
     );
     expect(Number(pointsA[0]?.accumulated_points)).toBe(500);

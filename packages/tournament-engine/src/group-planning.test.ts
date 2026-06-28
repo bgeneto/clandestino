@@ -6,7 +6,6 @@ import {
   executeExplicitDraw,
   maxGroupCount,
   partitionPlayersIntoGroups,
-  recommendMatchBestOf,
   selectDefaultSeeds,
   suggestGroupCount,
 } from './index.js';
@@ -31,11 +30,6 @@ describe('group planning helpers', () => {
 
   it('estimates round-robin matches', () => {
     expect(estimateRoundRobinMatches([4, 3])).toBe(9);
-  });
-
-  it('recommends melhor de 3 for many matches', () => {
-    expect(recommendMatchBestOf(40)).toBe(3);
-    expect(recommendMatchBestOf(10)).toBe(5);
   });
 
   it('selects default seeds by points then name', () => {

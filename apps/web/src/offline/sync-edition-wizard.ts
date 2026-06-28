@@ -20,7 +20,7 @@ export async function syncEditionWizardDraft(draft: EditionWizardDraft): Promise
     return { status: 'error', message: 'Sem conexão com a internet.' };
   }
 
-  if (!draft.groupCount || !draft.groupSizes || !draft.seedPlayerIds || !draft.matchBestOf) {
+  if (!draft.groupCount || !draft.groupSizes || !draft.seedPlayerIds) {
     return { status: 'error', message: 'Complete todos os passos antes de sincronizar.' };
   }
 
@@ -90,7 +90,6 @@ export async function syncEditionWizardDraft(draft: EditionWizardDraft): Promise
       groupCount: syncingDraft.groupCount,
       groupSizes: syncingDraft.groupSizes,
       seedPlayerIds: syncingDraft.seedPlayerIds,
-      matchBestOf: syncingDraft.matchBestOf,
     };
 
     try {
@@ -146,7 +145,6 @@ export function canPublishDraft(draft: EditionWizardDraft): boolean {
     draft.groupCount !== undefined &&
     draft.groupSizes !== undefined &&
     draft.seedPlayerIds !== undefined &&
-    draft.matchBestOf !== undefined &&
     draft.drawPreview !== undefined &&
     draft.drawPreview.length > 0
   );

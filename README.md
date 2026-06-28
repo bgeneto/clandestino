@@ -15,17 +15,17 @@ Consulte [docs/domain-taxonomy.md](docs/domain-taxonomy.md) para a taxonomia do 
 
 ## Stack
 
-| Camada            | Tecnologia                                                    |
-| ----------------- | ------------------------------------------------------------- |
-| Linguagem         | TypeScript (ESM, `NodeNext`)                                  |
-| Monorepo          | pnpm workspaces                                               |
-| API               | Fastify + TypeBox                                             |
-| Banco             | PostgreSQL + Drizzle ORM                                      |
-| Lógica de torneio | `@clandestino/tournament-engine` (funções puras)              |
-| Contratos         | `@clandestino/shared-contracts` (tipos + schemas TypeBox)     |
-| Frontend          | React + Vite + PWA                                            |
-| Testes            | Vitest + fast-check (property-based no motor de torneio)      |
-| Deploy            | Docker Compose (`db` + `api`); PWA estático via proxy reverso |
+| Camada            | Tecnologia                                                |
+| ----------------- | --------------------------------------------------------- |
+| Linguagem         | TypeScript (ESM, `NodeNext`)                              |
+| Monorepo          | pnpm workspaces                                           |
+| API               | Fastify + TypeBox                                         |
+| Banco             | SQLite + Drizzle ORM                                      |
+| Lógica de torneio | `@clandestino/tournament-engine` (funções puras)          |
+| Contratos         | `@clandestino/shared-contracts` (tipos + schemas TypeBox) |
+| Frontend          | React + Vite + PWA                                        |
+| Testes            | Vitest + fast-check (property-based no motor de torneio)  |
+| Deploy            | Docker Compose (`api`); PWA estático via proxy reverso    |
 
 ## Estrutura do repositório
 
@@ -38,10 +38,9 @@ clandestino/
 │   ├── shared-contracts/    # Tipos e schemas compartilhados
 │   └── tournament-engine/   # Sorteio, validação e classificação (sem I/O)
 ├── docker/
-│   ├── caddy/               # Caddyfile.dev (reverse proxy local)
-│   └── postgres/            # init.sql (cria clandestino_test)
-├── docker-compose.yml       # PostgreSQL + API (produção)
-├── docker-compose.dev.yml   # Dev: db + api + web + Caddy (clandestino.test)
+│   └── caddy/               # Caddyfile.dev (reverse proxy local)
+├── docker-compose.yml       # API (produção)
+├── docker-compose.dev.yml   # Dev: api + web + Caddy (clandestino.test)
 ├── Dockerfile.dev           # Imagem compartilhada do compose dev
 ├── start                    # Wrapper: ./start dev | dev --seed | prod
 ├── stop                     # Wrapper: ./stop [dev|prod] [--volumes]
@@ -53,8 +52,7 @@ clandestino/
 ## Pré-requisitos
 
 - Node.js ≥ 24 (`corepack enable` para pnpm 9)
-- Docker + Docker Compose (recomendado para o banco; obrigatório para stack de produção)
-- PostgreSQL 16+ (somente se preferir banco nativo em vez do container)
+- Docker + Docker Compose (recomendado para stack completa; obrigatório para produção local via Compose)
 
 ---
 
@@ -70,12 +68,12 @@ O comportamento da API depende de `NODE_ENV` e das variáveis abaixo. Use esta t
 | URL do app                  | `http://localhost:5173`                           | `http://clandestino.test` (hosts + Caddy)   | URL pública HTTPS                                   |
 | API                         | `pnpm dev` no host (hot reload)                   | container `api` (hot reload via volume)     | Imagem Docker (`docker compose up api`)             |
 | PWA                         | `pnpm dev` no host (Vite, proxy `/api` → `:3000`) | container `web` (Vite atrás do Caddy)       | `pnpm build` + servir `apps/web/dist` (Caddy/nginx) |
-| Banco                       | Container (`:5433`) ou Postgres local (`:5432`)   | container `db` (`:5433`)                    | Container na rede interna do Compose                |
+| Banco                       | Arquivo SQLite (`data/clandestino.db`)            | volume Docker `clandestino-data-dev`        | volume Docker `clandestino-data`                    |
 | Seed                        | `db:seed` manual                                  | `./start dev --seed`                        | **Não** usar seed (`SEED_ON_START=false`)           |
 | `PUBLIC_APP_URL`            | `http://localhost:5173`                           | `http://clandestino.test`                   | URL pública HTTPS do PWA                            |
 | `ORGANIZER_ALLOWED_EMAILS`  | `organizador@gmail.com`                           | `organizador@gmail.com`                     | E-mails reais do organizador                        |
 | Rate limit (magic link)     | Ativo (padrão 10 req / 15 min)                    | Ativo (padrão 10 req / 15 min)              | Ativo                                               |
-| Testes de integração        | `TEST_DATABASE_URL` → `clandestino_test`          | idem (banco exposto em `:5433`)             | Não rodam em deploy                                 |
+| Testes de integração        | `TEST_DATABASE_URL` → arquivo `.db` separado      | idem                                        | Não rodam em deploy                                 |
 
 Arquivos de exemplo: `apps/api/.env.example`, `apps/web/.env.example`.
 
@@ -92,7 +90,7 @@ Dois fluxos válidos:
 
 ### Stack completa via Caddy (`clandestino.test`) — recomendado para testar no browser
 
-Um único comando sobe **PostgreSQL + API + PWA + Caddy**. O proxy encaminha `/api/*` para a API e `/*` para o Vite — mesmo padrão de produção. Hot reload em `apps/api` e `apps/web` (código montado por volume).
+Um único comando sobe **API + PWA + Caddy**. O proxy encaminha `/api/*` para a API e `/*` para o Vite — mesmo padrão de produção. Hot reload em `apps/api` e `apps/web` (código montado por volume). O banco SQLite fica no volume `clandestino-data-dev`.
 
 Arquivos: `start`, `docker-compose.dev.yml`, `Dockerfile.dev`, `docker/caddy/Caddyfile.dev`.
 
@@ -116,7 +114,7 @@ Adicione ao arquivo hosts da sua máquina:
 #### 3. Subir a stack
 
 ```bash
-./start dev              # db + api + web + caddy (em segundo plano, migrações automáticas)
+./start dev              # api + web + caddy (em segundo plano, migrações automáticas)
 ./start dev --seed       # idem, com dados de exemplo no start
 ```
 
@@ -144,7 +142,7 @@ SEED_ON_START=true docker compose -f docker-compose.dev.yml up -d --build
 ```bash
 ./stop                                                   # detecta a stack ativa e para (dados preservados)
 ./stop dev                                               # para explicitamente a stack dev
-./stop dev --volumes                                     # para e REMOVE o volume do banco (pede confirmação)
+./stop dev --volumes                                     # para e REMOVE o volume SQLite (pede confirmação)
 docker compose -f docker-compose.dev.yml logs -f         # acompanhar todos os serviços
 docker compose -f docker-compose.dev.yml logs -f api     # só a API
 ./start dev                                              # rebuild após mudar Dockerfile.dev / packages/*
@@ -153,13 +151,13 @@ docker compose -f docker-compose.dev.yml logs -f api     # só a API
 Observações:
 
 - Editou `packages/shared-contracts` ou `packages/tournament-engine`? Rebuild (`./start dev` refaz `--build`) — eles são consumidos via `./dist`.
-- Dev e prod usam volumes Docker distintos (`clandestino-db-dev` vs `clandestino-db`), mas **compartilham a porta host `5433`** — não rode as duas stacks ao mesmo tempo.
+- Dev e prod usam volumes Docker distintos (`clandestino-data-dev` vs `clandestino-data`).
 - `./start prod --seed` é rejeitado (seed só em dev).
-- `./stop` sem argumento detecta automaticamente qual stack está ativa; sem `--volumes`, os dados do Postgres são preservados.
+- `./stop` sem argumento detecta automaticamente qual stack está ativa; sem `--volumes`, os dados SQLite são preservados.
 
 ---
 
-### Host: banco no Docker, API e PWA no terminal (hot reload)
+### Host: API e PWA no terminal (hot reload)
 
 #### 1. Instalar dependências
 
@@ -167,15 +165,7 @@ Observações:
 pnpm install
 ```
 
-#### 2. Subir o PostgreSQL
-
-```bash
-docker compose up -d db
-```
-
-O banco fica em `localhost:5433` (mapeamento `5433:5432`). Na primeira inicialização, `docker/postgres/init.sql` cria também o banco `clandestino_test` para testes de integração.
-
-#### 3. Configurar variáveis de ambiente
+#### 2. Configurar variáveis de ambiente
 
 Copie os exemplos e ajuste se necessário:
 
@@ -187,7 +177,7 @@ cp apps/web/.env.example apps/web/.env
 Conteúdo mínimo da API em dev (`apps/api/.env`):
 
 ```bash
-DATABASE_URL=postgres://postgres:postgres@localhost:5433/clandestino
+DATABASE_URL=file:./data/clandestino.db
 PUBLIC_APP_URL=http://localhost:5173
 # NODE_ENV não definido → magic link exposto na resposta JSON
 ```
@@ -198,14 +188,14 @@ O PWA em dev (`apps/web/.env`) usa proxy do Vite — o padrão já funciona:
 VITE_API_URL=/api
 ```
 
-#### 4. Migrar e popular o banco
+#### 3. Migrar e popular o banco
 
 ```bash
 pnpm --filter @clandestino/api db:migrate
 pnpm --filter @clandestino/api db:seed   # opcional — jogadores e edição de exemplo
 ```
 
-#### 5. Subir API e PWA
+#### 4. Subir API e PWA
 
 Em terminais separados:
 
@@ -218,35 +208,32 @@ pnpm --filter @clandestino/web dev    # http://localhost:5173
 - O Vite encaminha `/api/*` para a API local (ver `apps/web/vite.config.ts`).
 - Para obter o magic link do organizador em dev: `POST /auth/organizer/magic-link` — o campo `magicLink` vem na resposta JSON.
 
-### Alternativa: Postgres nativo (sem Docker)
+### Alternativa: caminho absoluto do SQLite
 
 ```bash
-createdb clandestino
-createdb clandestino_test
-export DATABASE_URL="postgres://postgres:postgres@localhost:5432/clandestino"
+export DATABASE_URL="file:./data/clandestino.db"
 pnpm --filter @clandestino/api db:migrate
 ```
 
-Use porta `5432` na `DATABASE_URL` em vez de `5433`.
+O diretório pai do arquivo é criado automaticamente no primeiro acesso.
 
 ---
 
 ## Produção (Docker Compose)
 
-O `docker-compose.yml` sobe **PostgreSQL + API** com `NODE_ENV=production`. O PWA é buildado separadamente e servido por proxy reverso (Caddy/nginx) na frente da API e dos arquivos estáticos.
+O `docker-compose.yml` sobe a **API** com `NODE_ENV=production`. O banco SQLite persiste no volume `clandestino-data`. O PWA é buildado separadamente e servido por proxy reverso (Caddy/nginx) na frente da API e dos arquivos estáticos.
 
 ### 1. Ajustar variáveis no Compose
 
 Edite `docker-compose.yml` (ou use um arquivo `.env` na raiz lido pelo Compose) **antes** de subir em produção:
 
-| Variável                   | Valor em produção                                                |
-| -------------------------- | ---------------------------------------------------------------- |
-| `NODE_ENV`                 | `production` (já definido no serviço `api`)                      |
-| `PUBLIC_APP_URL`           | URL pública do PWA, ex. `https://clandestino.sistema.pro.br`     |
-| `ORGANIZER_ALLOWED_EMAILS` | E-mails reais, separados por vírgula                             |
-| `DATABASE_URL`             | `postgres://postgres:<senha>@db:5432/clandestino` (rede interna) |
-| `SEED_ON_START`            | `false` (padrão) — **não** popular dados fictícios               |
-| `POSTGRES_PASSWORD`        | Senha forte (serviço `db`)                                       |
+| Variável                   | Valor em produção                                            |
+| -------------------------- | ------------------------------------------------------------ |
+| `NODE_ENV`                 | `production` (já definido no serviço `api`)                  |
+| `PUBLIC_APP_URL`           | URL pública do PWA, ex. `https://clandestino.sistema.pro.br` |
+| `ORGANIZER_ALLOWED_EMAILS` | E-mails reais, separados por vírgula                         |
+| `DATABASE_URL`             | `file:/app/data/clandestino.db` (volume Docker)              |
+| `SEED_ON_START`            | `false` (padrão) — **não** popular dados fictícios           |
 
 Em produção, magic links **não** aparecem na resposta HTTP — é necessário enviar o link por e-mail (integração futura) ou consultar os logs do servidor.
 
@@ -297,17 +284,17 @@ pnpm build         # compila todos os pacotes
 ### API — unitários + integração
 
 ```bash
-# Só unitários (sem PostgreSQL)
+# Só unitários (sem arquivo de teste)
 pnpm --filter @clandestino/api test
 
-# Unitários + integração HTTP (requer banco de testes)
-export TEST_DATABASE_URL="postgres://postgres:postgres@localhost:5433/clandestino_test"
+# Unitários + integração HTTP (requer TEST_DATABASE_URL)
+export TEST_DATABASE_URL="file:./data/clandestino_test.db"
 pnpm --filter @clandestino/api test
 ```
 
-Os testes em `apps/api/src/test/*.integration.test.ts` usam Fastify `inject` contra PostgreSQL real. São **ignorados automaticamente** quando `TEST_DATABASE_URL` não está definida.
+Os testes em `apps/api/src/test/*.integration.test.ts` usam Fastify `inject` contra SQLite real. São **ignorados automaticamente** quando `TEST_DATABASE_URL` não está definida.
 
-Pré-requisito: container `db` rodando (`docker compose up -d db`).
+Não é necessário Docker para rodar a integração — basta definir `TEST_DATABASE_URL`.
 
 ### Web
 
@@ -324,7 +311,7 @@ pnpm format:check && pnpm typecheck && pnpm test
 Para validar a API com integração antes do push:
 
 ```bash
-export TEST_DATABASE_URL="postgres://postgres:postgres@localhost:5433/clandestino_test"
+export TEST_DATABASE_URL="file:./data/clandestino_test.db"
 pnpm --filter @clandestino/api test
 ```
 
@@ -334,22 +321,22 @@ pnpm --filter @clandestino/api test
 
 ### API (`apps/api/.env`)
 
-| Variável                           | Padrão                  | Descrição                                                   |
-| ---------------------------------- | ----------------------- | ----------------------------------------------------------- |
-| `DATABASE_URL`                     | —                       | **Obrigatória.** String de conexão PostgreSQL               |
-| `API_HOST`                         | `0.0.0.0`               | Host do Fastify                                             |
-| `API_PORT`                         | `3000`                  | Porta da API                                                |
-| `NODE_ENV`                         | —                       | `production` ativa modo seguro (sem magic link na resposta) |
-| `PUBLIC_APP_URL`                   | `http://localhost:5173` | Base do PWA nos links de organizador                        |
-| `ORGANIZER_ALLOWED_EMAILS`         | `organizador@gmail.com` | E-mails autorizados (vírgula)                               |
-| `ORGANIZER_MAGIC_LINK_TTL_MINUTES` | `15`                    | Validade do magic link                                      |
-| `ORGANIZER_SESSION_TTL_HOURS`      | `168`                   | Validade da sessão do organizador                           |
-| `EXPOSE_MAGIC_LINKS`               | exposto em dev          | Força exposição em dev; **ignorado** em produção            |
-| `AUTH_RATE_LIMIT_MAX`              | `10`                    | Máx. requisições nas rotas de magic link                    |
-| `AUTH_RATE_LIMIT_WINDOW_MINUTES`   | `15`                    | Janela do rate limit                                        |
-| `CSV_IMPORT_MAX_BYTES`             | `1048576`               | Limite do corpo na importação CSV                           |
-| `TEST_DATABASE_URL`                | —                       | Banco para testes de integração (não usar em produção)      |
-| `SEED_ON_START`                    | `false`                 | Só no Docker: rodar `db:seed` no entrypoint                 |
+| Variável                           | Padrão                  | Descrição                                                       |
+| ---------------------------------- | ----------------------- | --------------------------------------------------------------- |
+| `DATABASE_URL`                     | —                       | **Obrigatória.** Caminho SQLite (`file:./data/clandestino.db`)  |
+| `API_HOST`                         | `0.0.0.0`               | Host do Fastify                                                 |
+| `API_PORT`                         | `3000`                  | Porta da API                                                    |
+| `NODE_ENV`                         | —                       | `production` ativa modo seguro (sem magic link na resposta)     |
+| `PUBLIC_APP_URL`                   | `http://localhost:5173` | Base do PWA nos links de organizador                            |
+| `ORGANIZER_ALLOWED_EMAILS`         | `organizador@gmail.com` | E-mails autorizados (vírgula)                                   |
+| `ORGANIZER_MAGIC_LINK_TTL_MINUTES` | `15`                    | Validade do magic link                                          |
+| `ORGANIZER_SESSION_TTL_HOURS`      | `168`                   | Validade da sessão do organizador                               |
+| `EXPOSE_MAGIC_LINKS`               | exposto em dev          | Força exposição em dev; **ignorado** em produção                |
+| `AUTH_RATE_LIMIT_MAX`              | `10`                    | Máx. requisições nas rotas de magic link                        |
+| `AUTH_RATE_LIMIT_WINDOW_MINUTES`   | `15`                    | Janela do rate limit                                            |
+| `CSV_IMPORT_MAX_BYTES`             | `1048576`               | Limite do corpo na importação CSV                               |
+| `TEST_DATABASE_URL`                | —                       | Arquivo SQLite para testes de integração (não usar em produção) |
+| `SEED_ON_START`                    | `false`                 | Só no Docker: rodar `db:seed` no entrypoint                     |
 
 Fonte da verdade: `apps/api/src/config.ts`.
 
@@ -365,13 +352,13 @@ Fonte da verdade: `apps/api/src/config.ts`.
 
 | Comando                                      | Descrição                                        |
 | -------------------------------------------- | ------------------------------------------------ |
-| `./start dev`                                | Dev completo: db + api + web + Caddy             |
+| `./start dev`                                | Dev completo: api + web + Caddy                  |
 | `./start dev --seed`                         | Idem, com seed no start                          |
-| `./start prod`                               | PostgreSQL + API (produção local, detached)      |
+| `./start prod`                               | API (produção local, detached)                   |
 | `./start --help`                             | Ajuda do wrapper de start                        |
 | `./stop`                                     | Detecta a stack ativa e para (dados preservados) |
 | `./stop dev` / `./stop prod`                 | Para a stack indicada                            |
-| `./stop <env> --volumes`                     | Para e remove o volume do banco (confirmação)    |
+| `./stop <env> --volumes`                     | Para e remove o volume SQLite (confirmação)      |
 | `pnpm build`                                 | Compila todos os workspaces                      |
 | `pnpm test`                                  | Testes da raiz (contracts + engine)              |
 | `pnpm typecheck`                             | TypeScript em todos os pacotes                   |
@@ -383,7 +370,6 @@ Fonte da verdade: `apps/api/src/config.ts`.
 | `pnpm --filter @clandestino/api test`        | Testes unitários + integração                    |
 | `pnpm --filter @clandestino/web dev`         | PWA com Vite                                     |
 | `pnpm --filter @clandestino/web build`       | Build de produção do PWA                         |
-| `docker compose up -d db`                    | Só PostgreSQL (fluxo host)                       |
 
 ---
 

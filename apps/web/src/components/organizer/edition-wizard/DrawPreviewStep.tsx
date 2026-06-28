@@ -1,13 +1,15 @@
 import type { EditionWizardDraft } from '../../../db/clandestino-db.js';
+import { isPlayerShuffleEnabled } from '../../../lib/feature-flags.js';
 
 type DrawPreviewStepProps = {
   draft: EditionWizardDraft;
   onBack: () => void;
   onContinue: () => void;
-  onRedraw: () => void;
+  onRedraw?: () => void;
 };
 
 export function DrawPreviewStep({ draft, onBack, onContinue, onRedraw }: DrawPreviewStepProps) {
+  const showShuffleButton = isPlayerShuffleEnabled() && onRedraw !== undefined;
   const preview = draft.drawPreview ?? [];
 
   return (
@@ -37,13 +39,15 @@ export function DrawPreviewStep({ draft, onBack, onContinue, onRedraw }: DrawPre
         ))}
       </div>
 
-      <button
-        type="button"
-        onClick={onRedraw}
-        className="w-full rounded-lg border border-line px-4 py-2.5 text-sm font-medium text-foreground"
-      >
-        🔄 Refazer sorteio dos jogadores
-      </button>
+      {showShuffleButton ? (
+        <button
+          type="button"
+          onClick={onRedraw}
+          className="w-full rounded-lg border border-line px-4 py-2.5 text-sm font-medium text-foreground"
+        >
+          🔄 Refazer sorteio dos jogadores
+        </button>
+      ) : null}
 
       <div className="flex gap-3">
         <button
@@ -59,7 +63,7 @@ export function DrawPreviewStep({ draft, onBack, onContinue, onRedraw }: DrawPre
           onClick={onContinue}
           className="flex-1 rounded-lg bg-brand px-4 py-2.5 text-sm font-medium text-white disabled:opacity-50"
         >
-          Continuar para publicação
+          Continuar para publicação →
         </button>
       </div>
     </section>

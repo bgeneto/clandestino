@@ -8,9 +8,9 @@ export function WizardStepNav({ currentStep }: WizardStepNavProps) {
   return (
     <ol className="flex flex-wrap gap-2">
       {STEP_LABELS.map((label, index) => {
-        const stepNumber = index + 2;
-        const active = currentStep === stepNumber;
-        const completed = currentStep > stepNumber;
+        const stepNumber = index + 1;
+        const active = currentStep === stepNumber + 1;
+        const completed = currentStep > stepNumber + 1;
 
         return (
           <li

@@ -4,9 +4,9 @@ import 'dotenv/config';
 export default defineConfig({
   schema: './src/db/schema.ts',
   out: './drizzle',
-  dialect: 'postgresql',
+  dialect: 'sqlite',
   dbCredentials: {
-    url: process.env.DATABASE_URL ?? 'postgres://postgres:postgres@localhost:5432/clandestino',
+    url: process.env.DATABASE_URL ?? 'file:./data/clandestino.db',
   },
   strict: true,
   verbose: true,

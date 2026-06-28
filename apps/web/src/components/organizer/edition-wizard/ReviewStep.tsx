@@ -2,12 +2,14 @@ import { Link } from 'react-router-dom';
 import type { EditionWizardDraft } from '../../../db/clandestino-db.js';
 import { estimateRoundRobinMatches } from '@clandestino/tournament-engine';
 import { formatEditionDate } from '../../../lib/format.js';
+import { Alert } from '../../../components/ui/Alert.js';
 
 type ReviewStepProps = {
   draft: EditionWizardDraft;
   isOnline: boolean;
   isPublishing: boolean;
   feedback: string | null;
+  feedbackVariant?: 'danger' | 'warning' | 'success' | 'info';
   onBack: () => void;
   onPublish: () => void;
 };
@@ -17,6 +19,7 @@ export function ReviewStep({
   isOnline,
   isPublishing,
   feedback,
+  feedbackVariant = 'info',
   onBack,
   onPublish,
 }: ReviewStepProps) {
@@ -54,26 +57,18 @@ export function ReviewStep({
           <dd className="text-foreground">{draft.groupCount}</dd>
         </div>
         <div className="flex justify-between gap-4">
-          <dt className="text-subtle">Formato das partidas</dt>
-          <dd className="text-foreground">Melhor de {draft.matchBestOf}</dd>
-        </div>
-        <div className="flex justify-between gap-4">
-          <dt className="text-subtle">Partidas estimadas</dt>
+          <dt className="text-subtle">Partidas da fase de grupos</dt>
           <dd className="text-foreground">{totalMatches}</dd>
         </div>
       </dl>
 
       {!isOnline ? (
-        <p className="rounded-lg border border-warning-surface bg-warning-surface px-3 py-2 text-sm text-warning-foreground">
+        <Alert variant="warning">
           Sem conexão: o sorteio ficará pronto para sincronizar quando a internet voltar.
-        </p>
+        </Alert>
       ) : null}
 
-      {feedback ? (
-        <p className="rounded-lg border border-line bg-card-muted px-3 py-2 text-sm text-muted">
-          {feedback}
-        </p>
-      ) : null}
+      {feedback ? <Alert variant={feedbackVariant}>{feedback}</Alert> : null}
 
       <div className="flex gap-3">
         <button
@@ -102,7 +97,7 @@ export function ReviewStep({
           to={`/organizador/edicao/${draft.editionId}`}
           className="block text-center text-sm text-subtle underline"
         >
-          Ir para painel da edição
+          ↑ Ir para painel da edição
         </Link>
       ) : null}
     </section>

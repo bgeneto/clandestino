@@ -12,7 +12,7 @@ import {
   type PlacementGroupResult,
   type StandingMatch,
 } from '@clandestino/tournament-engine';
-import { and, asc, desc, eq, inArray, ne, sql } from 'drizzle-orm';
+import { and, asc, count, desc, eq, inArray, ne, sql } from 'drizzle-orm';
 import type { InferSelectModel } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import { schema } from '../db/index.js';
@@ -541,36 +541,18 @@ export async function buildPlacementGroupResults(
   return results;
 }
 
-export function validateSubmittedScore(
-  setsWonByReporter: number,
-  setsWonByOpponent: number,
-  bestOf: 3 | 5,
-  rules: EditionRules,
-) {
-  return validateMatchResult(
-    {
-      setsWonByReporter,
-      setsWonByOpponent,
-      bestOf,
-    },
-    rules,
-  );
+export function validateSubmittedScore(setsWonByReporter: number, setsWonByOpponent: number) {
+  return validateMatchResult({
+    setsWonByReporter,
+    setsWonByOpponent,
+  });
 }
 
-export function validateCorrectedScore(
-  setsWonByPlayerOne: number,
-  setsWonByPlayerTwo: number,
-  bestOf: 3 | 5,
-  rules: EditionRules,
-) {
-  return validateMatchResult(
-    {
-      setsWonByReporter: setsWonByPlayerOne,
-      setsWonByOpponent: setsWonByPlayerTwo,
-      bestOf,
-    },
-    rules,
-  );
+export function validateCorrectedScore(setsWonByPlayerOne: number, setsWonByPlayerTwo: number) {
+  return validateMatchResult({
+    setsWonByReporter: setsWonByPlayerOne,
+    setsWonByOpponent: setsWonByPlayerTwo,
+  });
 }
 
 export function isMatchCounted(status: MatchStatus): boolean {
@@ -582,7 +564,7 @@ export async function countEditionRegistrations(
   editionId: string,
 ): Promise<number> {
   const [result] = await db
-    .select({ count: sql<number>`count(*)::int` })
+    .select({ count: count() })
     .from(schema.editionRegistrations)
     .where(eq(schema.editionRegistrations.editionId, editionId));
 

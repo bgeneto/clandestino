@@ -158,7 +158,6 @@ export function mapMatch(
     editionId: row.editionId,
     groupId: row.groupId,
     status: row.status,
-    bestOf: row.bestOf as 3 | 5,
     participants: participants.map(mapMatchParticipant),
     ...(options?.resultSubmittedByPlayerId
       ? { resultSubmittedByPlayerId: options.resultSubmittedByPlayerId }

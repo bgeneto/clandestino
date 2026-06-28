@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { validatePlayerName } from '@clandestino/shared-contracts';
 import type { EditionWizardDraft, WizardDraftPlayer } from '../../../db/clandestino-db.js';
 import { WIZARD_MIN_GROUP_SIZE } from '@clandestino/tournament-engine';
+import { Alert } from '../../../components/ui/Alert.js';
 
 type CheckInStepProps = {
   draft: EditionWizardDraft;
@@ -123,9 +124,9 @@ export function CheckInStep({
         </button>
       </form>
 
-      {nameError ? <p className="text-sm text-danger-foreground">{nameError}</p> : null}
+      {nameError ? <Alert variant="danger">{nameError}</Alert> : null}
 
-      <p className="text-sm text-subtle">
+      <p className="text-sm font-semibold text-muted">
         Presentes: {draft.checkedInPlayers.length} (mínimo {WIZARD_MIN_GROUP_SIZE})
       </p>
 
@@ -135,7 +136,7 @@ export function CheckInStep({
         onClick={onContinue}
         className="w-full rounded-lg bg-brand px-4 py-2.5 font-medium text-white disabled:opacity-50"
       >
-        Continuar para grupos
+        Continuar para grupos →
       </button>
     </section>
   );

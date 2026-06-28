@@ -8,7 +8,7 @@
 #   ./stop dev --volumes     # para e REMOVE o volume do banco (destrutivo)
 #   ./stop --help
 #
-# Sem --volumes, os dados do Postgres são preservados (apenas `down`).
+# Sem --volumes, os dados SQLite são preservados (apenas `down`).
 # ---------------------------------------------------------------------------
 set -euo pipefail
 
@@ -22,11 +22,11 @@ Uso: ./stop [dev|prod] [opções]
 
 Ambientes:
   (nenhum)         Detecta automaticamente a stack ativa e para
-  dev              Para a stack de desenvolvimento (db + api + web + caddy)
-  prod             Para a stack de produção (db + api)
+  dev              Para a stack de desenvolvimento (api + web + caddy)
+  prod             Para a stack de produção (api)
 
 Opções:
-  --volumes        Remove também o volume do banco (DESTRUTIVO — apaga dados)
+  --volumes        Remove também o volume SQLite (DESTRUTIVO — apaga dados)
   --help, -h       Mostra esta ajuda
 
 Exemplos:
@@ -35,7 +35,7 @@ Exemplos:
   ./stop prod
   ./stop dev --volumes
 
-Sem --volumes, os dados do Postgres são preservados.
+Sem --volumes, os dados SQLite são preservados.
 EOF
 }
 
@@ -95,7 +95,7 @@ detect_env() {
 
 confirm_volumes() {
   local env="$1"
-  warn "--volumes vai REMOVER o volume do banco da stack ${env} (dados perdidos)."
+  warn "--volumes vai REMOVER o volume SQLite da stack ${env} (dados perdidos)."
   printf '[stop] Digite "sim" para confirmar: '
   local answer=""
   read -r answer

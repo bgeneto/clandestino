@@ -6,7 +6,6 @@ import {
   estimateRoundRobinMatches,
   maxGroupCount,
   partitionPlayersIntoGroups,
-  recommendMatchBestOf,
   suggestGroupCount,
 } from '@clandestino/tournament-engine';
 
@@ -36,15 +35,13 @@ export function GroupsFormatStep({ draft, onChange, onContinue, onBack }: Groups
 
   const totalMatches = estimateRoundRobinMatches(groupSizes);
   const largestGroup = groupSizes.length > 0 ? Math.max(...groupSizes) : 0;
-  const recommendedBestOf = recommendMatchBestOf(totalMatches);
-  const matchBestOf = draft.matchBestOf ?? recommendedBestOf;
 
   const canContinue = groupSizes.length > 0;
 
   return (
     <section className="space-y-4">
       <div>
-        <h3 className="text-lg font-semibold text-foreground">Grupos e formato</h3>
+        <h3 className="text-lg font-semibold text-foreground">Grupos</h3>
         <p className="mt-1 text-sm text-muted">
           Com {playerCount} jogadores presentes, escolha quantos grupos formar.
         </p>
@@ -88,7 +85,9 @@ export function GroupsFormatStep({ draft, onChange, onContinue, onBack }: Groups
             </li>
           ))}
         </ul>
-        <p className="mt-3 text-subtle">Número de partidas na fase de grupos: {totalMatches}</p>
+        <p className="mt-3 font-semibold text-muted">
+          Número de partidas na fase de grupos: {totalMatches}
+        </p>
         {largestGroup > WIZARD_WARN_GROUP_SIZE ? (
           <p className="mt-2 text-warning-foreground">
             Atenção: um grupo com {largestGroup} jogadores gera muitas partidas ({totalMatches}{' '}
@@ -96,34 +95,6 @@ export function GroupsFormatStep({ draft, onChange, onContinue, onBack }: Groups
           </p>
         ) : null}
       </div>
-
-      <fieldset className="space-y-2">
-        <legend className="text-sm font-medium text-muted">Formato das partidas de grupo</legend>
-        <label className="flex items-center gap-2 text-sm text-foreground">
-          <input
-            type="radio"
-            name="matchBestOf"
-            checked={matchBestOf === 3}
-            onChange={() => onChange({ matchBestOf: 3, groupCount, groupSizes })}
-          />
-          Melhor de 3
-          {recommendedBestOf === 3 ? (
-            <span className="text-xs text-brand">(recomendado)</span>
-          ) : null}
-        </label>
-        <label className="flex items-center gap-2 text-sm text-foreground">
-          <input
-            type="radio"
-            name="matchBestOf"
-            checked={matchBestOf === 5}
-            onChange={() => onChange({ matchBestOf: 5, groupCount, groupSizes })}
-          />
-          Melhor de 5
-          {recommendedBestOf === 5 ? (
-            <span className="text-xs text-brand">(recomendado)</span>
-          ) : null}
-        </label>
-      </fieldset>
 
       <div className="flex gap-3">
         <button
@@ -137,7 +108,7 @@ export function GroupsFormatStep({ draft, onChange, onContinue, onBack }: Groups
           type="button"
           disabled={!canContinue}
           onClick={() => {
-            onChange({ groupCount, groupSizes, matchBestOf });
+            onChange({ groupCount, groupSizes });
             onContinue();
           }}
           className="flex-1 rounded-lg bg-brand px-4 py-2.5 text-sm font-medium text-white disabled:opacity-50"

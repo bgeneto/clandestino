@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { ContestedMatch, Edition, Match } from '@clandestino/shared-contracts';
+import { MAX_SETS_SCORE } from '@clandestino/shared-contracts';
 import { GroupsView } from '../../components/edition/GroupsView.js';
 import { ScoreCounter } from '../../components/edition/ScoreCounter.js';
 import { DrawAuditPanel } from '../../components/organizer/DrawAuditPanel.js';
@@ -20,6 +21,7 @@ import {
   useEditionParticipants,
 } from '../../hooks/use-edition-data.js';
 import { useEdition } from '../../hooks/use-edition.js';
+import { Alert } from '../../components/ui/Alert.js';
 import { useEditionSse } from '../../hooks/use-edition-sse.js';
 import { ApiError } from '../../lib/api-client.js';
 import { getDrawReadinessWarning } from '../../lib/draw-utils.js';
@@ -340,7 +342,7 @@ function ContestCorrectionCard({
   const [confirmedOfficial, setConfirmedOfficial] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
 
-  const validation = validateScoreInput(playerOneSets, playerTwoSets, match.bestOf);
+  const validation = validateScoreInput(playerOneSets, playerTwoSets);
 
   const correctMutation = useMutation({
     mutationFn: () =>
@@ -382,15 +384,15 @@ function ContestCorrectionCard({
         <ScoreCounter
           label={playerNames.get(playerOneId) ?? 'Jogador 1'}
           value={playerOneSets}
-          max={match.bestOf}
-          onIncrement={() => setPlayerOneSets((value) => Math.min(value + 1, match.bestOf))}
+          max={MAX_SETS_SCORE}
+          onIncrement={() => setPlayerOneSets((value) => Math.min(value + 1, MAX_SETS_SCORE))}
           onDecrement={() => setPlayerOneSets((value) => Math.max(value - 1, 0))}
         />
         <ScoreCounter
           label={playerNames.get(playerTwoId) ?? 'Jogador 2'}
           value={playerTwoSets}
-          max={match.bestOf}
-          onIncrement={() => setPlayerTwoSets((value) => Math.min(value + 1, match.bestOf))}
+          max={MAX_SETS_SCORE}
+          onIncrement={() => setPlayerTwoSets((value) => Math.min(value + 1, MAX_SETS_SCORE))}
           onDecrement={() => setPlayerTwoSets((value) => Math.max(value - 1, 0))}
         />
       </div>
@@ -611,11 +613,7 @@ export function OrganizerEditionPage() {
   }
 
   if (editionQuery.isError || !editionQuery.data) {
-    return (
-      <section className="rounded-2xl border border-danger-surface bg-danger-surface p-6 text-sm text-danger-foreground">
-        Edição não encontrada.
-      </section>
-    );
+    return <Alert variant="danger">Edição não encontrada.</Alert>;
   }
 
   const edition = editionQuery.data;

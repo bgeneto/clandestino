@@ -25,8 +25,11 @@ pnpm-debug.log*
 .turbo/
 .cache/
 
-# Local Postgres data volume (bind-mounted by docker compose)
-clandestino-db/
+# SQLite database files (local dev and tests)
+data/
+*.db
+*.db-wal
+*.db-shm
 
 # Editor / agent working dirs
 .agents/

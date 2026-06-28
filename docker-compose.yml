@@ -1,39 +1,14 @@
 name: clandestino
 
 services:
-  db:
-    image: postgres:18-alpine
-    container_name: clandestino-db
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: clandestino
-    ports:
-      - '5433:5432'
-    volumes:
-      # Postgres 18+ armazena os dados em subdiretório versionado sob
-      # /var/lib/postgresql (ex.: /var/lib/postgresql/18/docker). Monte o
-      # volume na raiz, não em /data, senão o entrypoint falha no boot.
-      - clandestino-db:/var/lib/postgresql
-      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
-    healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U postgres -d clandestino']
-      interval: 5s
-      timeout: 5s
-      retries: 10
-
   api:
     build:
       context: .
       dockerfile: apps/api/Dockerfile
     container_name: clandestino-api
     restart: unless-stopped
-    depends_on:
-      db:
-        condition: service_healthy
     environment:
-      DATABASE_URL: postgres://postgres:postgres@db:5432/clandestino
+      DATABASE_URL: file:/app/data/clandestino.db
       API_HOST: 0.0.0.0
       API_PORT: '3000'
       NODE_ENV: production
@@ -43,6 +18,8 @@ services:
       SEED_ON_START: 'false'
     ports:
       - '3000:3000'
+    volumes:
+      - clandestino-data:/app/data
 
 volumes:
-  clandestino-db:
+  clandestino-data:

@@ -1,3 +1,4 @@
+import { MAX_SETS_SCORE } from '@clandestino/shared-contracts';
 import { useMemo, useState } from 'react';
 import { Link, Navigate, useNavigate, useOutletContext, useParams } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -60,7 +61,7 @@ export function RegisterResultPage() {
       return { valid: false, reason: 'Partida não encontrada.' };
     }
 
-    return validateScoreInput(reporterSets, opponentSets, match.bestOf);
+    return validateScoreInput(reporterSets, opponentSets);
   }, [match, reporterSets, opponentSets]);
 
   const submitMutation = useMutation({
@@ -110,28 +111,25 @@ export function RegisterResultPage() {
         <h1 className="text-lg font-bold text-foreground">Registrar resultado</h1>
       </div>
 
-      <EditionHeader edition={edition} subtitle={`${groupName} · Melhor de ${match.bestOf} sets`} />
+      <EditionHeader edition={edition} subtitle={groupName} />
       <section className="rounded-2xl bg-card p-5 shadow-sm">
         <div className="flex items-center justify-around">
           <ScoreCounter
             label={session.playerName ?? 'Você'}
             value={reporterSets}
-            max={match.bestOf}
-            onIncrement={() => setReporterSets((value) => Math.min(match.bestOf, value + 1))}
+            max={MAX_SETS_SCORE}
+            onIncrement={() => setReporterSets((value) => Math.min(MAX_SETS_SCORE, value + 1))}
             onDecrement={() => setReporterSets((value) => Math.max(0, value - 1))}
           />
           <span className="mt-6 text-xl font-bold text-muted">×</span>
           <ScoreCounter
             label={playerNames.get(opponentId ?? '') ?? 'Adversário'}
             value={opponentSets}
-            max={match.bestOf}
-            onIncrement={() => setOpponentSets((value) => Math.min(match.bestOf, value + 1))}
+            max={MAX_SETS_SCORE}
+            onIncrement={() => setOpponentSets((value) => Math.min(MAX_SETS_SCORE, value + 1))}
             onDecrement={() => setOpponentSets((value) => Math.max(0, value - 1))}
           />
         </div>
-        <p className="mt-4 text-center text-xs text-subtle">
-          Vence quem ganhar {match.bestOf === 3 ? 2 : 3} sets primeiro
-        </p>
       </section>
 
       {!online ? (

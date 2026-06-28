@@ -8,12 +8,10 @@ import { Type } from '@sinclair/typebox';
 import { and, asc, eq } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import { schema } from '../db/index.js';
-import { resolveMatchBestOf } from '../lib/draw.js';
 import { badRequest, conflict, notFound } from '../lib/errors.js';
 import {
   PLACEMENT_PHASE,
   buildPlacementMatchesForGroup,
-  countEditionRegistrations,
   finalizeEditionPlacements,
 } from '../lib/matches.js';
 import { mapEdition, mapFinalPlacement, mapGroupWithPlayers } from '../lib/mappers.js';
@@ -91,8 +89,6 @@ export async function registerEditionPlacementRoutes(app: FastifyInstance): Prom
         playersByGroupId.set(groupPlayer.groupId, current);
       }
 
-      const registrationCount = await countEditionRegistrations(app.db, editionId);
-      const bestOf = resolveMatchBestOf(registrationCount, edition.rules);
       const organizer = request.organizerEmail ?? 'organizer';
 
       let matchesGenerated = 0;
@@ -118,7 +114,6 @@ export async function registerEditionPlacementRoutes(app: FastifyInstance): Prom
                 phase: PLACEMENT_PHASE,
                 playerOneId: match.playerOneId,
                 playerTwoId: match.playerTwoId,
-                bestOf,
                 status: 'AGENDADA' as const,
               })),
             )

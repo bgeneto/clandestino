@@ -6,7 +6,7 @@ export type OrganizerOutletContext = {
 };
 
 export function OrganizerLayout() {
-  const { session, isLoading } = useOrganizerSession();
+  const { session, isLoading, clearSession } = useOrganizerSession();
 
   if (isLoading) {
     return null;
@@ -20,5 +20,18 @@ export function OrganizerLayout() {
     organizerEmail: session.email,
   };
 
-  return <Outlet context={context} />;
+  return (
+    <div className="flex min-h-screen flex-col">
+      <Outlet context={context} />
+      <footer className="mt-auto py-4">
+        <button
+          type="button"
+          onClick={() => void clearSession()}
+          className="w-full rounded-lg border border-line px-4 py-2 text-sm text-muted"
+        >
+          Sair
+        </button>
+      </footer>
+    </div>
+  );
 }

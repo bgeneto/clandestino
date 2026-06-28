@@ -4,6 +4,7 @@ import { useMutation } from '@tanstack/react-query';
 import { ApiError } from '../../lib/api-client.js';
 import { verifyOrganizerMagicLink } from '../../lib/organizer-api.js';
 import { useOrganizerSession } from '../../hooks/use-organizer-session.js';
+import { Alert } from '../../components/ui/Alert.js';
 
 export function OrganizerVerifyPage() {
   const [searchParams] = useSearchParams();
@@ -61,8 +62,8 @@ export function OrganizerVerifyPage() {
 
   if (error) {
     return (
-      <section className="space-y-4 rounded-2xl border border-danger-surface bg-danger-surface p-6 text-sm text-danger-foreground">
-        <p>{error}</p>
+      <section className="space-y-4">
+        <Alert variant="danger">{error}</Alert>
         <Link
           className="inline-block rounded-lg bg-brand px-4 py-2 font-medium text-white"
           to="/organizador"

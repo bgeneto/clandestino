@@ -9,10 +9,9 @@ import {
   drawUnseededPlayers,
   generateGroupMatches,
   generatePlacementStage,
-  invalidScoresForBestOf,
+  MAX_SETS_SCORE,
   resolveTies,
   validateMatchResult,
-  validScoresForBestOf,
 } from './index.js';
 import type { DrawGroupInput, PlacementGroupResult, StandingMatch } from './types.js';
 
@@ -131,37 +130,36 @@ describe('generateGroupMatches', () => {
 });
 
 describe('validateMatchResult', () => {
-  it('accepts all valid completed scores', () => {
-    for (const bestOf of [3, 5] as const) {
-      for (const [a, b] of validScoresForBestOf(bestOf)) {
-        expect(
-          validateMatchResult({ setsWonByReporter: a, setsWonByOpponent: b, bestOf }).valid,
-        ).toBe(true);
-      }
-    }
+  it('accepts valid scores within range', () => {
+    expect(validateMatchResult({ setsWonByReporter: 4, setsWonByOpponent: 2 }).valid).toBe(true);
+    expect(validateMatchResult({ setsWonByReporter: 0, setsWonByOpponent: 7 }).valid).toBe(true);
   });
 
   it('rejects impossible scores', () => {
+    expect(validateMatchResult({ setsWonByReporter: 2, setsWonByOpponent: 2 }).valid).toBe(false);
+    expect(validateMatchResult({ setsWonByReporter: -1, setsWonByOpponent: 3 }).valid).toBe(false);
     expect(
-      validateMatchResult({ setsWonByReporter: 2, setsWonByOpponent: 2, bestOf: 3 }).valid,
-    ).toBe(false);
-    expect(
-      validateMatchResult({ setsWonByReporter: 3, setsWonByOpponent: 3, bestOf: 5 }).valid,
-    ).toBe(false);
-    expect(
-      validateMatchResult({ setsWonByReporter: 1, setsWonByOpponent: 0, bestOf: 3 }).valid,
+      validateMatchResult({
+        setsWonByReporter: MAX_SETS_SCORE + 1,
+        setsWonByOpponent: 3,
+      }).valid,
     ).toBe(false);
   });
 
-  it('rejects every invalid score for best-of formats', () => {
+  it('rejects every invalid score in range', () => {
     fc.assert(
-      fc.property(fc.constantFrom(3 as const, 5 as const), (bestOf) => {
-        for (const [a, b] of invalidScoresForBestOf(bestOf)) {
-          expect(
-            validateMatchResult({ setsWonByReporter: a, setsWonByOpponent: b, bestOf }).valid,
-          ).toBe(false);
-        }
-      }),
+      fc.property(
+        fc.integer({ min: 0, max: MAX_SETS_SCORE }),
+        fc.integer({ min: 0, max: MAX_SETS_SCORE }),
+        (a, b) => {
+          const result = validateMatchResult({ setsWonByReporter: a, setsWonByOpponent: b });
+          if (a === b) {
+            expect(result.valid).toBe(false);
+          } else {
+            expect(result.valid).toBe(true);
+          }
+        },
+      ),
     );
   });
 });

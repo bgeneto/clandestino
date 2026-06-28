@@ -10,6 +10,7 @@ import {
 import { ApiError } from '../../lib/api-client.js';
 import { importChampionshipScores } from '../../lib/organizer-api.js';
 import { useChampionship } from '../../hooks/use-organizer-data.js';
+import { Alert } from '../../components/ui/Alert.js';
 
 function parseCsvPreview(content: string): { rows: ImportScoresCsvRow[]; errors: string[] } {
   const normalized = content.replace(/^\uFEFF/, '').trim();
@@ -109,11 +110,7 @@ export function ImportCsvPage() {
   });
 
   if (!championshipId) {
-    return (
-      <section className="rounded-2xl border border-danger-surface bg-danger-surface p-6 text-sm text-danger-foreground">
-        Campeonato não informado.
-      </section>
-    );
+    return <Alert variant="danger">Campeonato não informado.</Alert>;
   }
 
   return (
@@ -149,7 +146,7 @@ export function ImportCsvPage() {
       {championshipQuery.isLoading ? (
         <p className="text-sm text-subtle">Carregando campeonato…</p>
       ) : championshipQuery.isError ? (
-        <p className="text-sm text-danger-foreground">Campeonato não encontrado.</p>
+        <Alert variant="danger">Campeonato não encontrado.</Alert>
       ) : (
         <div className="space-y-4 rounded-2xl border border-line bg-card p-6">
           <label className="block space-y-2 text-sm">
@@ -198,17 +195,9 @@ export function ImportCsvPage() {
             </div>
           ) : null}
 
-          {error ? (
-            <p className="rounded-lg border border-danger-surface bg-danger-surface px-3 py-2 text-sm text-danger-foreground">
-              {error}
-            </p>
-          ) : null}
+          {error ? <Alert variant="danger">{error}</Alert> : null}
 
-          {feedback ? (
-            <p className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-700 dark:text-emerald-100">
-              {feedback}
-            </p>
-          ) : null}
+          {feedback ? <Alert variant="success">{feedback}</Alert> : null}
 
           <label className="flex items-start gap-2 text-sm text-muted">
             <input

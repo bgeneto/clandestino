@@ -76,7 +76,9 @@ O banco deve ser a fonte definitiva dos resultados. Restrições de chave primá
 
 O PostgreSQL oferece essas garantias diretamente no modelo relacional. ([PostgreSQL](https://www.postgresql.org/docs/current/ddl-constraints.html?utm_source=chatgpt.com))
 
-O Drizzle é uma boa escolha por manter o esquema próximo do SQL, preservar a tipagem no TypeScript e gerar migrações versionadas para PostgreSQL. ([Drizzle ORM](https://orm.drizzle.team/docs/get-started/postgresql-new?utm_source=chatgpt.com))
+> **Nota (2026):** a API foi migrada para **SQLite** (`better-sqlite3` + Drizzle). A decisão original favorecia PostgreSQL; o MVP passou a usar arquivo local com as mesmas constraints Drizzle.
+
+O Drizzle é uma boa escolha por manter o esquema próximo do SQL, preservar a tipagem no TypeScript e gerar migrações versionadas. ([Drizzle ORM](https://orm.drizzle.team/docs/get-started/sqlite-new?utm_source=chatgpt.com))
 
 ---
 

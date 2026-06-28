@@ -48,7 +48,6 @@ describe('shared-contracts schemas', () => {
       editionId: '550e8400-e29b-41d4-a716-446655440002',
       groupId: '550e8400-e29b-41d4-a716-446655440003',
       status: 'AGENDADA',
-      bestOf: 3,
       participants: [
         { playerId: '550e8400-e29b-41d4-a716-446655440004', setsWon: 0 },
         { playerId: '550e8400-e29b-41d4-a716-446655440005', setsWon: 0 },
@@ -90,7 +89,6 @@ describe('shared-contracts schemas', () => {
           '00000000-0000-4000-8000-000000000001',
           '00000000-0000-4000-8000-000000000002',
         ],
-        matchBestOf: 3,
         randomSeed: 'seed-1',
       }),
     ).toBe(true);

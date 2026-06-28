@@ -21,6 +21,7 @@ import { ReviewStep } from '../../components/organizer/edition-wizard/ReviewStep
 import { SeedsStep } from '../../components/organizer/edition-wizard/SeedsStep.js';
 import { WizardStepNav } from '../../components/organizer/edition-wizard/WizardStepNav.js';
 import { formatEditionDate } from '../../lib/format.js';
+import { Alert } from '../../components/ui/Alert.js';
 
 function createLocalPlayerId(name: string): string {
   return `local-${name.trim().toLowerCase().replace(/\s+/g, '-')}-${Date.now()}`;
@@ -118,6 +119,9 @@ export function EditionPreparePage() {
   const [draft, setDraft] = useState<EditionWizardDraft | null>(null);
   const [loading, setLoading] = useState(true);
   const [feedback, setFeedback] = useState<string | null>(null);
+  const [resultStatus, setResultStatus] = useState<
+    'synced' | 'conflict' | 'error' | 'info' | 'success' | null
+  >(null);
   const [isPublishing, setIsPublishing] = useState(false);
   const rankingChampionshipId =
     draft?.championshipId ?? championshipId ?? editionQuery.data?.championshipId;
@@ -192,7 +196,15 @@ export function EditionPreparePage() {
         return;
       }
 
-      await persistDraft({ ...draft, currentStep: step });
+      let latestDraft = draft;
+      if (draft.id) {
+        const stored = await getEditionWizardDraft(draft.id);
+        if (stored) {
+          latestDraft = stored;
+        }
+      }
+
+      await persistDraft({ ...latestDraft, currentStep: step });
     },
     [draft, persistDraft],
   );
@@ -216,11 +228,7 @@ export function EditionPreparePage() {
   }
 
   if (!draft) {
-    return (
-      <section className="rounded-2xl border border-danger-surface bg-danger-surface p-6 text-sm text-danger-foreground">
-        Rascunho da edição não encontrado.
-      </section>
-    );
+    return <Alert variant="danger">Rascunho da edição não encontrado.</Alert>;
   }
 
   const backLink = draft.editionId
@@ -316,10 +324,18 @@ export function EditionPreparePage() {
           isOnline={isOnline}
           isPublishing={isPublishing}
           feedback={feedback}
+          feedbackVariant={
+            resultStatus === 'error'
+              ? 'danger'
+              : resultStatus === 'conflict' || resultStatus === 'info'
+                ? 'warning'
+                : 'success'
+          }
           onBack={() => void goToStep(5)}
           onPublish={async () => {
             if (!canPublishDraft(draft)) {
               setFeedback('Complete todos os passos antes de publicar.');
+              setResultStatus('info');
               return;
             }
 
@@ -329,11 +345,13 @@ export function EditionPreparePage() {
                 syncStatus: 'PRONTO_PARA_SINCRONIZAR',
               });
               setFeedback('Sorteio salvo localmente. Sincronize quando houver conexão.');
+              setResultStatus('success');
               return;
             }
 
             setIsPublishing(true);
             setFeedback(null);
+            setResultStatus(null);
             const result = await syncEditionWizardDraft(draft);
             setIsPublishing(false);
 
@@ -343,6 +361,7 @@ export function EditionPreparePage() {
             }
 
             setFeedback(result.message);
+            setResultStatus(result.status);
           }}
         />
       ) : null}

@@ -4,6 +4,7 @@ import { useMutation } from '@tanstack/react-query';
 import { DEFAULT_EDITION_RULES, DEFAULT_SCORING_TABLE } from '@clandestino/shared-contracts';
 import { ApiError } from '../../lib/api-client.js';
 import { createChampionship } from '../../lib/organizer-api.js';
+import { Alert } from '../../components/ui/Alert.js';
 
 export function CreateChampionshipPage() {
   const navigate = useNavigate();
@@ -36,7 +37,7 @@ export function CreateChampionshipPage() {
         <Link className="text-sm text-subtle underline" to="/organizador/painel">
           ← Voltar ao painel
         </Link>
-        <h2 className="mt-3 text-xl font-semibold text-foreground">Novo campeonato</h2>
+        <h2 className="mt-3 text-xl font-semibold text-foreground">Novo Campeonato</h2>
         <p className="mt-2 text-sm text-muted">
           Crie um campeonato com ranking e pontuação próprios, como &quot;Clandestino 2026 - Águas
           Claras&quot;.
@@ -67,11 +68,7 @@ export function CreateChampionshipPage() {
           pode ajustar depois no hub do campeonato.
         </p>
 
-        {error ? (
-          <p className="rounded-lg border border-danger-surface bg-danger-surface px-3 py-2 text-sm text-danger-foreground">
-            {error}
-          </p>
-        ) : null}
+        {error ? <Alert variant="danger">{error}</Alert> : null}
 
         <button
           type="submit"

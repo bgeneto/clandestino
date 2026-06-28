@@ -5,6 +5,7 @@ import {
   useChampionshipRanking,
 } from '../../hooks/use-organizer-data.js';
 import { formatEditionDate, formatEditionStatus } from '../../lib/format.js';
+import { Alert } from '../../components/ui/Alert.js';
 
 export function ChampionshipPage() {
   const { championshipId } = useParams<{ championshipId: string }>();
@@ -17,11 +18,7 @@ export function ChampionshipPage() {
   }
 
   if (championshipQuery.isError || !championshipQuery.data) {
-    return (
-      <section className="rounded-2xl border border-danger-surface bg-danger-surface p-6 text-sm text-danger-foreground">
-        Campeonato não encontrado.
-      </section>
-    );
+    return <Alert variant="danger">Campeonato não encontrado.</Alert>;
   }
 
   const championship = championshipQuery.data;

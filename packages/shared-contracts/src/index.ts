@@ -87,6 +87,7 @@ export {
 } from './group.js';
 
 export {
+  MAX_SETS_SCORE,
   MatchStatusSchema,
   MatchParticipantSchema,
   MatchSchema,

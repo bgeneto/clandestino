@@ -24,20 +24,6 @@ import { emitMatchConfirmed, emitMatchContested } from '../lib/sse-events.js';
 
 const matchIdParams = Type.Object({ id: Type.String({ format: 'uuid' }) });
 
-async function loadEditionRules(app: FastifyInstance, editionId: string) {
-  const [edition] = await app.db
-    .select()
-    .from(schema.editions)
-    .where(eq(schema.editions.id, editionId))
-    .limit(1);
-
-  if (!edition) {
-    throw notFound('Edição não encontrada.');
-  }
-
-  return edition;
-}
-
 export async function registerMatchRoutes(app: FastifyInstance): Promise<void> {
   const typed = app.withTypeProvider<TypeBoxTypeProvider>();
 
@@ -81,12 +67,9 @@ export async function registerMatchRoutes(app: FastifyInstance): Promise<void> {
         throw forbidden('Apenas participantes podem registrar o resultado.');
       }
 
-      const edition = await loadEditionRules(app, editionId);
       const validation = validateSubmittedScore(
         request.body.setsWonByReporter,
         request.body.setsWonByOpponent,
-        match.bestOf as 3 | 5,
-        edition.rules,
       );
 
       if (!validation.valid) {
@@ -317,12 +300,9 @@ export async function registerMatchRoutes(app: FastifyInstance): Promise<void> {
         throw conflict('Apenas partidas contestadas podem ser corrigidas pelo organizador.');
       }
 
-      const edition = await loadEditionRules(app, match.editionId);
       const validation = validateCorrectedScore(
         request.body.setsWonByPlayerOne,
         request.body.setsWonByPlayerTwo,
-        match.bestOf as 3 | 5,
-        edition.rules,
       );
 
       if (!validation.valid) {

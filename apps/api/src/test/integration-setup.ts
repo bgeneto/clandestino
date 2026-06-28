@@ -1,50 +1,54 @@
 import { fileURLToPath } from 'node:url';
-import { drizzle } from 'drizzle-orm/node-postgres';
-import { migrate } from 'drizzle-orm/node-postgres/migrator';
-import { Pool } from 'pg';
+import Database from 'better-sqlite3';
+import { drizzle } from 'drizzle-orm/better-sqlite3';
+import { migrate } from 'drizzle-orm/better-sqlite3/migrator';
 import type { FastifyInstance } from 'fastify';
 import { createApp } from '../app.js';
 import { loadConfig } from '../config.js';
+import { resolveSqlitePath } from '../db/index.js';
 
 /**
  * URL do banco dedicado aos testes de integração. Quando ausente, a suíte é
- * ignorada via `describe.skipIf(!hasTestDb)`, mantendo `pnpm test` verde em
- * ambientes sem PostgreSQL.
+ * ignorada via `describe.skipIf(!hasTestDb)`, mantendo `pnpm test` verde sem
+ * arquivo de teste configurado.
  */
 export const testDatabaseUrl = process.env.TEST_DATABASE_URL;
 export const hasTestDb = Boolean(testDatabaseUrl);
 
 const migrationsFolder = fileURLToPath(new URL('../../drizzle', import.meta.url));
 
-const ALL_TABLES = [
-  'player',
-  'championship',
-  'edition',
-  'edition_registration',
-  'draw_snapshot',
-  '"group"',
-  'group_player',
-  'match',
-  'match_participant',
-  'standing',
-  'final_placement',
-  'championship_player_points',
-  'organizer_magic_token',
-  'organizer_session',
+const TRUNCATE_ORDER = [
   'audit_event',
+  'organizer_session',
+  'organizer_magic_token',
+  'championship_player_points',
+  'final_placement',
+  'standing',
+  'match_participant',
+  'match',
+  'group_player',
+  '"group"',
+  'draw_snapshot',
+  'edition_registration',
+  'edition',
+  'championship',
+  'player',
 ];
 
-let adminPool: Pool | undefined;
+let testSqlite: Database.Database | undefined;
 let migrated = false;
 
-function getAdminPool(): Pool {
+function getTestSqlite(): Database.Database {
   if (!testDatabaseUrl) {
-    throw new Error('TEST_DATABASE_URL não definida; não é possível abrir o pool de testes.');
+    throw new Error('TEST_DATABASE_URL não definida; não é possível abrir o banco de testes.');
   }
-  if (!adminPool) {
-    adminPool = new Pool({ connectionString: testDatabaseUrl });
+  if (!testSqlite) {
+    const filePath = resolveSqlitePath(testDatabaseUrl);
+    testSqlite = new Database(filePath);
+    testSqlite.pragma('journal_mode = WAL');
+    testSqlite.pragma('foreign_keys = ON');
   }
-  return adminPool;
+  return testSqlite;
 }
 
 /** Aplica as migrações Drizzle no banco de testes (idempotente por processo). */
@@ -52,31 +56,44 @@ export async function migrateTestDb(): Promise<void> {
   if (migrated) {
     return;
   }
-  const pool = getAdminPool();
-  const db = drizzle(pool);
-  await migrate(db, { migrationsFolder });
+  const sqlite = getTestSqlite();
+  const db = drizzle(sqlite);
+  migrate(db, { migrationsFolder });
   migrated = true;
 }
 
 /** Limpa todas as tabelas entre os testes, preservando o schema. */
 export async function truncateAll(): Promise<void> {
-  const pool = getAdminPool();
-  await pool.query(`TRUNCATE TABLE ${ALL_TABLES.join(', ')} RESTART IDENTITY CASCADE`);
+  const sqlite = getTestSqlite();
+  sqlite.exec('PRAGMA foreign_keys = OFF');
+  try {
+    for (const table of TRUNCATE_ORDER) {
+      sqlite.exec(`DELETE FROM ${table}`);
+    }
+  } finally {
+    sqlite.exec('PRAGMA foreign_keys = ON');
+  }
 }
 
 export async function adminQuery(
   text: string,
   params: unknown[] = [],
 ): Promise<Array<Record<string, unknown>>> {
-  const pool = getAdminPool();
-  const result = await pool.query(text, params);
-  return result.rows;
+  const sqlite = getTestSqlite();
+  const stmt = sqlite.prepare(text);
+  const verb = text.trimStart().split(/\s+/)[0]?.toUpperCase();
+  if (verb === 'SELECT' || verb === 'WITH') {
+    return stmt.all(...params) as Array<Record<string, unknown>>;
+  }
+  stmt.run(...params);
+  return [];
 }
 
-export async function closeAdminPool(): Promise<void> {
-  if (adminPool) {
-    await adminPool.end();
-    adminPool = undefined;
+export async function closeTestDb(): Promise<void> {
+  if (testSqlite) {
+    testSqlite.close();
+    testSqlite = undefined;
+    migrated = false;
   }
 }
 

@@ -2,9 +2,9 @@
 # ---------------------------------------------------------------------------
 # Clandestino — wrapper seguro para subir ambientes dev e prod via Docker Compose.
 #
-#   ./start dev            # stack dev (db + api + web + caddy)
+#   ./start dev            # stack dev (api + web + caddy)
 #   ./start dev --seed       # idem, com seed de exemplo no start
-#   ./start prod             # stack prod (db + api)
+#   ./start prod             # stack prod (api)
 #   ./start --help
 #
 # Migrações: automáticas no start da API (dev command / prod entrypoint).
@@ -22,9 +22,9 @@ usage() {
 Uso: ./start <dev|prod> [opções]
 
 Ambientes:
-  dev              Sobe db + api + web + caddy (hot reload, http://clandestino.test)
+  dev              Sobe api + web + caddy (hot reload, http://clandestino.test)
                    Assets do PWA (ícones, etc.) servidos ao vivo pelo Vite.
-  prod             Sobe db + api em produção local (http://localhost:3000)
+  prod             Sobe api em produção local (http://localhost:3000)
                    Build estático do PWA em apps/web/dist (sirva via reverse proxy).
 
 Opções:
@@ -126,7 +126,7 @@ start_dev() {
   assert_no_other_stack "dev"
   warn_hosts_entry
 
-  log "Subindo stack de desenvolvimento (db + api + web + caddy)..."
+  log "Subindo stack de desenvolvimento (api + web + caddy)..."
   if [[ "${seed}" == "true" ]]; then
     log "Seed habilitado (SEED_ON_START=true)."
     SEED_ON_START=true docker compose -f "${COMPOSE_DEV}" up -d --build
@@ -146,7 +146,7 @@ start_prod() {
 
   build_web_assets
 
-  log "Subindo stack de produção local (db + api)..."
+  log "Subindo stack de produção local (api)..."
   SEED_ON_START=false docker compose -f "${COMPOSE_PROD}" up -d --build
 
   log "Stack prod em segundo plano."

@@ -16,6 +16,10 @@
   --color-danger-foreground: var(--danger-foreground);
   --color-warning-surface: var(--warning-surface);
   --color-warning-foreground: var(--warning-foreground);
+  --color-success-surface: var(--success-surface);
+  --color-success-foreground: var(--success-foreground);
+  --color-info-surface: var(--info-surface);
+  --color-info-foreground: var(--info-foreground);
 }
 
 :root {
@@ -34,6 +38,10 @@
   --danger-foreground: #991b1b;
   --warning-surface: #fef3c7;
   --warning-foreground: #92400e;
+  --success-surface: #dcfce7;
+  --success-foreground: #166534;
+  --info-surface: #dbeafe;
+  --info-foreground: #1e40af;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -52,6 +60,10 @@
     --danger-foreground: #fecdd3;
     --warning-surface: rgba(245, 158, 11, 0.1);
     --warning-foreground: #fde68a;
+    --success-surface: rgba(34, 197, 94, 0.1);
+    --success-foreground: #86efac;
+    --info-surface: rgba(59, 130, 246, 0.1);
+    --info-foreground: #93c5fd;
   }
 }
 
@@ -78,8 +90,7 @@ body {
   input[type='radio']:not(:disabled),
   input[type='file']:not(:disabled),
   input[type='submit']:not(:disabled),
-  input[type='reset']:not(:disabled),
-  input[type='button']:not(:disabled) {
+  input[type='reset']:not(:disabled) {
     cursor: pointer;
   }
 

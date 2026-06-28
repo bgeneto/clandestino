@@ -38,6 +38,8 @@ RUN pnpm --filter "@clandestino/api..." build
 # ---------------------------------------------------------------------------
 FROM base AS runtime
 ENV NODE_ENV=production
+RUN apt-get update && apt-get install -y python3 make g++ \
+    && rm -rf /var/lib/apt/lists/*
 COPY --from=build /app/pnpm-workspace.yaml /app/pnpm-lock.yaml /app/package.json /app/
 COPY --from=build /app/node_modules /app/node_modules
 COPY --from=build /app/packages/shared-contracts /app/packages/shared-contracts

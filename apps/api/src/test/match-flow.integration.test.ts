@@ -4,7 +4,7 @@ import { pointsForPosition } from '@clandestino/tournament-engine';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import {
-  closeAdminPool,
+  closeTestDb,
   createTestApp,
   hasTestDb,
   loginOrganizer,
@@ -14,15 +14,13 @@ import {
   truncateAll,
 } from './integration-setup.js';
 
-// Regras forçando 1 grupo de 4 jogadores, melhor de 3 (placares menores).
+// Regras forçando 1 grupo de 4 jogadores.
 const FLOW_RULES = {
   ...DEFAULT_TOURNAMENT_RULES,
   minimumGroupSize: 4,
   preferredGroupSize: 4,
   maximumGroupSize: 4,
   protectedSeedCount: 1,
-  normalMatchBestOf: 3 as const,
-  participantThresholdForBestOfThree: 24,
 };
 
 describe.skipIf(!hasTestDb)('fluxo de partidas e autorização (integração HTTP)', () => {
@@ -41,7 +39,7 @@ describe.skipIf(!hasTestDb)('fluxo de partidas e autorização (integração HTT
 
   afterAll(async () => {
     await app.close();
-    await closeAdminPool();
+    await closeTestDb();
   });
 
   async function org(method: 'POST' | 'GET', url: string, payload?: Record<string, unknown>) {
@@ -107,16 +105,15 @@ describe.skipIf(!hasTestDb)('fluxo de partidas e autorização (integração HTT
     return [first!.playerId, second!.playerId];
   }
 
-  it('gera round-robin de 6 partidas melhor de 3 para 1 grupo de 4', async () => {
+  it('gera round-robin de 6 partidas para 1 grupo de 4', async () => {
     const { matches } = await setupTournament();
     expect(matches).toHaveLength(6);
     for (const match of matches) {
-      expect(match.bestOf).toBe(3);
       expect(match.status).toBe('AGENDADA');
     }
   });
 
-  it('rejeita placar impossível com 422 (2x2 em melhor de 3)', async () => {
+  it('rejeita placar empatado com 422 (2x2)', async () => {
     const { editionId, matches } = await setupTournament();
     const match = matches[0]!;
     const [reporter] = participants(match);

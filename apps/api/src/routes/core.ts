@@ -77,7 +77,7 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
 
       return {
         message:
-          'Verifique seu e-mail, se ele estiver autorizado, um link de acesso foi enviado para você.',
+          'Verifique seu e-mail, se ele estiver autorizado, um link de acesso terá sido enviado para você.',
         expiresInMinutes: app.config.organizerMagicLinkTtlMinutes,
         ...(app.config.exposeMagicLinks ? { magicLink: verifyUrl } : {}),
       };

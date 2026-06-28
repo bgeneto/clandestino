@@ -33,7 +33,6 @@ export interface GroupForMatches {
 export interface MatchResultInput {
   setsWonByReporter: number;
   setsWonByOpponent: number;
-  bestOf: 3 | 5;
 }
 
 export type MatchValidationResult = { valid: true } | { valid: false; reason: string };

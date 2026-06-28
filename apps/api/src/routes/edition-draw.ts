@@ -17,7 +17,9 @@ import {
   GROUP_PHASE,
   buildGeneratedGroupMatches,
   executeDrawAlgorithm,
+  executeExplicitDrawAlgorithm,
   rankEditionPlayers,
+  rankEditionPlayersWithSeeds,
   resolveMatchBestOf,
 } from '../lib/draw.js';
 import { badRequest, conflict, notFound } from '../lib/errors.js';
@@ -91,29 +93,93 @@ export async function registerEditionDrawRoutes(app: FastifyInstance): Promise<v
       const pointsByPlayerId = new Map(
         championshipPoints.map((entry) => [entry.playerId, entry.accumulatedPoints]),
       );
-      const rankedPlayers = rankEditionPlayers(
-        registrations,
-        pointsByPlayerId,
-        edition.rules.protectedSeedCount,
-      );
+
+      const explicitDraw = isExplicitDrawRequest(request.body);
       const randomSeed = request.body.randomSeed?.trim() || generateSecureToken(16);
       const drawnBy = request.organizerEmail ?? 'organizer';
       const drawnAt = new Date();
 
       let drawResult;
-      try {
-        drawResult = executeDrawAlgorithm({
-          rankedPlayers,
-          rules: edition.rules,
-          randomSeed,
-        });
-      } catch (error) {
-        throw badRequest(
-          error instanceof Error ? error.message : 'Não foi possível executar o sorteio.',
+      let rankedPlayers;
+      let updatedRules = edition.rules;
+
+      if (explicitDraw) {
+        const { groupCount, groupSizes, seedPlayerIds, matchBestOf } = request.body;
+        if (!groupCount || !groupSizes || !seedPlayerIds || !matchBestOf) {
+          throw badRequest('Configuração explícita do sorteio incompleta.');
+        }
+
+        if (seedPlayerIds.length !== groupCount) {
+          throw badRequest('O número de seeds deve ser igual ao número de grupos.');
+        }
+
+        if (groupSizes.length !== groupCount) {
+          throw badRequest(
+            'A quantidade de tamanhos de grupo deve corresponder ao número de grupos.',
+          );
+        }
+
+        if (groupSizes.reduce((sum, size) => sum + size, 0) !== registrations.length) {
+          throw badRequest('A distribuição de grupos não corresponde ao número de inscritos.');
+        }
+
+        const registrationIds = new Set(registrations.map((entry) => entry.playerId));
+        for (const seedPlayerId of seedPlayerIds) {
+          if (!registrationIds.has(seedPlayerId)) {
+            throw badRequest('Um ou mais seeds não estão inscritos nesta edição.');
+          }
+        }
+
+        updatedRules = {
+          ...edition.rules,
+          minimumGroupSize: 3,
+          protectedSeedCount: groupCount,
+          normalMatchBestOf: matchBestOf,
+          participantThresholdForBestOfThree: 9999,
+        };
+
+        rankedPlayers = rankEditionPlayersWithSeeds(registrations, pointsByPlayerId, seedPlayerIds);
+
+        try {
+          drawResult = executeExplicitDrawAlgorithm({
+            playerIds: registrations.map((entry) => entry.playerId),
+            seedPlayerIds,
+            groupSizes,
+            randomSeed,
+          });
+        } catch (error) {
+          throw badRequest(
+            error instanceof Error ? error.message : 'Não foi possível executar o sorteio.',
+          );
+        }
+      } else {
+        rankedPlayers = rankEditionPlayers(
+          registrations,
+          pointsByPlayerId,
+          edition.rules.protectedSeedCount,
         );
+
+        try {
+          drawResult = executeDrawAlgorithm({
+            rankedPlayers,
+            rules: edition.rules,
+            randomSeed,
+          });
+        } catch (error) {
+          throw badRequest(
+            error instanceof Error ? error.message : 'Não foi possível executar o sorteio.',
+          );
+        }
       }
 
       await app.db.transaction(async (tx) => {
+        if (explicitDraw) {
+          await tx
+            .update(schema.editions)
+            .set({ rules: updatedRules })
+            .where(eq(schema.editions.id, editionId));
+        }
+
         await tx.insert(schema.drawSnapshots).values(
           rankedPlayers.map((player) => ({
             editionId,
@@ -421,6 +487,20 @@ export async function registerEditionDrawRoutes(app: FastifyInstance): Promise<v
         editionDate: edition.date,
       };
     },
+  );
+}
+
+function isExplicitDrawRequest(body: {
+  groupCount?: number;
+  groupSizes?: number[];
+  seedPlayerIds?: string[];
+  matchBestOf?: 3 | 5;
+}): boolean {
+  return (
+    body.groupCount !== undefined ||
+    body.groupSizes !== undefined ||
+    body.seedPlayerIds !== undefined ||
+    body.matchBestOf !== undefined
   );
 }
 

@@ -16,16 +16,16 @@ const playerIds = [
 ] as const;
 
 const playerNames = [
-  'Ana Souza',
-  'Bruno Lima',
-  'Carla Mendes',
-  'Daniel Rocha',
-  'Eduardo Nunes',
-  'Fernanda Alves',
-  'Gabriel Costa',
-  'Helena Martins',
-  'Igor Ribeiro',
-  'Juliana Freitas',
+  'ANA SOUZA',
+  'BRUNO LIMA',
+  'CARLA MENDES',
+  'DANIEL ROCHA',
+  'EDUARDO NUNES',
+  'FERNANDA ALVES',
+  'GABRIEL COSTA',
+  'HELENA MARTINS',
+  'IGOR RIBEIRO',
+  'JULIANA FREITAS',
 ] as const;
 
 const championshipAguasClaras2026Id = '10000000-0000-4000-8000-000000000001';
@@ -57,17 +57,17 @@ async function main() {
         .values([
           {
             id: championshipAguasClaras2026Id,
-            name: 'Clandestino 2026 Águas Claras',
+            name: 'Clandestino 2026 - Águas Claras',
             scoringTable: DEFAULT_SCORING_TABLE,
           },
           {
             id: championshipAsaSul2026Id,
-            name: 'Clandestino 2026 Asa Sul',
+            name: 'Clandestino 2026 - Asa Sul',
             scoringTable: DEFAULT_SCORING_TABLE,
           },
           {
             id: championshipAguasClaras2027Id,
-            name: 'Clandestino 2027 Águas Claras',
+            name: 'Clandestino 2027 - Águas Claras',
             scoringTable: DEFAULT_SCORING_TABLE,
           },
         ])

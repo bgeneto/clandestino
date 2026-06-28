@@ -31,6 +31,10 @@ export type DrawSnapshotListResponse = Static<typeof DrawSnapshotListResponseSch
 export const ExecuteDrawBodySchema = Type.Object(
   {
     randomSeed: Type.Optional(Type.String({ minLength: 1 })),
+    groupCount: Type.Optional(Type.Integer({ minimum: 1 })),
+    groupSizes: Type.Optional(Type.Array(Type.Integer({ minimum: 2 }), { minItems: 1 })),
+    seedPlayerIds: Type.Optional(Type.Array(UuidSchema, { minItems: 1 })),
+    matchBestOf: Type.Optional(Type.Union([Type.Literal(3), Type.Literal(5)])),
   },
   { $id: 'ExecuteDrawBody' },
 );

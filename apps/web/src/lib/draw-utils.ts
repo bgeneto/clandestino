@@ -12,7 +12,7 @@ export function getDrawReadinessWarning(
   try {
     const config = chooseGroupConfiguration(playerCount, rules);
     if (config.groupCount < rules.protectedSeedCount) {
-      return `Com ${playerCount} jogador(es), só é possível formar ${config.groupCount} grupo(s), menos que os ${rules.protectedSeedCount} configurados. Ajuste o número de grupos ou inscreva mais jogadores.`;
+      return `Com ${playerCount} jogadores, só é possível formar ${config.groupCount} grupo(s), menos que os ${rules.protectedSeedCount} configurados. Ajuste o número de grupos ou inscreva mais jogadores.`;
     }
 
     return null;

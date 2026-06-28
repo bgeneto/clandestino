@@ -283,7 +283,11 @@ function DrawSection({ edition }: { edition: Edition }) {
           <h4 className="mb-3 text-center text-sm font-bold uppercase text-subtle">
             QR Code da edição
           </h4>
-          <EditionQrCode url={qrQuery.data.url} label="Exiba para os jogadores entrarem" />
+          <EditionQrCode
+            url={qrQuery.data.url}
+            label="Exiba para os jogadores entrarem"
+            editionName={edition.name}
+          />
         </div>
       ) : null}
 
@@ -626,6 +630,14 @@ export function OrganizerEditionPage() {
         </Link>
         <h2 className="mt-2 text-lg font-bold">{formatEditionTitle(edition)}</h2>
         <p className="text-sm text-header-foreground/70">{formatEditionStatus(edition.status)}</p>
+        {edition.status === 'RASCUNHO' || edition.status === 'INSCRICOES_ABERTAS' ? (
+          <Link
+            to={`/organizador/edicao/${edition.id}/preparar`}
+            className="mt-4 inline-flex rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white"
+          >
+            Configurar edição (check-in e sorteio)
+          </Link>
+        ) : null}
       </section>
 
       <RegistrationsSection edition={edition} />

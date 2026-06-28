@@ -4,7 +4,7 @@ import {
   useChampionshipEditions,
   useChampionshipRanking,
 } from '../../hooks/use-organizer-data.js';
-import { formatEditionStatus } from '../../lib/format.js';
+import { formatEditionDate, formatEditionStatus } from '../../lib/format.js';
 
 export function ChampionshipPage() {
   const { championshipId } = useParams<{ championshipId: string }>();
@@ -37,7 +37,7 @@ export function ChampionshipPage() {
         </Link>
         <h2 className="mt-3 text-xl font-semibold text-foreground">{championship.name}</h2>
         <p className="mt-2 text-sm text-muted">
-          {activeEditions.length} edição(ões) em andamento · {ranking.length} jogador(es) no ranking
+          {activeEditions.length} edição(ões) em andamento · {ranking.length} jogadores no ranking
         </p>
       </div>
 
@@ -107,7 +107,9 @@ export function ChampionshipPage() {
                 >
                   <span>
                     <span className="font-medium">{edition.name}</span>
-                    <span className="ml-2 text-sm text-subtle">{edition.date}</span>
+                    <span className="ml-2 text-sm text-subtle">
+                      {formatEditionDate(edition.date)}
+                    </span>
                   </span>
                   <span className="text-sm text-subtle">{formatEditionStatus(edition.status)}</span>
                 </Link>

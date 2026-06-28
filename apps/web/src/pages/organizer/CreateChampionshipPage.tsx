@@ -38,7 +38,7 @@ export function CreateChampionshipPage() {
         </Link>
         <h2 className="mt-3 text-xl font-semibold text-foreground">Novo campeonato</h2>
         <p className="mt-2 text-sm text-muted">
-          Crie um campeonato com ranking e pontuação próprios, como &quot;Clandestino 2026 Águas
+          Crie um campeonato com ranking e pontuação próprios, como &quot;Clandestino 2026 - Águas
           Claras&quot;.
         </p>
       </div>
@@ -58,7 +58,7 @@ export function CreateChampionshipPage() {
             value={name}
             onChange={(event) => setName(event.target.value)}
             className="w-full rounded-lg border border-line bg-card-muted px-3 py-2.5 text-foreground"
-            placeholder="Clandestino 2026 Águas Claras"
+            placeholder="Clandestino 2026 - Águas Claras"
           />
         </label>
 

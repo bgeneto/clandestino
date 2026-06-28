@@ -4,10 +4,12 @@ import {
   CreateEditionBodySchema,
   DEFAULT_SCORING_TABLE,
   DEFAULT_EDITION_RULES,
+  ExecuteDrawBodySchema,
   MatchSchema,
   MatchStatusSchema,
   PlayerSchema,
   EditionRulesSchema,
+  formatEditionName,
 } from './index.js';
 
 describe('shared-contracts schemas', () => {
@@ -73,5 +75,24 @@ describe('shared-contracts schemas', () => {
     expect(DEFAULT_SCORING_TABLE).toHaveLength(20);
     expect(DEFAULT_SCORING_TABLE[0]).toEqual({ position: 1, points: 200 });
     expect(DEFAULT_SCORING_TABLE[19]).toEqual({ position: 20, points: 1 });
+  });
+
+  it('formats sequential edition names', () => {
+    expect(formatEditionName(3)).toBe('Clandestino #3');
+  });
+
+  it('accepts explicit draw configuration', () => {
+    expect(
+      Value.Check(ExecuteDrawBodySchema, {
+        groupCount: 2,
+        groupSizes: [3, 3],
+        seedPlayerIds: [
+          '00000000-0000-4000-8000-000000000001',
+          '00000000-0000-4000-8000-000000000002',
+        ],
+        matchBestOf: 3,
+        randomSeed: 'seed-1',
+      }),
+    ).toBe(true);
   });
 });

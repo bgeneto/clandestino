@@ -55,7 +55,7 @@ export function PlayerEntryPage() {
             onClick={() => setPendingParticipant(null)}
             className="flex-1 rounded-xl border border-line bg-card px-4 py-3 text-sm font-semibold text-muted"
           >
-            Voltar
+            ← Voltar
           </button>
           <button
             type="button"

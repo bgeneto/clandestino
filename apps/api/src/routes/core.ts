@@ -14,6 +14,7 @@ import {
   RequestOrganizerMagicLinkBodySchema,
   RequestOrganizerMagicLinkResponseSchema,
   UpdateScoringTableBodySchema,
+  validatePlayerName,
   VerifyOrganizerMagicLinkBodySchema,
 } from '@clandestino/shared-contracts';
 import { Type } from '@sinclair/typebox';
@@ -180,7 +181,12 @@ export async function registerPlayerRoutes(app: FastifyInstance): Promise<void> 
       },
     },
     async (request, reply) => {
-      const name = request.body.name.trim();
+      const nameValidation = validatePlayerName(request.body.name);
+      if (!nameValidation.ok) {
+        throw badRequest(nameValidation.error);
+      }
+
+      const name = nameValidation.name;
 
       try {
         const [row] = await app.db.insert(schema.players).values({ name }).returning();
@@ -460,11 +466,11 @@ export async function registerChampionshipRoutes(app: FastifyInstance): Promise<
 
       await app.db.transaction(async (tx) => {
         for (const row of parsedRows) {
-          const playerName = row.playerName.trim();
+          const playerName = row.playerName;
           let [player] = await tx
             .select({ id: schema.players.id, name: schema.players.name })
             .from(schema.players)
-            .where(sql`lower(trim(${schema.players.name})) = lower(${playerName})`)
+            .where(sql`upper(trim(${schema.players.name})) = ${playerName}`)
             .limit(1);
 
           if (!player) {

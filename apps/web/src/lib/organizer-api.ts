@@ -18,7 +18,9 @@ import type {
   GenerateMatchesResponse,
   ImportScoresResponse,
   OrganizerSessionResponse,
+  Player,
   PlayerListResponse,
+  CreatePlayerBody,
   PublishPlacementResponse,
   RegisterPlayerBody,
   RequestOrganizerMagicLinkBody,
@@ -91,6 +93,14 @@ export async function fetchChampionshipRanking(
 
 export async function fetchPlayers(): Promise<PlayerListResponse> {
   return apiRequest<PlayerListResponse>('/players');
+}
+
+export async function createPlayer(body: CreatePlayerBody): Promise<Player> {
+  return apiRequest<Player>('/players', {
+    method: 'POST',
+    body,
+    ...organizer,
+  });
 }
 
 export async function createEdition(body: CreateEditionBody): Promise<Edition> {

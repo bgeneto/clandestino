@@ -1,6 +1,12 @@
 import { DEFAULT_TOURNAMENT_RULES } from '@clandestino/shared-contracts';
 import { describe, expect, it } from 'vitest';
-import { buildGeneratedGroupMatches, executeDrawAlgorithm, rankEditionPlayers } from './draw.js';
+import {
+  buildGeneratedGroupMatches,
+  executeDrawAlgorithm,
+  executeExplicitDrawAlgorithm,
+  rankEditionPlayers,
+  rankEditionPlayersWithSeeds,
+} from './draw.js';
 
 function playerId(index: number): string {
   return `00000000-0000-4000-8000-${String(index).padStart(12, '0')}`;
@@ -30,6 +36,43 @@ describe('rankEditionPlayers', () => {
     expect(ranked[0]?.isSeed).toBe(true);
     expect(ranked[1]?.isSeed).toBe(true);
     expect(ranked[2]?.isSeed).toBe(false);
+  });
+});
+
+describe('rankEditionPlayersWithSeeds', () => {
+  it('marks only the provided seed ids', () => {
+    const ranked = rankEditionPlayersWithSeeds(
+      [
+        { playerId: playerId(1), playerName: 'Bruno' },
+        { playerId: playerId(2), playerName: 'Ana' },
+        { playerId: playerId(3), playerName: 'Carla' },
+      ],
+      new Map([
+        [playerId(1), 80],
+        [playerId(2), 120],
+        [playerId(3), 60],
+      ]),
+      [playerId(1)],
+    );
+
+    expect(ranked.find((player) => player.playerId === playerId(1))?.isSeed).toBe(true);
+    expect(ranked.find((player) => player.playerId === playerId(2))?.isSeed).toBe(false);
+  });
+});
+
+describe('executeExplicitDrawAlgorithm', () => {
+  it('honors explicit seeds and group sizes', () => {
+    const draw = executeExplicitDrawAlgorithm({
+      playerIds: [playerId(1), playerId(2), playerId(3), playerId(4), playerId(5), playerId(6)],
+      seedPlayerIds: [playerId(1), playerId(2)],
+      groupSizes: [3, 3],
+      randomSeed: 'explicit-seed',
+    });
+
+    expect(draw.groups).toHaveLength(2);
+    expect(
+      draw.groups.flatMap((group) => group.players).filter((player) => player.isSeed),
+    ).toHaveLength(2);
   });
 });
 

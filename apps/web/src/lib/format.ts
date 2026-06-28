@@ -18,6 +18,16 @@ export function formatEditionDate(date: string): string {
   });
 }
 
+export function formatDateTime(dateTime: string): string {
+  return new Date(dateTime).toLocaleString('pt-BR', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
 export function formatEditionTitle(edition: Edition): string {
   return `${edition.name} — ${formatEditionDate(edition.date)}`;
 }

@@ -5,6 +5,7 @@ import type { ImportScoresCsvRow } from '@clandestino/shared-contracts';
 import {
   IMPORT_SCORES_CSV_FORMAT_HINT,
   resolveImportScoresCsvColumns,
+  validatePlayerName,
 } from '@clandestino/shared-contracts';
 import { ApiError } from '../../lib/api-client.js';
 import { importChampionshipScores } from '../../lib/organizer-api.js';
@@ -45,11 +46,17 @@ function parseCsvPreview(content: string): { rows: ImportScoresCsvRow[]; errors:
     const lineNumber = index + 1;
     const line = lines[index] ?? '';
     const parts = line.split(',').map((part) => part.trim());
-    const playerName = parts[columnIndexes.playerNameIndex] ?? '';
+    const rawPlayerName = parts[columnIndexes.playerNameIndex] ?? '';
     const points = Number.parseInt(parts[columnIndexes.accumulatedPointsIndex] ?? '', 10);
 
-    if (!playerName) {
+    if (!rawPlayerName.trim()) {
       errors.push(`Linha ${lineNumber}: Nome vazio.`);
+      continue;
+    }
+
+    const nameValidation = validatePlayerName(rawPlayerName);
+    if (!nameValidation.ok) {
+      errors.push(`Linha ${lineNumber}: ${nameValidation.error}`);
       continue;
     }
 
@@ -58,7 +65,7 @@ function parseCsvPreview(content: string): { rows: ImportScoresCsvRow[]; errors:
       continue;
     }
 
-    rows.push({ playerName, accumulatedPoints: points });
+    rows.push({ playerName: nameValidation.name, accumulatedPoints: points });
   }
 
   return { rows, errors };

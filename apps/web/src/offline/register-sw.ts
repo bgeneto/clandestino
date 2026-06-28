@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { OUTBOX_SYNC_MESSAGE } from './outbox.js';
+import { syncPendingEditionWizardDrafts } from './sync-pending-wizard-drafts.js';
 import { processOutbox } from './process-outbox.js';
 import { queryKeys } from '../lib/query-keys.js';
 import { getPlayerSession } from '../lib/session.js';
@@ -20,6 +21,7 @@ export function useOfflineSync(): void {
   useEffect(() => {
     const handleOnline = () => {
       void flushOutboxFromClient().then(async () => {
+        await syncPendingEditionWizardDrafts();
         const session = await getPlayerSession();
         if (session) {
           await queryClient.invalidateQueries({ queryKey: queryKeys.matches(session.editionId) });

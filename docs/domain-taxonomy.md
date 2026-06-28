@@ -28,9 +28,9 @@ An ongoing named competition with its own accumulated ranking and settings.
 
 Examples:
 
-- Clandestino 2026 Águas Claras
-- Clandestino 2026 Asa Sul
-- Clandestino 2027 Águas Claras
+- Clandestino 2026 - Águas Claras
+- Clandestino 2026 - Asa Sul
+- Clandestino 2027 - Águas Claras
 
 Owns:
 

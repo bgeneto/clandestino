@@ -1,5 +1,6 @@
 import {
   resolveImportScoresCsvColumns,
+  validatePlayerName,
   type ImportScoresCsvRow,
 } from '@clandestino/shared-contracts';
 import { badRequest } from './errors.js';
@@ -48,12 +49,19 @@ export function parseImportScoresCsv(content: string): ParsedCsvRow[] {
       );
     }
 
-    const playerName = (values[columnIndexes.playerNameIndex] ?? '').trim();
+    const rawPlayerName = values[columnIndexes.playerNameIndex] ?? '';
     const pointsRaw = (values[columnIndexes.accumulatedPointsIndex] ?? '').trim();
 
-    if (!playerName) {
+    if (!rawPlayerName.trim()) {
       throw badRequest(`Linha ${lineNumber}: Nome é obrigatório.`);
     }
+
+    const nameValidation = validatePlayerName(rawPlayerName);
+    if (!nameValidation.ok) {
+      throw badRequest(`Linha ${lineNumber}: ${nameValidation.error}`);
+    }
+
+    const playerName = nameValidation.name;
 
     if (!/^-?\d+$/.test(pointsRaw)) {
       throw badRequest(`Linha ${lineNumber}: Pontuação deve ser um número inteiro não negativo.`);
@@ -64,7 +72,7 @@ export function parseImportScoresCsv(content: string): ParsedCsvRow[] {
       throw badRequest(`Linha ${lineNumber}: Pontuação deve ser um número inteiro não negativo.`);
     }
 
-    const normalizedName = playerName.toLowerCase();
+    const normalizedName = playerName;
     const previousLine = seenPlayers.get(normalizedName);
     if (previousLine !== undefined) {
       throw badRequest(

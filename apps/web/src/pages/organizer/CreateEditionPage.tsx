@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import { formatEditionName } from '@clandestino/shared-contracts';
 import { useMutation } from '@tanstack/react-query';
-import { DEFAULT_EDITION_RULES } from '@clandestino/shared-contracts';
 import { ApiError } from '../../lib/api-client.js';
 import { createEdition } from '../../lib/organizer-api.js';
-import { useChampionship } from '../../hooks/use-organizer-data.js';
+import { useChampionship, useChampionshipEditions } from '../../hooks/use-organizer-data.js';
+import { createEditionWizardDraft } from '../../offline/edition-wizard-draft.js';
 
 function todayIsoDate(): string {
   const now = new Date();
@@ -18,30 +19,51 @@ export function CreateEditionPage() {
   const navigate = useNavigate();
   const { championshipId } = useParams<{ championshipId: string }>();
   const championshipQuery = useChampionship(championshipId);
+  const editionsQuery = useChampionshipEditions(championshipId);
   const [date, setDate] = useState(todayIsoDate);
-  const [groupCount, setGroupCount] = useState(DEFAULT_EDITION_RULES.protectedSeedCount);
-  const [bestOfThreeThreshold, setBestOfThreeThreshold] = useState(
-    DEFAULT_EDITION_RULES.participantThresholdForBestOfThree,
-  );
   const [autoConfirmMinutes, setAutoConfirmMinutes] = useState(15);
   const [error, setError] = useState<string | null>(null);
 
-  const defaultRules = championshipQuery.data?.defaultEditionRules ?? DEFAULT_EDITION_RULES;
+  const predictedName = useMemo(() => {
+    const editionCount = editionsQuery.data?.length ?? 0;
+    return formatEditionName(editionCount + 1);
+  }, [editionsQuery.data]);
 
   const createMutation = useMutation({
-    mutationFn: () =>
-      createEdition({
+    mutationFn: async () => {
+      if (!navigator.onLine) {
+        const draft = await createEditionWizardDraft({
+          championshipId: championshipId!,
+          predictedEditionName: predictedName,
+          date,
+          autoConfirmMinutes,
+        });
+        return { mode: 'offline' as const, draftId: draft.id };
+      }
+
+      const edition = await createEdition({
         championshipId: championshipId!,
         date,
         autoConfirmMinutes,
-        rules: {
-          ...defaultRules,
-          protectedSeedCount: groupCount,
-          participantThresholdForBestOfThree: bestOfThreeThreshold,
-        },
-      }),
-    onSuccess: (edition) => {
-      void navigate(`/organizador/edicao/${edition.id}`);
+      });
+      await createEditionWizardDraft({
+        championshipId: championshipId!,
+        editionId: edition.id,
+        predictedEditionName: edition.name,
+        date,
+        autoConfirmMinutes,
+      });
+      return { mode: 'online' as const, editionId: edition.id };
+    },
+    onSuccess: (result) => {
+      if (result.mode === 'offline') {
+        void navigate(
+          `/organizador/campeonato/${championshipId}/edicao/rascunho/${result.draftId}/preparar`,
+        );
+        return;
+      }
+
+      void navigate(`/organizador/edicao/${result.editionId}/preparar`);
     },
     onError: (mutationError) => {
       if (mutationError instanceof ApiError) {
@@ -93,13 +115,17 @@ export function CreateEditionPage() {
             void createMutation.mutateAsync();
           }}
         >
-          <p className="rounded-lg border border-line bg-card-muted px-3 py-2.5 text-sm text-subtle">
-            O nome será atribuído automaticamente (ex.: Clandestino #3) conforme a numeração
-            sequencial deste campeonato.
-          </p>
+          <label className="block space-y-2 text-sm">
+            <span className="text-muted">Nome da Edição</span>
+            <input
+              readOnly
+              value={predictedName}
+              className="w-full cursor-default rounded-lg border border-line bg-card-muted px-3 py-2.5 text-foreground"
+            />
+          </label>
 
           <label className="block space-y-2 text-sm">
-            <span className="text-muted">Data</span>
+            <span className="text-muted">Data do Evento</span>
             <input
               required
               type="date"
@@ -107,39 +133,6 @@ export function CreateEditionPage() {
               onChange={(event) => setDate(event.target.value)}
               className="w-full rounded-lg border border-line bg-card-muted px-3 py-2.5 text-foreground"
             />
-          </label>
-
-          <label className="block space-y-2 text-sm">
-            <span className="text-muted">Número de grupos</span>
-            <input
-              required
-              type="number"
-              min={1}
-              max={12}
-              value={groupCount}
-              onChange={(event) => setGroupCount(Number.parseInt(event.target.value, 10) || 1)}
-              className="w-full rounded-lg border border-line bg-card-muted px-3 py-2.5 text-foreground"
-            />
-            <span className="text-xs text-subtle">
-              1 seed por grupo (top {groupCount} do ranking)
-            </span>
-          </label>
-
-          <label className="block space-y-2 text-sm">
-            <span className="text-muted">Limiar para melhor de 3</span>
-            <input
-              required
-              type="number"
-              min={1}
-              value={bestOfThreeThreshold}
-              onChange={(event) =>
-                setBestOfThreeThreshold(Number.parseInt(event.target.value, 10) || 1)
-              }
-              className="w-full rounded-lg border border-line bg-card-muted px-3 py-2.5 text-foreground"
-            />
-            <span className="text-xs text-subtle">
-              Acima deste número de inscritos, partidas são melhor de 5
-            </span>
           </label>
 
           <label className="block space-y-2 text-sm">
@@ -154,7 +147,18 @@ export function CreateEditionPage() {
               }
               className="w-full rounded-lg border border-line bg-card-muted px-3 py-2.5 text-foreground"
             />
+            <span className="text-xs text-subtle">
+              Após esse tempo, resultados aguardando confirmação são confirmados automaticamente se
+              não houver contestação.
+            </span>
           </label>
+
+          {!navigator.onLine ? (
+            <p className="rounded-lg border border-warning-surface bg-warning-surface px-3 py-2 text-sm text-warning-foreground">
+              Sem conexão: a edição será preparada localmente e sincronizada quando a internet
+              voltar.
+            </p>
+          ) : null}
 
           {error ? (
             <p className="rounded-lg border border-danger-surface bg-danger-surface px-3 py-2 text-sm text-danger-foreground">
@@ -167,7 +171,7 @@ export function CreateEditionPage() {
             disabled={createMutation.isPending}
             className="w-full rounded-lg bg-brand px-4 py-2.5 font-medium text-white disabled:opacity-60"
           >
-            {createMutation.isPending ? 'Criando…' : 'Criar edição'}
+            {createMutation.isPending ? 'Criando…' : 'Continuar para check-in'}
           </button>
         </form>
       )}

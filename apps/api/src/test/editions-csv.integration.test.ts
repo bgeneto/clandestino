@@ -62,6 +62,30 @@ describe.skipIf(!hasTestDb)('jogadores, campeonatos e importação CSV (integra�
     expect(unauth.statusCode).toBe(401);
   });
 
+  it('normaliza nome do jogador para maiúsculas ao cadastrar', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/players',
+      headers: organizerHeaders(organizerToken),
+      payload: { name: '  ana souza  ' },
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(response.json<{ name: string }>().name).toBe('ANA SOUZA');
+  });
+
+  it('rejeita cadastro de jogador com nome curto (400)', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/players',
+      headers: organizerHeaders(organizerToken),
+      payload: { name: 'a' },
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json<{ error: string }>().error).toContain('ao menos 2 caracteres');
+  });
+
   it('rejeita criação de edição com regras inválidas (400)', async () => {
     const championshipId = await createChampionship('Campeonato Regras');
     const response = await app.inject({
@@ -204,7 +228,7 @@ describe.skipIf(!hasTestDb)('jogadores, campeonatos e importação CSV (integra�
     expect(body.skippedExistingCount).toBe(0);
 
     const players = await adminQuery(`SELECT name FROM player ORDER BY name`);
-    expect(players.map((row) => row.name)).toEqual(['Ana Souza', 'Fantasma']);
+    expect(players.map((row) => row.name)).toEqual(['ANA SOUZA', 'FANTASMA']);
 
     const points = await adminQuery(
       `SELECT accumulated_points FROM championship_player_points WHERE championship_id = $1 ORDER BY accumulated_points DESC`,

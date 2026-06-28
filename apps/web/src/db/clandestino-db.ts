@@ -76,6 +76,41 @@ export type QueryCacheRow = {
   updatedAt: string;
 };
 
+export type WizardDraftSyncStatus =
+  'RASCUNHO_LOCAL' | 'PRONTO_PARA_SINCRONIZAR' | 'SINCRONIZANDO' | 'SINCRONIZADO' | 'ERRO';
+
+export type WizardDraftPlayer = {
+  playerId: string;
+  playerName: string;
+  accumulatedPoints: number;
+  isNew?: boolean;
+};
+
+export type WizardDrawPreviewGroup = {
+  name: string;
+  players: Array<{ playerId: string; playerName: string; isSeed: boolean }>;
+};
+
+export type EditionWizardDraft = {
+  id: string;
+  championshipId: string;
+  editionId?: string;
+  predictedEditionName: string;
+  date: string;
+  autoConfirmMinutes: number;
+  currentStep: number;
+  checkedInPlayers: WizardDraftPlayer[];
+  groupCount?: number;
+  groupSizes?: number[];
+  matchBestOf?: 3 | 5;
+  seedPlayerIds?: string[];
+  drawRandomSeed?: string;
+  drawPreview?: WizardDrawPreviewGroup[];
+  syncStatus: WizardDraftSyncStatus;
+  syncError?: string;
+  updatedAt: string;
+};
+
 export class ClandestinoDatabase extends Dexie {
   session!: EntityTable<PlayerSession, 'id'>;
   organizerSession!: EntityTable<OrganizerSession, 'id'>;
@@ -85,6 +120,7 @@ export class ClandestinoDatabase extends Dexie {
   standing!: EntityTable<CachedStanding, 'id'>;
   outbox!: EntityTable<OutboxEntry, 'id'>;
   queryCache!: EntityTable<QueryCacheRow, 'key'>;
+  editionWizardDraft!: EntityTable<EditionWizardDraft, 'id'>;
 
   constructor(name = 'clandestino') {
     super(name);
@@ -101,6 +137,10 @@ export class ClandestinoDatabase extends Dexie {
 
     this.version(2).stores({
       organizerSession: 'id',
+    });
+
+    this.version(3).stores({
+      editionWizardDraft: 'id, championshipId, editionId, syncStatus, updatedAt',
     });
   }
 }

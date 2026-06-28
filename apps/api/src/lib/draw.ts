@@ -3,6 +3,7 @@ import {
   allocateSeededPlayers,
   chooseGroupConfiguration,
   drawUnseededPlayers,
+  executeExplicitDraw,
   generateGroupMatches,
   getMatchBestOf,
 } from '@clandestino/tournament-engine';
@@ -63,6 +64,20 @@ export function rankEditionPlayers(
   }));
 }
 
+export function rankEditionPlayersWithSeeds(
+  registrations: Array<{ playerId: string; playerName: string }>,
+  pointsByPlayerId: ReadonlyMap<string, number>,
+  seedPlayerIds: readonly string[],
+): RankedEditionPlayer[] {
+  const seedSet = new Set(seedPlayerIds);
+  const ranked = rankEditionPlayers(registrations, pointsByPlayerId, 0);
+
+  return ranked.map((player) => ({
+    ...player,
+    isSeed: seedSet.has(player.playerId),
+  }));
+}
+
 export function executeDrawAlgorithm(input: {
   rankedPlayers: RankedEditionPlayer[];
   rules: TournamentRules;
@@ -98,6 +113,15 @@ export function executeDrawAlgorithm(input: {
       players: group.players,
     })),
   };
+}
+
+export function executeExplicitDrawAlgorithm(input: {
+  playerIds: readonly string[];
+  seedPlayerIds: readonly string[];
+  groupSizes: readonly number[];
+  randomSeed: string;
+}): DrawAlgorithmResult {
+  return executeExplicitDraw(input);
 }
 
 export function buildGeneratedGroupMatches(groups: DrawGroupResult[]): GeneratedGroupMatch[] {

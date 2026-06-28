@@ -4,9 +4,14 @@ export {
   PlayerSchema,
   CreatePlayerBodySchema,
   PlayerListResponseSchema,
+  PLAYER_NAME_MIN_LENGTH,
+  PLAYER_NAME_MAX_LENGTH,
+  normalizePlayerName,
+  validatePlayerName,
   type Player,
   type CreatePlayerBody,
   type PlayerListResponse,
+  type PlayerNameValidationResult,
 } from './player.js';
 
 export {
@@ -48,6 +53,8 @@ export {
   type EditionRules,
   type TournamentRules,
 } from './edition-rules.js';
+
+export { formatEditionName } from './edition-naming.js';
 
 export {
   EditionStatusSchema,

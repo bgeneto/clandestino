@@ -12,6 +12,7 @@ import { RequirePlayerSession } from './pages/edition/RequirePlayerSession.js';
 import { ChampionshipPage } from './pages/organizer/ChampionshipPage.js';
 import { CreateChampionshipPage } from './pages/organizer/CreateChampionshipPage.js';
 import { CreateEditionPage } from './pages/organizer/CreateEditionPage.js';
+import { EditionPreparePage } from './pages/organizer/EditionPreparePage.js';
 import { ImportCsvPage } from './pages/organizer/ImportCsvPage.js';
 import { OrganizerDashboardPage } from './pages/organizer/OrganizerDashboardPage.js';
 import { OrganizerEditionPage } from './pages/organizer/OrganizerEditionPage.js';
@@ -42,6 +43,11 @@ export function App() {
             <Route path="campeonato/novo" element={<CreateChampionshipPage />} />
             <Route path="campeonato/:championshipId" element={<ChampionshipPage />} />
             <Route path="campeonato/:championshipId/edicao/nova" element={<CreateEditionPage />} />
+            <Route
+              path="campeonato/:championshipId/edicao/rascunho/:draftId/preparar"
+              element={<EditionPreparePage />}
+            />
+            <Route path="edicao/:editionId/preparar" element={<EditionPreparePage />} />
             <Route path="campeonato/:championshipId/importar" element={<ImportCsvPage />} />
             <Route path="edicao/:editionId" element={<OrganizerEditionPage />} />
           </Route>

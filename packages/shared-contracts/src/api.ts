@@ -1,5 +1,6 @@
 import { type Static, Type } from '@sinclair/typebox';
 import { IsoDateSchema, JsonValueSchema, UuidSchema } from './common.js';
+import { PLAYER_NAME_MIN_LENGTH } from './player.js';
 import { EditionSchema } from './edition.js';
 import { EditionFinalPlacementsResponseSchema } from './final-placement.js';
 import { GroupWithPlayersSchema } from './group.js';
@@ -14,7 +15,7 @@ export const ErrorResponseSchema = Type.Object(
 
 export const ImportScoresCsvRowSchema = Type.Object(
   {
-    playerName: Type.String({ minLength: 1 }),
+    playerName: Type.String({ minLength: PLAYER_NAME_MIN_LENGTH }),
     accumulatedPoints: Type.Integer({ minimum: 0 }),
   },
   { $id: 'ImportScoresCsvRow' },

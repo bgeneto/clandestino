@@ -10,8 +10,8 @@ Ana Souza,142
 Bruno Lima,89`);
 
     expect(rows).toEqual([
-      { playerName: 'Ana Souza', accumulatedPoints: 142, lineNumber: 2 },
-      { playerName: 'Bruno Lima', accumulatedPoints: 89, lineNumber: 3 },
+      { playerName: 'ANA SOUZA', accumulatedPoints: 142, lineNumber: 2 },
+      { playerName: 'BRUNO LIMA', accumulatedPoints: 89, lineNumber: 3 },
     ]);
   });
 
@@ -32,7 +32,7 @@ Bruno Lima,89`);
     const rows = parseImportScoresCsv(`nome,pontos
 Ana Souza,10`);
 
-    expect(rows).toEqual([{ playerName: 'Ana Souza', accumulatedPoints: 10, lineNumber: 2 }]);
+    expect(rows).toEqual([{ playerName: 'ANA SOUZA', accumulatedPoints: 10, lineNumber: 2 }]);
   });
 
   it('rejects duplicate player names', () => {
@@ -43,11 +43,26 @@ Ana Souza,20`),
     ).toThrow(/linha 3/i);
   });
 
+  it('rejects duplicate player names regardless of casing', () => {
+    expect(() =>
+      parseImportScoresCsv(`player_name,accumulated_points
+Ana Souza,10
+ana souza,20`),
+    ).toThrow(/linha 3/i);
+  });
+
   it('rejects headers without required columns', () => {
     expect(() =>
       parseImportScoresCsv(`posição,nome
 Ana Souza`),
     ).toThrow(/cabeçalho inválido/i);
+  });
+
+  it('rejects names shorter than 2 characters', () => {
+    expect(() =>
+      parseImportScoresCsv(`player_name,accumulated_points
+a,10`),
+    ).toThrow(/linha 2/i);
   });
 
   it('rejects negative points', () => {

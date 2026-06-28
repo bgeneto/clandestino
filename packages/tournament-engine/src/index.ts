@@ -20,6 +20,25 @@ export type {
 
 export { COUNTED_MATCH_STATUSES } from './types.js';
 
+export {
+  WIZARD_MIN_GROUP_SIZE,
+  WIZARD_WARN_GROUP_SIZE,
+  WIZARD_BEST_OF_THREE_MATCH_THRESHOLD,
+  maxGroupCount,
+  partitionPlayersIntoGroups,
+  estimateRoundRobinMatches,
+  buildGroupConfiguration,
+  suggestGroupCount,
+  recommendMatchBestOf,
+  selectDefaultSeeds,
+  type SeedCandidate,
+} from './group-planning.js';
+export {
+  executeExplicitDraw,
+  buildGroupName,
+  type ExplicitDrawGroupResult,
+  type ExplicitDrawResult,
+} from './execute-explicit-draw.js';
 export { chooseGroupConfiguration } from './choose-group-configuration.js';
 export { allocateSeededPlayers } from './allocate-seeded-players.js';
 export { drawUnseededPlayers } from './draw-unseeded-players.js';

@@ -21,7 +21,7 @@ const editionIdParams = Type.Object({ id: Type.String({ format: 'uuid' }) });
 
 async function loadEditionOrThrow(app: FastifyInstance, editionId: string) {
   const [edition] = await app.db
-    .select({ id: schema.editions.id, seasonId: schema.editions.seasonId })
+    .select({ id: schema.editions.id, championshipId: schema.editions.championshipId })
     .from(schema.editions)
     .where(eq(schema.editions.id, editionId))
     .limit(1);
@@ -235,16 +235,16 @@ export async function registerEditionReadRoutes(app: FastifyInstance): Promise<v
         .where(eq(schema.editionRegistrations.editionId, editionId))
         .orderBy(asc(schema.players.name));
 
-      const seasonPoints = await app.db
+      const championshipPoints = await app.db
         .select({
-          playerId: schema.seasonPlayerPoints.playerId,
-          accumulatedPoints: schema.seasonPlayerPoints.accumulatedPoints,
+          playerId: schema.championshipPlayerPoints.playerId,
+          accumulatedPoints: schema.championshipPlayerPoints.accumulatedPoints,
         })
-        .from(schema.seasonPlayerPoints)
-        .where(eq(schema.seasonPlayerPoints.seasonId, edition.seasonId));
+        .from(schema.championshipPlayerPoints)
+        .where(eq(schema.championshipPlayerPoints.championshipId, edition.championshipId));
 
       const pointsByPlayerId = new Map(
-        seasonPoints.map((entry) => [entry.playerId, entry.accumulatedPoints]),
+        championshipPoints.map((entry) => [entry.playerId, entry.accumulatedPoints]),
       );
 
       const ranked = [...registrations].sort((left, right) => {

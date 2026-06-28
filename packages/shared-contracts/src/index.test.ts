@@ -3,11 +3,11 @@ import { describe, expect, it } from 'vitest';
 import {
   CreateEditionBodySchema,
   DEFAULT_SCORING_TABLE,
-  DEFAULT_TOURNAMENT_RULES,
+  DEFAULT_EDITION_RULES,
   MatchSchema,
   MatchStatusSchema,
   PlayerSchema,
-  TournamentRulesSchema,
+  EditionRulesSchema,
 } from './index.js';
 
 describe('shared-contracts schemas', () => {
@@ -37,7 +37,7 @@ describe('shared-contracts schemas', () => {
   });
 
   it('validates tournament rules with defaults', () => {
-    expect(Value.Check(TournamentRulesSchema, DEFAULT_TOURNAMENT_RULES)).toBe(true);
+    expect(Value.Check(EditionRulesSchema, DEFAULT_EDITION_RULES)).toBe(true);
   });
 
   it('rejects impossible match scores in entity shape', () => {
@@ -60,10 +60,9 @@ describe('shared-contracts schemas', () => {
 
   it('validates edition creation body', () => {
     const body = {
-      seasonId: '550e8400-e29b-41d4-a716-446655440010',
-      name: 'Clandestino #42',
+      championshipId: '550e8400-e29b-41d4-a716-446655440010',
       date: '2026-06-27',
-      rules: DEFAULT_TOURNAMENT_RULES,
+      rules: DEFAULT_EDITION_RULES,
       autoConfirmMinutes: 15,
     };
 

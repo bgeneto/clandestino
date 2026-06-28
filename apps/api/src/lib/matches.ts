@@ -1,4 +1,4 @@
-import type { MatchStatus, TournamentRules } from '@clandestino/shared-contracts';
+import type { EditionRules, MatchStatus } from '@clandestino/shared-contracts';
 import {
   COUNTED_MATCH_STATUSES,
   attachScoringPoints,
@@ -248,7 +248,7 @@ export async function getResultSubmitter(db: DbExecutor, matchId: string): Promi
 export async function recalculateGroupStanding(
   tx: Transaction,
   groupId: string,
-  rules: TournamentRules,
+  rules: EditionRules,
 ): Promise<void> {
   const groupMatches = await tx
     .select()
@@ -356,7 +356,7 @@ export async function loadGroupStandingsInput(
 export async function maybeGeneratePlacementStage(
   tx: Transaction,
   editionId: string,
-  rules: TournamentRules,
+  rules: EditionRules,
   createdBy: string,
 ): Promise<boolean> {
   const complete = await isGroupStageComplete(tx, editionId);
@@ -434,7 +434,7 @@ export async function maybeGeneratePlacementStage(
 export async function buildPlacementGroupResults(
   db: DbExecutor,
   editionId: string,
-  rules: TournamentRules,
+  rules: EditionRules,
 ): Promise<PlacementGroupResult[]> {
   const groupStageStandings = await loadGroupStandingsInput(db, editionId, GROUP_PHASE);
   const directPlacements = directPlacementsFromStandings(groupStageStandings);
@@ -545,7 +545,7 @@ export function validateSubmittedScore(
   setsWonByReporter: number,
   setsWonByOpponent: number,
   bestOf: 3 | 5,
-  rules: TournamentRules,
+  rules: EditionRules,
 ) {
   return validateMatchResult(
     {
@@ -561,7 +561,7 @@ export function validateCorrectedScore(
   setsWonByPlayerOne: number,
   setsWonByPlayerTwo: number,
   bestOf: 3 | 5,
-  rules: TournamentRules,
+  rules: EditionRules,
 ) {
   return validateMatchResult(
     {
@@ -592,9 +592,9 @@ export async function countEditionRegistrations(
 export async function finalizeEditionPlacements(
   db: DbExecutor,
   editionId: string,
-  seasonId: string,
+  championshipId: string,
   scoringTable: Parameters<typeof attachScoringPoints>[1],
-  rules: TournamentRules,
+  rules: EditionRules,
 ) {
   const placementResults = await buildPlacementGroupResults(db, editionId, rules);
   const finalStanding = calculateFinalStanding(placementResults);
@@ -611,6 +611,40 @@ export async function finalizeEditionPlacements(
         pointsAwarded: entry.pointsAwarded,
       })),
     );
+
+    for (const entry of withPoints) {
+      const [existing] = await db
+        .select({ accumulatedPoints: schema.championshipPlayerPoints.accumulatedPoints })
+        .from(schema.championshipPlayerPoints)
+        .where(
+          and(
+            eq(schema.championshipPlayerPoints.championshipId, championshipId),
+            eq(schema.championshipPlayerPoints.playerId, entry.playerId),
+          ),
+        )
+        .limit(1);
+
+      if (existing) {
+        await db
+          .update(schema.championshipPlayerPoints)
+          .set({
+            accumulatedPoints: existing.accumulatedPoints + entry.pointsAwarded,
+            updatedAt: new Date(),
+          })
+          .where(
+            and(
+              eq(schema.championshipPlayerPoints.championshipId, championshipId),
+              eq(schema.championshipPlayerPoints.playerId, entry.playerId),
+            ),
+          );
+      } else {
+        await db.insert(schema.championshipPlayerPoints).values({
+          championshipId,
+          playerId: entry.playerId,
+          accumulatedPoints: entry.pointsAwarded,
+        });
+      }
+    }
   }
 
   const [updatedEdition] = await db
@@ -622,7 +656,7 @@ export async function finalizeEditionPlacements(
   return {
     edition: updatedEdition,
     placements: withPoints,
-    seasonId,
+    championshipId,
   };
 }
 

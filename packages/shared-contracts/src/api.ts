@@ -24,7 +24,7 @@ export type ImportScoresCsvRow = Static<typeof ImportScoresCsvRowSchema>;
 
 export const ImportScoresResponseSchema = Type.Object(
   {
-    seasonId: Type.String({ format: 'uuid' }),
+    championshipId: Type.String({ format: 'uuid' }),
     importedCount: Type.Integer({ minimum: 0 }),
     createdPlayersCount: Type.Integer({ minimum: 0 }),
     skippedExistingCount: Type.Integer({ minimum: 0 }),

@@ -1,8 +1,58 @@
 @import 'tailwindcss';
 @config '../tailwind.config.js';
 
+@theme inline {
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-card: var(--card);
+  --color-card-muted: var(--card-muted);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-subtle: var(--subtle);
+  --color-line: var(--line);
+  --color-header: var(--header);
+  --color-header-foreground: var(--header-foreground);
+  --color-danger-surface: var(--danger-surface);
+  --color-danger-foreground: var(--danger-foreground);
+  --color-warning-surface: var(--warning-surface);
+  --color-warning-foreground: var(--warning-foreground);
+}
+
 :root {
-  color-scheme: dark;
+  color-scheme: light dark;
+  --surface: #f1f5f9;
+  --surface-muted: #e2e8f0;
+  --card: #ffffff;
+  --card-muted: #f8fafc;
+  --foreground: #0f172a;
+  --muted: #475569;
+  --subtle: #94a3b8;
+  --line: #e2e8f0;
+  --header: #1a1a2e;
+  --header-foreground: #ffffff;
+  --danger-surface: #fee2e2;
+  --danger-foreground: #991b1b;
+  --warning-surface: #fef3c7;
+  --warning-foreground: #92400e;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --surface: #020617;
+    --surface-muted: #0f172a;
+    --card: #0f172a;
+    --card-muted: #020617;
+    --foreground: #f1f5f9;
+    --muted: #cbd5e1;
+    --subtle: #64748b;
+    --line: #1e293b;
+    --header: #0b1020;
+    --header-foreground: #ffffff;
+    --danger-surface: rgba(244, 63, 94, 0.1);
+    --danger-foreground: #fecdd3;
+    --warning-surface: rgba(245, 158, 11, 0.1);
+    --warning-foreground: #fde68a;
+  }
 }
 
 body {

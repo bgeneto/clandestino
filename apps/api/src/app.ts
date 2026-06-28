@@ -5,7 +5,11 @@ import type { ApiConfig } from './config.js';
 import { ApiError } from './lib/errors.js';
 import { registerAuthHooks } from './plugins/auth.js';
 import { registerConfigPlugin, registerDbPlugin } from './plugins/context.js';
-import { registerAuthRoutes, registerPlayerRoutes, registerSeasonRoutes } from './routes/core.js';
+import {
+  registerAuthRoutes,
+  registerPlayerRoutes,
+  registerChampionshipRoutes,
+} from './routes/core.js';
 import { registerEditionRoutes } from './routes/editions.js';
 import { registerEditionDrawRoutes } from './routes/edition-draw.js';
 import { registerEditionPlacementRoutes } from './routes/edition-placement.js';
@@ -91,7 +95,7 @@ export async function createApp(config: ApiConfig) {
 
   await registerAuthRoutes(app);
   await registerPlayerRoutes(app);
-  await registerSeasonRoutes(app);
+  await registerChampionshipRoutes(app);
   await registerEditionRoutes(app);
   await registerEditionDrawRoutes(app);
   await registerEditionReadRoutes(app);

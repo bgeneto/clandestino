@@ -11,7 +11,7 @@ import {
   truncateAll,
 } from './integration-setup.js';
 
-const ALLOWED_EMAIL = 'organizador@fitpong.local';
+const ALLOWED_EMAIL = 'organizador@gmail.com';
 
 describe.skipIf(!hasTestDb)('autenticação do organizador (integração HTTP)', () => {
   let app: FastifyInstance;

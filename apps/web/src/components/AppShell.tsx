@@ -10,12 +10,14 @@ export function AppShell({ children }: AppShellProps) {
   useOfflineSync();
 
   return (
-    <div className="flex min-h-dvh flex-col bg-slate-950 text-slate-100">
-      <header className="sticky top-0 z-10 border-b border-slate-800 bg-slate-950/95 px-4 py-3 backdrop-blur">
+    <div className="flex min-h-dvh flex-col bg-surface text-foreground">
+      <header className="sticky top-0 z-10 border-b border-line bg-header/95 px-4 py-3 text-header-foreground backdrop-blur">
         <div className="mx-auto flex max-w-3xl items-center justify-between gap-4">
           <div>
-            <p className="text-xs uppercase tracking-[0.2em] text-slate-500">FitPong</p>
-            <h1 className="text-lg font-semibold text-white">Clandestino</h1>
+            <p className="text-xs uppercase tracking-[0.2em] text-header-foreground/60">
+              Tênis de Mesa
+            </p>
+            <h1 className="text-lg font-semibold">Clandestino</h1>
           </div>
           <ConnectionStatus />
         </div>

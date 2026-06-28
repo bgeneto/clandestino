@@ -217,14 +217,14 @@ export async function registerEditionPlacementRoutes(app: FastifyInstance): Prom
         throw conflict('Esta edição já foi encerrada.');
       }
 
-      const [season] = await app.db
+      const [championship] = await app.db
         .select()
-        .from(schema.seasons)
-        .where(eq(schema.seasons.id, edition.seasonId))
+        .from(schema.championships)
+        .where(eq(schema.championships.id, edition.championshipId))
         .limit(1);
 
-      if (!season) {
-        throw notFound('Temporada não encontrada.');
+      if (!championship) {
+        throw notFound('Campeonato não encontrado.');
       }
 
       const organizer = request.organizerEmail ?? 'organizer';
@@ -233,8 +233,8 @@ export async function registerEditionPlacementRoutes(app: FastifyInstance): Prom
         const finalized = await finalizeEditionPlacements(
           tx,
           editionId,
-          edition.seasonId,
-          season.scoringTable,
+          edition.championshipId,
+          championship.scoringTable,
           edition.rules,
         );
 

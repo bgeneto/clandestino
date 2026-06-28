@@ -38,7 +38,7 @@ services:
       API_PORT: '3000'
       NODE_ENV: production
       PUBLIC_APP_URL: http://localhost:5173
-      ORGANIZER_ALLOWED_EMAILS: organizador@fitpong.local
+      ORGANIZER_ALLOWED_EMAILS: ${ORGANIZER_ALLOWED_EMAILS:-organizador@gmail.com}
       # Defina como "true" apenas em ambiente local para popular dados de exemplo.
       SEED_ON_START: 'false'
     ports:

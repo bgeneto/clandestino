@@ -11,7 +11,7 @@ type EditionHeaderProps = {
 
 export function EditionHeader({ edition, subtitle, badge, live = false }: EditionHeaderProps) {
   return (
-    <header className="rounded-2xl bg-[#1a1a2e] px-4 py-4 text-white shadow-lg">
+    <header className="rounded-2xl bg-header px-4 py-4 text-header-foreground shadow-lg">
       <div className="flex items-start justify-between gap-3">
         <div>
           <h1 className="text-lg font-bold">
@@ -22,10 +22,10 @@ export function EditionHeader({ edition, subtitle, badge, live = false }: Editio
               </span>
             ) : null}
           </h1>
-          <p className="mt-1 text-xs text-white/70">
+          <p className="mt-1 text-xs text-header-foreground/70">
             {formatEditionDate(edition.date)} · {formatEditionStatus(edition.status)}
           </p>
-          {subtitle ? <p className="mt-2 text-sm text-white/80">{subtitle}</p> : null}
+          {subtitle ? <p className="mt-2 text-sm text-header-foreground/80">{subtitle}</p> : null}
         </div>
         {badge ? <div className="shrink-0">{badge}</div> : null}
       </div>

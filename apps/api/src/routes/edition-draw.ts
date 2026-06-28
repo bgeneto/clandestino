@@ -80,16 +80,16 @@ export async function registerEditionDrawRoutes(app: FastifyInstance): Promise<v
         );
       }
 
-      const seasonPoints = await app.db
+      const championshipPoints = await app.db
         .select({
-          playerId: schema.seasonPlayerPoints.playerId,
-          accumulatedPoints: schema.seasonPlayerPoints.accumulatedPoints,
+          playerId: schema.championshipPlayerPoints.playerId,
+          accumulatedPoints: schema.championshipPlayerPoints.accumulatedPoints,
         })
-        .from(schema.seasonPlayerPoints)
-        .where(eq(schema.seasonPlayerPoints.seasonId, edition.seasonId));
+        .from(schema.championshipPlayerPoints)
+        .where(eq(schema.championshipPlayerPoints.championshipId, edition.championshipId));
 
       const pointsByPlayerId = new Map(
-        seasonPoints.map((entry) => [entry.playerId, entry.accumulatedPoints]),
+        championshipPoints.map((entry) => [entry.playerId, entry.accumulatedPoints]),
       );
       const rankedPlayers = rankEditionPlayers(
         registrations,

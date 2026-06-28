@@ -1,20 +1,19 @@
 import type { TypeBoxTypeProvider } from '@fastify/type-provider-typebox';
 import {
   CreateEditionBodySchema,
-  DEFAULT_TOURNAMENT_RULES,
+  DEFAULT_EDITION_RULES,
   EditionRegistrationsResponseSchema,
   EditionSchema,
   ErrorResponseSchema,
-  ImportScoresResponseSchema,
   RegisterPlayerBodySchema,
 } from '@clandestino/shared-contracts';
 import { Type } from '@sinclair/typebox';
-import { and, eq, sql } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import { schema } from '../db/index.js';
-import { parseImportScoresCsv } from '../lib/csv.js';
+import { nextEditionNameForChampionship } from '../lib/editions.js';
 import { badRequest, conflict, notFound } from '../lib/errors.js';
-import { validateTournamentRules } from '../lib/errors.js';
+import { validateEditionRules } from '../lib/errors.js';
 import { mapEdition, mapRegistration } from '../lib/mappers.js';
 
 export async function registerEditionRoutes(app: FastifyInstance): Promise<void> {
@@ -36,28 +35,30 @@ export async function registerEditionRoutes(app: FastifyInstance): Promise<void>
       },
     },
     async (request, reply) => {
-      const rules = request.body.rules ?? DEFAULT_TOURNAMENT_RULES;
-      const rulesError = validateTournamentRules(rules);
-      if (rulesError) {
-        throw badRequest(`Regras de torneio inválidas: ${rulesError}`);
-      }
-
-      const [season] = await app.db
-        .select({ id: schema.seasons.id })
-        .from(schema.seasons)
-        .where(eq(schema.seasons.id, request.body.seasonId))
+      const [championship] = await app.db
+        .select()
+        .from(schema.championships)
+        .where(eq(schema.championships.id, request.body.championshipId))
         .limit(1);
 
-      if (!season) {
-        throw notFound('Temporada não encontrada.');
+      if (!championship) {
+        throw notFound('Campeonato não encontrado.');
       }
+
+      const rules = request.body.rules ?? championship.defaultEditionRules ?? DEFAULT_EDITION_RULES;
+      const rulesError = validateEditionRules(rules);
+      if (rulesError) {
+        throw badRequest(`Regras da edição inválidas: ${rulesError}`);
+      }
+
+      const name = await nextEditionNameForChampionship(app.db, request.body.championshipId);
 
       try {
         const [edition] = await app.db
           .insert(schema.editions)
           .values({
-            seasonId: request.body.seasonId,
-            name: request.body.name.trim(),
+            championshipId: request.body.championshipId,
+            name,
             date: request.body.date,
             rules,
             autoConfirmMinutes: request.body.autoConfirmMinutes ?? 15,
@@ -74,7 +75,7 @@ export async function registerEditionRoutes(app: FastifyInstance): Promise<void>
           payload: {
             name: edition.name,
             date: edition.date,
-            seasonId: edition.seasonId,
+            championshipId: edition.championshipId,
           },
           createdBy: request.organizerEmail ?? 'organizer',
         });
@@ -83,7 +84,7 @@ export async function registerEditionRoutes(app: FastifyInstance): Promise<void>
         return mapEdition(edition);
       } catch (error) {
         if (isUniqueViolation(error)) {
-          throw conflict('Já existe uma edição com este nome nesta temporada.');
+          throw conflict('Já existe uma edição com este nome neste campeonato.');
         }
 
         throw error;
@@ -211,119 +212,6 @@ export async function registerEditionRoutes(app: FastifyInstance): Promise<void>
 
       reply.code(201);
       return { registrations: registrations.map(mapRegistration) };
-    },
-  );
-
-  typed.post(
-    '/seasons/:id/import-scores',
-    {
-      preHandler: app.requireOrganizer,
-      bodyLimit: app.config.csvImportMaxBytes,
-      schema: {
-        params: Type.Object({ id: Type.String({ format: 'uuid' }) }),
-        response: {
-          200: ImportScoresResponseSchema,
-          400: ErrorResponseSchema,
-          401: ErrorResponseSchema,
-          404: ErrorResponseSchema,
-        },
-      },
-    },
-    async (request) => {
-      const seasonId = request.params.id;
-      const [season] = await app.db
-        .select({ id: schema.seasons.id })
-        .from(schema.seasons)
-        .where(eq(schema.seasons.id, seasonId))
-        .limit(1);
-
-      if (!season) {
-        throw notFound('Temporada não encontrada.');
-      }
-
-      const csvContent = typeof request.body === 'string' ? request.body : '';
-      if (!csvContent.trim()) {
-        throw badRequest('Envie o conteúdo CSV no corpo da requisição com Content-Type text/csv.');
-      }
-
-      const parsedRows = parseImportScoresCsv(csvContent);
-      const importedScores: Array<{ playerName: string; accumulatedPoints: number }> = [];
-      let createdPlayersCount = 0;
-      let skippedExistingCount = 0;
-
-      await app.db.transaction(async (tx) => {
-        for (const row of parsedRows) {
-          const playerName = row.playerName.trim();
-          let [player] = await tx
-            .select({ id: schema.players.id, name: schema.players.name })
-            .from(schema.players)
-            .where(sql`lower(trim(${schema.players.name})) = lower(${playerName})`)
-            .limit(1);
-
-          if (!player) {
-            const [created] = await tx
-              .insert(schema.players)
-              .values({ name: playerName })
-              .returning({ id: schema.players.id, name: schema.players.name });
-
-            if (!created) {
-              throw badRequest(
-                `Linha ${row.lineNumber}: não foi possível cadastrar "${playerName}".`,
-              );
-            }
-
-            player = created;
-            createdPlayersCount += 1;
-          }
-
-          const [existingPoints] = await tx
-            .select({ playerId: schema.seasonPlayerPoints.playerId })
-            .from(schema.seasonPlayerPoints)
-            .where(
-              and(
-                eq(schema.seasonPlayerPoints.seasonId, seasonId),
-                eq(schema.seasonPlayerPoints.playerId, player.id),
-              ),
-            )
-            .limit(1);
-
-          if (existingPoints) {
-            skippedExistingCount += 1;
-            continue;
-          }
-
-          await tx.insert(schema.seasonPlayerPoints).values({
-            seasonId,
-            playerId: player.id,
-            accumulatedPoints: row.accumulatedPoints,
-          });
-
-          importedScores.push({
-            playerName: player.name,
-            accumulatedPoints: row.accumulatedPoints,
-          });
-        }
-
-        await tx.insert(schema.auditEvents).values({
-          seasonId,
-          eventType: 'CSV_IMPORTED',
-          payload: {
-            importedCount: importedScores.length,
-            createdPlayersCount,
-            skippedExistingCount,
-            scores: importedScores,
-          },
-          createdBy: request.organizerEmail ?? 'organizer',
-        });
-      });
-
-      return {
-        seasonId,
-        importedCount: importedScores.length,
-        createdPlayersCount,
-        skippedExistingCount,
-        scores: importedScores,
-      };
     },
   );
 }

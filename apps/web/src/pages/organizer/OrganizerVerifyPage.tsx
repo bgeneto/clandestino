@@ -46,7 +46,7 @@ export function OrganizerVerifyPage() {
 
   if (!token) {
     return (
-      <section className="rounded-2xl border border-rose-500/30 bg-rose-500/10 p-6 text-sm text-rose-100">
+      <section className="rounded-2xl border border-danger-surface bg-danger-surface p-6 text-sm text-danger-foreground">
         Link inválido.{' '}
         <Link className="underline" to="/organizador">
           Solicitar novo link
@@ -56,12 +56,12 @@ export function OrganizerVerifyPage() {
   }
 
   if (verifyMutation.isPending) {
-    return <p className="text-sm text-slate-400">Validando link de acesso…</p>;
+    return <p className="text-sm text-subtle">Validando link de acesso…</p>;
   }
 
   if (error) {
     return (
-      <section className="space-y-4 rounded-2xl border border-rose-500/30 bg-rose-500/10 p-6 text-sm text-rose-100">
+      <section className="space-y-4 rounded-2xl border border-danger-surface bg-danger-surface p-6 text-sm text-danger-foreground">
         <p>{error}</p>
         <Link
           className="inline-block rounded-lg bg-brand px-4 py-2 font-medium text-white"

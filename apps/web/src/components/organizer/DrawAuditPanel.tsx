@@ -12,8 +12,8 @@ export function DrawAuditPanel({ snapshots }: DrawAuditPanelProps) {
   const reference = snapshots[0]!;
 
   return (
-    <section className="rounded-xl bg-[#f0f4ff] p-4 text-xs leading-6 text-slate-600">
-      <h3 className="mb-2 text-[13px] font-bold uppercase tracking-wide text-slate-500">
+    <section className="rounded-xl bg-card-muted p-4 text-xs leading-6 text-muted">
+      <h3 className="mb-2 text-[13px] font-bold uppercase tracking-wide text-subtle">
         Auditoria do sorteio
       </h3>
       <p>Algoritmo: {reference.algorithm}</p>

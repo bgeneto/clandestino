@@ -9,6 +9,8 @@ import { PlayerStandingsPage } from './pages/edition/PlayerStandingsPage.js';
 import { PublicEditionPage } from './pages/edition/PublicEditionPage.js';
 import { RegisterResultPage } from './pages/edition/RegisterResultPage.js';
 import { RequirePlayerSession } from './pages/edition/RequirePlayerSession.js';
+import { ChampionshipPage } from './pages/organizer/ChampionshipPage.js';
+import { CreateChampionshipPage } from './pages/organizer/CreateChampionshipPage.js';
 import { CreateEditionPage } from './pages/organizer/CreateEditionPage.js';
 import { ImportCsvPage } from './pages/organizer/ImportCsvPage.js';
 import { OrganizerDashboardPage } from './pages/organizer/OrganizerDashboardPage.js';
@@ -37,9 +39,11 @@ export function App() {
           <Route path="entrar" element={<OrganizerVerifyPage />} />
           <Route element={<OrganizerLayout />}>
             <Route path="painel" element={<OrganizerDashboardPage />} />
-            <Route path="edicao/nova" element={<CreateEditionPage />} />
+            <Route path="campeonato/novo" element={<CreateChampionshipPage />} />
+            <Route path="campeonato/:championshipId" element={<ChampionshipPage />} />
+            <Route path="campeonato/:championshipId/edicao/nova" element={<CreateEditionPage />} />
+            <Route path="campeonato/:championshipId/importar" element={<ImportCsvPage />} />
             <Route path="edicao/:editionId" element={<OrganizerEditionPage />} />
-            <Route path="importar" element={<ImportCsvPage />} />
           </Route>
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />

@@ -39,12 +39,12 @@ export function EditionQrCode({ url, label }: EditionQrCodeProps) {
           className="mx-auto h-[200px] w-[200px] rounded-lg"
         />
       ) : (
-        <div className="mx-auto flex h-[200px] w-[200px] items-center justify-center rounded-lg bg-slate-200 text-xs text-slate-500">
+        <div className="mx-auto flex h-[200px] w-[200px] items-center justify-center rounded-lg bg-surface-muted text-xs text-subtle">
           Gerando QR…
         </div>
       )}
-      {label ? <p className="mt-2 text-xs text-slate-500">{label}</p> : null}
-      <p className="mt-2 break-all text-[11px] text-slate-400">{url}</p>
+      {label ? <p className="mt-2 text-xs text-subtle">{label}</p> : null}
+      <p className="mt-2 break-all text-[11px] text-subtle">{url}</p>
     </div>
   );
 }

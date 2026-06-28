@@ -6,19 +6,21 @@ export function HomePage() {
 
   return (
     <section className="space-y-6">
-      <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
-        <h2 className="text-xl font-semibold text-white">Clandestino</h2>
-        <p className="mt-2 text-sm leading-6 text-slate-300">
-          Campeonato de tênis de mesa da FitPong. Escaneie o QR code da edição ou acesse o link
+      <div className="rounded-2xl border border-line bg-card p-6">
+        <h2 className="text-xl font-semibold text-foreground">Clandestino</h2>
+        <p className="mt-2 text-sm leading-6 text-muted">
+          Campeonato de tênis de mesa Clandestino. Escaneie o QR code da edição ou acesse o link
           público para acompanhar ao vivo.
         </p>
       </div>
 
       {isLoggedIn && session ? (
-        <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-6 text-sm">
+        <div className="rounded-2xl border border-line bg-card p-6 text-sm">
           <p>
-            <span className="text-slate-400">Sessão ativa:</span>{' '}
-            <span className="font-medium text-white">{session.playerName ?? session.playerId}</span>
+            <span className="text-subtle">Sessão ativa:</span>{' '}
+            <span className="font-medium text-foreground">
+              {session.playerName ?? session.playerId}
+            </span>
           </p>
           <div className="mt-4 flex flex-wrap gap-3">
             <Link
@@ -30,7 +32,7 @@ export function HomePage() {
             <button
               type="button"
               onClick={() => void clearSession()}
-              className="rounded-lg border border-slate-700 px-4 py-2 text-slate-200"
+              className="rounded-lg border border-line px-4 py-2 text-muted"
             >
               Sair
             </button>
@@ -38,10 +40,10 @@ export function HomePage() {
         </div>
       ) : null}
 
-      <div className="rounded-2xl border border-dashed border-slate-700 p-6 text-sm text-slate-400">
+      <div className="rounded-2xl border border-dashed border-line p-6 text-sm text-subtle">
         <p>
-          Acesse uma edição pela URL <code className="text-slate-300">/edicao/:id</code> ou pela
-          entrada via QR code <code className="text-slate-300">/edicao/:id/entrar</code>.
+          Acesse uma edição pela URL <code className="text-muted">/edicao/:id</code> ou pela entrada
+          via QR code <code className="text-muted">/edicao/:id/entrar</code>.
         </p>
         <p className="mt-3">
           <Link className="text-brand underline" to="/organizador">

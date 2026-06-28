@@ -34,15 +34,15 @@ export function OrganizerLoginPage() {
 
   return (
     <section className="space-y-6">
-      <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
-        <h2 className="text-xl font-semibold text-white">Painel do organizador</h2>
-        <p className="mt-2 text-sm leading-6 text-slate-300">
+      <div className="rounded-2xl border border-line bg-card p-6">
+        <h2 className="text-xl font-semibold text-foreground">Painel do organizador</h2>
+        <p className="mt-2 text-sm leading-6 text-muted">
           Informe o e-mail autorizado para receber um link de acesso seguro.
         </p>
       </div>
 
       <form
-        className="space-y-4 rounded-2xl border border-slate-800 bg-slate-900/40 p-6"
+        className="space-y-4 rounded-2xl border border-line bg-card p-6"
         onSubmit={(event) => {
           event.preventDefault();
           setFeedback(null);
@@ -51,14 +51,14 @@ export function OrganizerLoginPage() {
         }}
       >
         <label className="block space-y-2 text-sm">
-          <span className="text-slate-300">E-mail</span>
+          <span className="text-muted">E-mail</span>
           <input
             type="email"
             required
             value={email}
             onChange={(event) => setEmail(event.target.value)}
-            className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2.5 text-white outline-none ring-brand focus:ring-2"
-            placeholder="organizador@fitpong.com"
+            className="w-full rounded-lg border border-line bg-card-muted px-3 py-2.5 text-foreground outline-none ring-brand focus:ring-2"
+            placeholder="organizador@gmail.com"
           />
         </label>
 
@@ -72,13 +72,13 @@ export function OrganizerLoginPage() {
       </form>
 
       {feedback ? (
-        <div className="rounded-2xl border border-slate-700 bg-slate-900/60 p-4 text-sm text-slate-200">
+        <div className="rounded-2xl border border-line bg-card p-4 text-sm text-muted">
           {feedback}
         </div>
       ) : null}
 
       {devLink ? (
-        <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-100">
+        <div className="rounded-2xl border border-warning-surface bg-warning-surface p-4 text-sm text-warning-foreground">
           <p className="font-medium">Link de desenvolvimento</p>
           <Link
             className="mt-2 block break-all underline"
@@ -89,9 +89,9 @@ export function OrganizerLoginPage() {
         </div>
       ) : null}
 
-      <p className="text-center text-sm text-slate-500">
-        <Link className="text-slate-300 underline" to="/">
-          Voltar ao início
+      <p className="text-center text-sm text-subtle">
+        <Link className="text-muted underline" to="/">
+          ← Voltar ao início
         </Link>
       </p>
     </section>

@@ -1,5 +1,10 @@
 import type {
+  Championship,
+  ChampionshipEditionsResponse,
+  ChampionshipListResponse,
+  ChampionshipRankingResponse,
   CorrectMatchResultBody,
+  CreateChampionshipBody,
   CreateEditionBody,
   DrawSnapshotListResponse,
   Edition,
@@ -18,7 +23,7 @@ import type {
   RegisterPlayerBody,
   RequestOrganizerMagicLinkBody,
   RequestOrganizerMagicLinkResponse,
-  SeasonListResponse,
+  UpdateScoringTableBody,
   VerifyOrganizerMagicLinkBody,
 } from '@clandestino/shared-contracts';
 import { apiRequest, ApiError } from './api-client.js';
@@ -45,8 +50,43 @@ export async function verifyOrganizerMagicLink(
   });
 }
 
-export async function fetchSeasons(): Promise<SeasonListResponse> {
-  return apiRequest<SeasonListResponse>('/seasons');
+export async function fetchChampionships(): Promise<ChampionshipListResponse> {
+  return apiRequest<ChampionshipListResponse>('/championships');
+}
+
+export async function fetchChampionship(championshipId: string): Promise<Championship> {
+  return apiRequest<Championship>(`/championships/${championshipId}`);
+}
+
+export async function createChampionship(body: CreateChampionshipBody): Promise<Championship> {
+  return apiRequest<Championship>('/championships', {
+    method: 'POST',
+    body,
+    ...organizer,
+  });
+}
+
+export async function updateChampionshipScoringTable(
+  championshipId: string,
+  body: UpdateScoringTableBody,
+): Promise<Championship> {
+  return apiRequest<Championship>(`/championships/${championshipId}/scoring-table`, {
+    method: 'PUT',
+    body,
+    ...organizer,
+  });
+}
+
+export async function fetchChampionshipEditions(
+  championshipId: string,
+): Promise<ChampionshipEditionsResponse> {
+  return apiRequest<ChampionshipEditionsResponse>(`/championships/${championshipId}/editions`);
+}
+
+export async function fetchChampionshipRanking(
+  championshipId: string,
+): Promise<ChampionshipRankingResponse> {
+  return apiRequest<ChampionshipRankingResponse>(`/championships/${championshipId}/ranking`);
 }
 
 export async function fetchPlayers(): Promise<PlayerListResponse> {
@@ -148,8 +188,8 @@ export async function fetchFinalPlacements(
   return apiRequest<EditionFinalPlacementsResponse>(`/editions/${editionId}/final-placements`);
 }
 
-export async function importSeasonScores(
-  seasonId: string,
+export async function importChampionshipScores(
+  championshipId: string,
   csvContent: string,
 ): Promise<ImportScoresResponse> {
   const session = await db.organizerSession.get(ORGANIZER_SESSION_ROW_ID);
@@ -162,7 +202,7 @@ export async function importSeasonScores(
     headers.Authorization = `Bearer ${session.sessionToken}`;
   }
 
-  const response = await fetch(buildApiUrl(`/seasons/${seasonId}/import-scores`), {
+  const response = await fetch(buildApiUrl(`/championships/${championshipId}/import-scores`), {
     method: 'POST',
     headers,
     body: csvContent,

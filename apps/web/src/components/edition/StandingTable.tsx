@@ -13,23 +13,23 @@ type StandingTableProps = {
 
 function rankClassName(rank: number): string {
   if (rank === 1) return 'text-amber-600';
-  if (rank === 2) return 'text-slate-500';
+  if (rank === 2) return 'text-subtle';
   if (rank === 3) return 'text-amber-900';
-  return 'text-[#1a1a2e]';
+  return 'text-foreground';
 }
 
 export function StandingTable({ rows }: StandingTableProps) {
   if (rows.length === 0) {
     return (
-      <p className="rounded-xl bg-white p-6 text-center text-sm text-slate-500">
+      <p className="rounded-xl bg-card p-6 text-center text-sm text-subtle">
         Classificação ainda não disponível.
       </p>
     );
   }
 
   return (
-    <div className="overflow-hidden rounded-xl bg-white shadow-sm">
-      <div className="grid grid-cols-[2rem_1fr_3rem] border-b border-slate-100 px-3 py-2 text-[11px] font-bold uppercase tracking-wide text-slate-400">
+    <div className="overflow-hidden rounded-xl bg-card shadow-sm">
+      <div className="grid grid-cols-[2rem_1fr_3rem] border-b border-line px-3 py-2 text-[11px] font-bold uppercase tracking-wide text-subtle">
         <span>#</span>
         <span>Jogador</span>
         <span className="text-right">Sets</span>
@@ -37,14 +37,14 @@ export function StandingTable({ rows }: StandingTableProps) {
       {rows.map((row) => (
         <div
           key={row.playerId}
-          className="grid grid-cols-[2rem_1fr_3rem] items-center border-b border-slate-50 px-3 py-3 last:border-b-0"
+          className="grid grid-cols-[2rem_1fr_3rem] items-center border-b border-line px-3 py-3 last:border-b-0"
         >
           <span className={`font-bold ${rankClassName(row.rank)}`}>{row.rank}</span>
           <div>
-            <p className="text-sm text-slate-900">{row.playerName}</p>
-            {row.detail ? <p className="text-[11px] text-slate-400">{row.detail}</p> : null}
+            <p className="text-sm text-foreground">{row.playerName}</p>
+            {row.detail ? <p className="text-[11px] text-subtle">{row.detail}</p> : null}
           </div>
-          <span className="text-right text-sm font-semibold text-slate-900">{row.setsWon}</span>
+          <span className="text-right text-sm font-semibold text-foreground">{row.setsWon}</span>
         </div>
       ))}
     </div>

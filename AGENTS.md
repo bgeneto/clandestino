@@ -6,6 +6,8 @@ Este arquivo orienta agentes de código (Cursor, Copilot, etc.) a trabalhar no r
 
 **Clandestino** é um PWA para o campeonato de tênis de mesa da FitPong. O MVP cobre o ciclo completo de uma edição: inscrições, sorteio, partidas, confirmação de resultados, fase de colocação e ranking acumulado.
 
+Leia [docs/domain-taxonomy.md](docs/domain-taxonomy.md) para a taxonomia canônica (Championship, Edition, EditionRules).
+
 Leia antes de implementar:
 
 - [Epic Brief — Clandestino.md](.agents/specs/Epic_Brief_—_Clandestino.md) — escopo e decisões de produto
@@ -29,11 +31,11 @@ apps/
 
 2. **Servidor é a fonte da verdade para classificação.** `standing` e colocação final são recalculados no servidor a cada confirmação. O cliente exibe e cacheia; nunca publica classificação oficial.
 
-3. **Contratos compartilhados em `shared-contracts`.** Tipos de domínio (`Player`, `Edition`, `Match`, `TournamentRules`, etc.) e schemas TypeBox de request/response pertencem a `@clandestino/shared-contracts`. API e web importam daqui — não duplique tipos entre apps.
+3. **Contratos compartilhados em `shared-contracts`.** Tipos de domínio (`Player`, `Championship`, `Edition`, `Match`, `EditionRules`, etc.) e schemas TypeBox de request/response pertencem a `@clandestino/shared-contracts`. API e web importam daqui — não duplique tipos entre apps.
 
 4. **Validação em duas camadas.** `tournament-engine` valida regras de domínio (ex.: placar impossível). Fastify + TypeBox valida formato de entrada/saída HTTP. PostgreSQL + constraints Drizzle impede estados inválidos persistidos.
 
-5. **Regras configuráveis por edição.** Não codifique limiares fixos (“acima de 24 jogadores, melhor de 3”) em código de rota. Use `TournamentRules` / `edition.rules` (jsonb).
+5. **Regras configuráveis por edição.** Não codifique limiares fixos (“acima de 24 jogadores, melhor de 3”) em código de rota. Use `EditionRules` / `edition.rules` (jsonb).
 
 6. **Determinismo auditável no sorteio.** Sorteios usam semente reproduzível (`random_seed` em `draw_snapshot`). Mesma entrada + mesma semente → mesmo resultado.
 

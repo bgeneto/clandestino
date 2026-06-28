@@ -20,9 +20,9 @@ import {
 import {
   DEFAULT_SCORING_TABLE,
   DEFAULT_TOURNAMENT_RULES,
+  type EditionRules,
   type MatchStatus,
   type ScoringTable,
-  type TournamentRules,
 } from '@clandestino/shared-contracts';
 
 export const matchStatusEnum = pgEnum('match_status', [
@@ -55,8 +55,8 @@ export const players = pgTable(
   (table) => [uniqueIndex('player_name_unique').on(table.name)],
 );
 
-export const seasons = pgTable(
-  'season',
+export const championships = pgTable(
+  'championship',
   {
     id: uuid('id').primaryKey().defaultRandom(),
     name: varchar('name', { length: 120 }).notNull(),
@@ -64,11 +64,15 @@ export const seasons = pgTable(
       .$type<ScoringTable>()
       .notNull()
       .default(DEFAULT_SCORING_TABLE),
+    defaultEditionRules: jsonb('default_edition_rules').$type<EditionRules>(),
     createdAt,
   },
   (table) => [
-    uniqueIndex('season_name_unique').on(table.name),
-    check('season_scoring_table_is_array', sql`jsonb_typeof(${table.scoringTable}) = 'array'`),
+    uniqueIndex('championship_name_unique').on(table.name),
+    check(
+      'championship_scoring_table_is_array',
+      sql`jsonb_typeof(${table.scoringTable}) = 'array'`,
+    ),
   ],
 );
 
@@ -76,18 +80,18 @@ export const editions = pgTable(
   'edition',
   {
     id: uuid('id').primaryKey().defaultRandom(),
-    seasonId: uuid('season_id')
+    championshipId: uuid('championship_id')
       .notNull()
-      .references(() => seasons.id, { onDelete: 'restrict', onUpdate: 'cascade' }),
+      .references(() => championships.id, { onDelete: 'restrict', onUpdate: 'cascade' }),
     name: varchar('name', { length: 120 }).notNull(),
     date: date('date').notNull(),
-    rules: jsonb('rules').$type<TournamentRules>().notNull().default(DEFAULT_TOURNAMENT_RULES),
+    rules: jsonb('rules').$type<EditionRules>().notNull().default(DEFAULT_TOURNAMENT_RULES),
     status: editionStatusEnum('status').notNull().default('RASCUNHO'),
     autoConfirmMinutes: integer('auto_confirm_minutes').notNull().default(15),
     createdAt,
   },
   (table) => [
-    uniqueIndex('edition_season_name_unique').on(table.seasonId, table.name),
+    uniqueIndex('edition_championship_name_unique').on(table.championshipId, table.name),
     check('edition_rules_is_object', sql`jsonb_typeof(${table.rules}) = 'object'`),
     check('edition_auto_confirm_minutes_positive', sql`${table.autoConfirmMinutes} > 0`),
   ],
@@ -280,12 +284,12 @@ export const finalPlacements = pgTable(
   ],
 );
 
-export const seasonPlayerPoints = pgTable(
-  'season_player_points',
+export const championshipPlayerPoints = pgTable(
+  'championship_player_points',
   {
-    seasonId: uuid('season_id')
+    championshipId: uuid('championship_id')
       .notNull()
-      .references(() => seasons.id, { onDelete: 'cascade', onUpdate: 'cascade' }),
+      .references(() => championships.id, { onDelete: 'cascade', onUpdate: 'cascade' }),
     playerId: uuid('player_id')
       .notNull()
       .references(() => players.id, { onDelete: 'restrict', onUpdate: 'cascade' }),
@@ -294,10 +298,10 @@ export const seasonPlayerPoints = pgTable(
   },
   (table) => [
     primaryKey({
-      name: 'season_player_points_pk',
-      columns: [table.seasonId, table.playerId],
+      name: 'championship_player_points_pk',
+      columns: [table.championshipId, table.playerId],
     }),
-    check('season_player_points_non_negative', sql`${table.accumulatedPoints} >= 0`),
+    check('championship_player_points_non_negative', sql`${table.accumulatedPoints} >= 0`),
   ],
 );
 
@@ -340,7 +344,7 @@ export const auditEvents = pgTable(
       onDelete: 'cascade',
       onUpdate: 'cascade',
     }),
-    seasonId: uuid('season_id').references(() => seasons.id, {
+    championshipId: uuid('championship_id').references(() => championships.id, {
       onDelete: 'cascade',
       onUpdate: 'cascade',
     }),
@@ -355,11 +359,11 @@ export const auditEvents = pgTable(
   },
   (table) => [
     index('audit_event_edition_created_at_idx').on(table.editionId, table.createdAt),
-    index('audit_event_season_created_at_idx').on(table.seasonId, table.createdAt),
+    index('audit_event_championship_created_at_idx').on(table.championshipId, table.createdAt),
     check('audit_event_payload_is_object', sql`jsonb_typeof(${table.payload}) = 'object'`),
     check(
       'audit_event_scope_required',
-      sql`${table.editionId} IS NOT NULL OR ${table.seasonId} IS NOT NULL`,
+      sql`${table.editionId} IS NOT NULL OR ${table.championshipId} IS NOT NULL`,
     ),
   ],
 );
@@ -371,26 +375,26 @@ export const playerRelations = relations(players, ({ many }) => ({
   finalPlacements: many(finalPlacements),
 }));
 
-export const seasonRelations = relations(seasons, ({ many }) => ({
+export const championshipRelations = relations(championships, ({ many }) => ({
   editions: many(editions),
-  playerPoints: many(seasonPlayerPoints),
+  playerPoints: many(championshipPlayerPoints),
 }));
 
-export const seasonPlayerPointsRelations = relations(seasonPlayerPoints, ({ one }) => ({
-  season: one(seasons, {
-    fields: [seasonPlayerPoints.seasonId],
-    references: [seasons.id],
+export const championshipPlayerPointsRelations = relations(championshipPlayerPoints, ({ one }) => ({
+  championship: one(championships, {
+    fields: [championshipPlayerPoints.championshipId],
+    references: [championships.id],
   }),
   player: one(players, {
-    fields: [seasonPlayerPoints.playerId],
+    fields: [championshipPlayerPoints.playerId],
     references: [players.id],
   }),
 }));
 
 export const editionRelations = relations(editions, ({ one, many }) => ({
-  season: one(seasons, {
-    fields: [editions.seasonId],
-    references: [seasons.id],
+  championship: one(championships, {
+    fields: [editions.championshipId],
+    references: [championships.id],
   }),
   registrations: many(editionRegistrations),
   groups: many(groups),

@@ -20,7 +20,7 @@ export const configWarnings: string[] = [];
 
 function parseAllowedEmails(raw: string | undefined): string[] {
   if (!raw) {
-    return ['organizador@fitpong.local'];
+    return ['organizador@gmail.com'];
   }
 
   return raw

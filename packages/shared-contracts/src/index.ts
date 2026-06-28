@@ -12,31 +12,42 @@ export {
 export {
   ScoringTableEntrySchema,
   ScoringTableSchema,
-  SeasonSchema,
-  CreateSeasonBodySchema,
+  ChampionshipSchema,
+  CreateChampionshipBodySchema,
   UpdateScoringTableBodySchema,
-  SeasonListResponseSchema,
+  ChampionshipListResponseSchema,
+  ChampionshipRankingEntrySchema,
+  ChampionshipRankingResponseSchema,
+  EditionSummarySchema,
+  ChampionshipEditionsResponseSchema,
   DEFAULT_SCORING_TABLE,
   type ScoringTableEntry,
   type ScoringTable,
-  type Season,
-  type CreateSeasonBody,
+  type Championship,
+  type CreateChampionshipBody,
   type UpdateScoringTableBody,
-  type SeasonListResponse,
-} from './season.js';
+  type ChampionshipListResponse,
+  type ChampionshipRankingEntry,
+  type ChampionshipRankingResponse,
+  type EditionSummary,
+  type ChampionshipEditionsResponse,
+} from './championship.js';
 
 export {
   RankingCriterionSchema,
   SeedingMethodSchema,
   PlacementStageFormatSchema,
-  TournamentRulesSchema,
+  EditionRulesSchema,
   DEFAULT_GROUP_RANKING_CRITERIA,
+  DEFAULT_EDITION_RULES,
   DEFAULT_TOURNAMENT_RULES,
+  TournamentRulesSchema,
   type RankingCriterion,
   type SeedingMethod,
   type PlacementStageFormat,
+  type EditionRules,
   type TournamentRules,
-} from './tournament-rules.js';
+} from './edition-rules.js';
 
 export {
   EditionStatusSchema,

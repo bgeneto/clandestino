@@ -1,7 +1,9 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
-  <rect width="512" height="512" rx="96" fill="#0f172a"/>
-  <circle cx="256" cy="256" r="160" fill="#f97316" opacity="0.15"/>
-  <circle cx="256" cy="256" r="120" stroke="#f97316" stroke-width="24"/>
-  <circle cx="256" cy="256" r="18" fill="#f97316"/>
-  <path d="M256 136 L256 376 M136 256 L376 256" stroke="#f97316" stroke-width="16" stroke-linecap="round"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="1254" height="1254" viewBox="0 0 1254 1254" role="img" aria-labelledby="title desc">
+<title id="title">Fitpong Clandestino table tennis icon</title>
+<desc id="desc">Minimal white table tennis paddle and orange ball on a rounded dark teal square.</desc>
+<rect width="1254" height="1254" fill="#FEFEFF"/>
+<path fill="#043A48" d="M 93 89 L 60 128 L 36 170 L 23 206 L 14 258 L 14 996 L 22 1043 L 39 1089 L 63 1129 L 91 1162 L 129 1194 L 165 1215 L 217 1234 L 259 1241 L 994 1241 L 1032 1235 L 1072 1222 L 1113 1201 L 1147 1176 L 1172 1151 L 1189 1130 L 1218 1080 L 1233 1034 L 1239 987 L 1238 250 L 1231 211 L 1217 171 L 1200 139 L 1173 103 L 1142 73 L 1103 46 L 1050 23 L 995 12 L 259 12 L 213 20 L 167 37 L 129 59 Z"/>
+<path fill="#FDFDFD" d="M 727 209 L 693 208 L 658 211 L 631 216 L 599 225 L 543 250 L 516 267 L 484 292 L 459 316 L 439 339 L 418 368 L 402 395 L 388 424 L 376 456 L 368 486 L 362 525 L 363 579 L 370 615 L 377 633 L 530 737 L 660 832 L 673 838 L 694 838 L 718 835 L 744 829 L 770 820 L 817 797 L 844 779 L 866 761 L 908 716 L 924 694 L 942 664 L 960 625 L 969 599 L 977 568 L 983 529 L 983 466 L 972 410 L 953 362 L 937 334 L 907 296 L 884 274 L 859 255 L 834 240 L 785 220 L 756 213 Z"/>
+<path fill="#FDFDFD" d="M 396 679 L 395 681 L 412 723 L 416 741 L 416 763 L 411 782 L 401 801 L 294 948 L 288 963 L 290 982 L 300 997 L 357 1036 L 369 1040 L 388 1038 L 397 1033 L 406 1024 L 505 871 L 519 856 L 540 843 L 559 837 L 573 835 L 620 836 L 614 830 Z"/>
+<path fill="#FD7A02" d="M 858 829 L 841 833 L 822 842 L 812 849 L 795 867 L 788 878 L 780 897 L 776 920 L 777 938 L 782 958 L 791 976 L 802 990 L 817 1003 L 837 1014 L 855 1019 L 889 1019 L 906 1014 L 924 1005 L 939 993 L 950 980 L 961 960 L 966 944 L 968 929 L 967 910 L 963 894 L 953 873 L 945 862 L 928 846 L 913 837 L 892 830 L 875 828 Z"/>
 </svg>

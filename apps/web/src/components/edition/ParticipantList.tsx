@@ -27,7 +27,7 @@ export function ParticipantList({ participants, onSelect }: ParticipantListProps
         value={query}
         onChange={(event) => setQuery(event.target.value)}
         placeholder="Buscar seu nome..."
-        className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-[15px] text-slate-900 outline-none ring-[#1a1a2e] focus:ring-2"
+        className="w-full rounded-xl border border-line bg-card px-3 py-2.5 text-[15px] text-foreground outline-none ring-header focus:ring-2"
       />
 
       <div className="space-y-2">
@@ -36,16 +36,16 @@ export function ParticipantList({ participants, onSelect }: ParticipantListProps
             key={participant.playerId}
             type="button"
             onClick={() => onSelect(participant)}
-            className="flex w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3.5 text-left transition active:bg-slate-50"
+            className="flex w-full items-center justify-between rounded-xl border border-line bg-card px-4 py-3.5 text-left transition active:bg-card-muted"
           >
             <div>
-              <p className="text-base font-medium text-slate-900">{participant.playerName}</p>
-              <p className="text-xs text-slate-500">
+              <p className="text-base font-medium text-foreground">{participant.playerName}</p>
+              <p className="text-xs text-subtle">
                 Ranking: {participant.rankPosition}º — {participant.accumulatedPoints} pts
               </p>
             </div>
             {participant.isSeed ? (
-              <span className="rounded-full bg-amber-300 px-2 py-0.5 text-[10px] font-bold text-slate-800">
+              <span className="rounded-full bg-amber-300 px-2 py-0.5 text-[10px] font-bold text-foreground">
                 SEED
               </span>
             ) : null}
@@ -54,11 +54,11 @@ export function ParticipantList({ participants, onSelect }: ParticipantListProps
       </div>
 
       {filtered.length === 0 ? (
-        <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+        <p className="rounded-xl border border-warning-surface bg-warning-surface px-4 py-3 text-sm text-warning-foreground">
           Nenhum jogador encontrado com &quot;{query}&quot;. Fale com o organizador.
         </p>
       ) : (
-        <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+        <p className="rounded-xl border border-warning-surface bg-warning-surface px-4 py-3 text-sm text-warning-foreground">
           Não encontrou seu nome? Fale com o organizador.
         </p>
       )}

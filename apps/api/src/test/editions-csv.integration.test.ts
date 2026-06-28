@@ -1,4 +1,4 @@
-import { DEFAULT_TOURNAMENT_RULES } from '@clandestino/shared-contracts';
+import { DEFAULT_EDITION_RULES } from '@clandestino/shared-contracts';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import {
@@ -12,7 +12,7 @@ import {
   truncateAll,
 } from './integration-setup.js';
 
-describe.skipIf(!hasTestDb)('jogadores, temporadas e importação CSV (integração HTTP)', () => {
+describe.skipIf(!hasTestDb)('jogadores, campeonatos e importação CSV (integração HTTP)', () => {
   let app: FastifyInstance;
   let organizerToken: string;
 
@@ -31,10 +31,10 @@ describe.skipIf(!hasTestDb)('jogadores, temporadas e importação CSV (integraç
     await closeAdminPool();
   });
 
-  async function createSeason(name: string): Promise<string> {
+  async function createChampionship(name: string): Promise<string> {
     const response = await app.inject({
       method: 'POST',
-      url: '/seasons',
+      url: '/championships',
       headers: organizerHeaders(organizerToken),
       payload: { name },
     });
@@ -63,18 +63,16 @@ describe.skipIf(!hasTestDb)('jogadores, temporadas e importação CSV (integraç
   });
 
   it('rejeita criação de edição com regras inválidas (400)', async () => {
-    const seasonId = await createSeason('Temporada Regras');
+    const championshipId = await createChampionship('Campeonato Regras');
     const response = await app.inject({
       method: 'POST',
       url: '/editions',
       headers: organizerHeaders(organizerToken),
       payload: {
-        seasonId,
-        name: 'Edição Inválida',
+        championshipId,
         date: '2026-07-04',
         rules: {
-          ...DEFAULT_TOURNAMENT_RULES,
-          // minimumGroupSize > maximumGroupSize → inválido
+          ...DEFAULT_EDITION_RULES,
           minimumGroupSize: 8,
           preferredGroupSize: 8,
           maximumGroupSize: 4,
@@ -82,18 +80,50 @@ describe.skipIf(!hasTestDb)('jogadores, temporadas e importação CSV (integraç
       },
     });
     expect(response.statusCode).toBe(400);
-    expect(response.json<{ error: string }>().error).toContain('Regras de torneio inválidas');
+    expect(response.json<{ error: string }>().error).toContain('Regras da edição inválidas');
+  });
+
+  it('atribui nome sequencial automaticamente por campeonato', async () => {
+    const championshipId = await createChampionship('Campeonato Numeração');
+    const otherChampionshipId = await createChampionship('Outro Campeonato');
+
+    const first = await app.inject({
+      method: 'POST',
+      url: '/editions',
+      headers: organizerHeaders(organizerToken),
+      payload: { championshipId, date: '2026-07-04' },
+    });
+    expect(first.statusCode).toBe(201);
+    expect(first.json<{ name: string }>().name).toBe('Clandestino #1');
+
+    const second = await app.inject({
+      method: 'POST',
+      url: '/editions',
+      headers: organizerHeaders(organizerToken),
+      payload: { championshipId, date: '2026-08-01' },
+    });
+    expect(second.statusCode).toBe(201);
+    expect(second.json<{ name: string }>().name).toBe('Clandestino #2');
+
+    const otherFirst = await app.inject({
+      method: 'POST',
+      url: '/editions',
+      headers: organizerHeaders(organizerToken),
+      payload: { championshipId: otherChampionshipId, date: '2026-07-04' },
+    });
+    expect(otherFirst.statusCode).toBe(201);
+    expect(otherFirst.json<{ name: string }>().name).toBe('Clandestino #1');
   });
 
   it('importa CSV com sucesso e registra audit_event', async () => {
-    const seasonId = await createSeason('Temporada CSV');
+    const championshipId = await createChampionship('Campeonato CSV');
     await createPlayer('Ana Souza');
     await createPlayer('Bruno Lima');
 
     const csv = 'player_name,accumulated_points\nAna Souza,120\nBruno Lima,80\n';
     const response = await app.inject({
       method: 'POST',
-      url: `/seasons/${seasonId}/import-scores`,
+      url: `/championships/${championshipId}/import-scores`,
       headers: { ...organizerHeaders(organizerToken), 'content-type': 'text/csv' },
       payload: csv,
     });
@@ -109,27 +139,27 @@ describe.skipIf(!hasTestDb)('jogadores, temporadas e importação CSV (integraç
     expect(body.skippedExistingCount).toBe(0);
 
     const audits = await adminQuery(
-      `SELECT event_type FROM audit_event WHERE season_id = $1 AND event_type = 'CSV_IMPORTED'`,
-      [seasonId],
+      `SELECT event_type FROM audit_event WHERE championship_id = $1 AND event_type = 'CSV_IMPORTED'`,
+      [championshipId],
     );
     expect(audits.length).toBe(1);
 
     const points = await adminQuery(
-      `SELECT accumulated_points FROM season_player_points WHERE season_id = $1 ORDER BY accumulated_points DESC`,
-      [seasonId],
+      `SELECT accumulated_points FROM championship_player_points WHERE championship_id = $1 ORDER BY accumulated_points DESC`,
+      [championshipId],
     );
     expect(points.map((row) => Number(row.accumulated_points))).toEqual([120, 80]);
   });
 
   it('importa CSV com cabeçalhos em português ignorando coluna de posição', async () => {
-    const seasonId = await createSeason('Temporada CSV PT');
+    const championshipId = await createChampionship('Campeonato CSV PT');
     await createPlayer('LUCAS LIMA');
     await createPlayer('FÁTIMA');
 
     const csv = 'Posição,Nome,Pontuação\n1,LUCAS LIMA,3947\n23,FÁTIMA,135\n';
     const response = await app.inject({
       method: 'POST',
-      url: `/seasons/${seasonId}/import-scores`,
+      url: `/championships/${championshipId}/import-scores`,
       headers: { ...organizerHeaders(organizerToken), 'content-type': 'text/csv' },
       payload: csv,
     });
@@ -145,20 +175,20 @@ describe.skipIf(!hasTestDb)('jogadores, temporadas e importação CSV (integraç
     expect(body.skippedExistingCount).toBe(0);
 
     const points = await adminQuery(
-      `SELECT accumulated_points FROM season_player_points WHERE season_id = $1 ORDER BY accumulated_points DESC`,
-      [seasonId],
+      `SELECT accumulated_points FROM championship_player_points WHERE championship_id = $1 ORDER BY accumulated_points DESC`,
+      [championshipId],
     );
     expect(points.map((row) => Number(row.accumulated_points))).toEqual([3947, 135]);
   });
 
   it('cadastra jogadores ausentes automaticamente durante a importação', async () => {
-    const seasonId = await createSeason('Temporada CSV Auto');
+    const championshipId = await createChampionship('Campeonato CSV Auto');
     await createPlayer('Ana Souza');
 
     const csv = 'player_name,accumulated_points\nAna Souza,120\nFantasma,50\n';
     const response = await app.inject({
       method: 'POST',
-      url: `/seasons/${seasonId}/import-scores`,
+      url: `/championships/${championshipId}/import-scores`,
       headers: { ...organizerHeaders(organizerToken), 'content-type': 'text/csv' },
       payload: csv,
     });
@@ -177,21 +207,21 @@ describe.skipIf(!hasTestDb)('jogadores, temporadas e importação CSV (integraç
     expect(players.map((row) => row.name)).toEqual(['Ana Souza', 'Fantasma']);
 
     const points = await adminQuery(
-      `SELECT accumulated_points FROM season_player_points WHERE season_id = $1 ORDER BY accumulated_points DESC`,
-      [seasonId],
+      `SELECT accumulated_points FROM championship_player_points WHERE championship_id = $1 ORDER BY accumulated_points DESC`,
+      [championshipId],
     );
     expect(points.map((row) => Number(row.accumulated_points))).toEqual([120, 50]);
   });
 
   it('não sobrescreve pontuações existentes ao reimportar CSV', async () => {
-    const seasonId = await createSeason('Temporada CSV Reimport');
+    const championshipId = await createChampionship('Campeonato CSV Reimport');
     await createPlayer('Ana Souza');
     await createPlayer('Bruno Lima');
 
     const firstCsv = 'player_name,accumulated_points\nAna Souza,120\nBruno Lima,80\n';
     const firstResponse = await app.inject({
       method: 'POST',
-      url: `/seasons/${seasonId}/import-scores`,
+      url: `/championships/${championshipId}/import-scores`,
       headers: { ...organizerHeaders(organizerToken), 'content-type': 'text/csv' },
       payload: firstCsv,
     });
@@ -201,7 +231,7 @@ describe.skipIf(!hasTestDb)('jogadores, temporadas e importação CSV (integraç
       'player_name,accumulated_points\nAna Souza,999\nBruno Lima,1\nCarlos Novo,40\n';
     const secondResponse = await app.inject({
       method: 'POST',
-      url: `/seasons/${seasonId}/import-scores`,
+      url: `/championships/${championshipId}/import-scores`,
       headers: { ...organizerHeaders(organizerToken), 'content-type': 'text/csv' },
       payload: secondCsv,
     });
@@ -217,22 +247,55 @@ describe.skipIf(!hasTestDb)('jogadores, temporadas e importação CSV (integraç
     expect(body.skippedExistingCount).toBe(2);
 
     const points = await adminQuery(
-      `SELECT accumulated_points FROM season_player_points WHERE season_id = $1 ORDER BY accumulated_points DESC`,
-      [seasonId],
+      `SELECT accumulated_points FROM championship_player_points WHERE championship_id = $1 ORDER BY accumulated_points DESC`,
+      [championshipId],
     );
     expect(points.map((row) => Number(row.accumulated_points))).toEqual([120, 80, 40]);
+  });
+
+  it('isola pontuação entre campeonatos distintos', async () => {
+    const championshipA = await createChampionship('Asa Sul');
+    const championshipB = await createChampionship('Western');
+    await createPlayer('Ana Souza');
+
+    const csvA = 'player_name,accumulated_points\nAna Souza,500\n';
+    const csvB = 'player_name,accumulated_points\nAna Souza,100\n';
+
+    await app.inject({
+      method: 'POST',
+      url: `/championships/${championshipA}/import-scores`,
+      headers: { ...organizerHeaders(organizerToken), 'content-type': 'text/csv' },
+      payload: csvA,
+    });
+    await app.inject({
+      method: 'POST',
+      url: `/championships/${championshipB}/import-scores`,
+      headers: { ...organizerHeaders(organizerToken), 'content-type': 'text/csv' },
+      payload: csvB,
+    });
+
+    const pointsA = await adminQuery(
+      `SELECT accumulated_points FROM championship_player_points WHERE championship_id = $1`,
+      [championshipA],
+    );
+    const pointsB = await adminQuery(
+      `SELECT accumulated_points FROM championship_player_points WHERE championship_id = $1`,
+      [championshipB],
+    );
+    expect(Number(pointsA[0]?.accumulated_points)).toBe(500);
+    expect(Number(pointsB[0]?.accumulated_points)).toBe(100);
   });
 
   it('rejeita CSV acima do limite de tamanho do corpo (413)', async () => {
     const limitedApp = await createTestApp({ CSV_IMPORT_MAX_BYTES: '32' });
     try {
       const token = await loginOrganizer(limitedApp);
-      const seasonId = (
+      const championshipId = (
         await limitedApp.inject({
           method: 'POST',
-          url: '/seasons',
+          url: '/championships',
           headers: organizerHeaders(token),
-          payload: { name: 'Temporada Limite' },
+          payload: { name: 'Campeonato Limite' },
         })
       ).json<{ id: string }>().id;
 
@@ -242,7 +305,7 @@ describe.skipIf(!hasTestDb)('jogadores, temporadas e importação CSV (integraç
 
       const response = await limitedApp.inject({
         method: 'POST',
-        url: `/seasons/${seasonId}/import-scores`,
+        url: `/championships/${championshipId}/import-scores`,
         headers: { ...organizerHeaders(token), 'content-type': 'text/csv' },
         payload: bigCsv,
       });

@@ -90,7 +90,7 @@ export function RegisterResultPage() {
   });
 
   if (matchesQuery.isLoading) {
-    return <p className="text-sm text-slate-400">Carregando partida…</p>;
+    return <p className="text-sm text-subtle">Carregando partida…</p>;
   }
 
   if (!match || match.status !== 'AGENDADA') {
@@ -102,16 +102,16 @@ export function RegisterResultPage() {
       <div className="flex items-center gap-3">
         <Link
           to={`/edicao/${editionId}/partidas`}
-          className="rounded-lg bg-[#1a1a2e] px-3 py-2 text-sm text-white"
+          className="rounded-lg bg-header px-3 py-2 text-sm text-header-foreground"
           aria-label="Voltar"
         >
           ← Voltar
         </Link>
-        <h1 className="text-lg font-bold text-[#1a1a2e]">Registrar resultado</h1>
+        <h1 className="text-lg font-bold text-foreground">Registrar resultado</h1>
       </div>
 
       <EditionHeader edition={edition} subtitle={`${groupName} · Melhor de ${match.bestOf} sets`} />
-      <section className="rounded-2xl bg-white p-5 shadow-sm">
+      <section className="rounded-2xl bg-card p-5 shadow-sm">
         <div className="flex items-center justify-around">
           <ScoreCounter
             label={session.playerName ?? 'Você'}
@@ -120,7 +120,7 @@ export function RegisterResultPage() {
             onIncrement={() => setReporterSets((value) => Math.min(match.bestOf, value + 1))}
             onDecrement={() => setReporterSets((value) => Math.max(0, value - 1))}
           />
-          <span className="mt-6 text-xl font-bold text-slate-300">×</span>
+          <span className="mt-6 text-xl font-bold text-muted">×</span>
           <ScoreCounter
             label={playerNames.get(opponentId ?? '') ?? 'Adversário'}
             value={opponentSets}
@@ -129,13 +129,13 @@ export function RegisterResultPage() {
             onDecrement={() => setOpponentSets((value) => Math.max(0, value - 1))}
           />
         </div>
-        <p className="mt-4 text-center text-xs text-slate-500">
+        <p className="mt-4 text-center text-xs text-subtle">
           Vence quem ganhar {match.bestOf === 3 ? 2 : 3} sets primeiro
         </p>
       </section>
 
       {!online ? (
-        <p className="rounded-lg bg-amber-50 px-3 py-2 text-center text-xs text-amber-900">
+        <p className="rounded-lg border border-warning-surface bg-warning-surface px-3 py-2 text-center text-xs text-warning-foreground">
           📶 Sem conexão — resultado será enviado ao reconectar
         </p>
       ) : null}
@@ -156,7 +156,7 @@ export function RegisterResultPage() {
         type="button"
         disabled={!validation.valid || submitMutation.isPending}
         onClick={() => submitMutation.mutate()}
-        className="w-full rounded-xl bg-[#1a1a2e] px-4 py-3.5 text-base font-bold text-white disabled:opacity-40"
+        className="w-full rounded-xl bg-header px-4 py-3.5 text-base font-bold text-header-foreground disabled:opacity-40"
       >
         Enviar resultado
       </button>

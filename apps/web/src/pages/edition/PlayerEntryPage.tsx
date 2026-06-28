@@ -41,10 +41,10 @@ export function PlayerEntryPage() {
     return (
       <div className="space-y-4">
         <EditionHeader edition={edition} subtitle="Confirme sua identidade" />
-        <section className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
+        <section className="rounded-xl border border-warning-surface bg-warning-surface p-4 text-sm text-warning-foreground">
           <p className="font-semibold">Confirme que este é o seu nome</p>
-          <p className="mt-2 text-2xl font-bold text-[#1a1a2e]">{pendingParticipant.playerName}</p>
-          <p className="mt-2 text-amber-900/80">
+          <p className="mt-2 text-2xl font-bold text-foreground">{pendingParticipant.playerName}</p>
+          <p className="mt-2 text-warning-foreground/80">
             Você está entrando na edição <strong>{edition.name}</strong>. Essa escolha fica salva
             neste dispositivo.
           </p>
@@ -53,7 +53,7 @@ export function PlayerEntryPage() {
           <button
             type="button"
             onClick={() => setPendingParticipant(null)}
-            className="flex-1 rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-700"
+            className="flex-1 rounded-xl border border-line bg-card px-4 py-3 text-sm font-semibold text-muted"
           >
             Voltar
           </button>
@@ -61,7 +61,7 @@ export function PlayerEntryPage() {
             type="button"
             disabled={saving}
             onClick={() => void handleConfirm()}
-            className="flex-1 rounded-xl bg-[#1a1a2e] px-4 py-3 text-sm font-semibold text-white disabled:opacity-60"
+            className="flex-1 rounded-xl bg-header px-4 py-3 text-sm font-semibold text-header-foreground disabled:opacity-60"
           >
             Confirmar e entrar
           </button>
@@ -75,11 +75,11 @@ export function PlayerEntryPage() {
       <EditionHeader edition={edition} subtitle="Selecione seu nome para entrar" />
 
       {participantsQuery.isLoading ? (
-        <p className="text-sm text-slate-400">Carregando participantes…</p>
+        <p className="text-sm text-subtle">Carregando participantes…</p>
       ) : participantsQuery.isError ? (
-        <section className="space-y-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
+        <section className="space-y-3 rounded-xl border border-warning-surface bg-warning-surface p-4 text-sm text-warning-foreground">
           <p>Seu nome não está na lista. Fale com o organizador.</p>
-          <Link to={`/edicao/${editionId}`} className="font-semibold text-[#1a1a2e] underline">
+          <Link to={`/edicao/${editionId}`} className="font-semibold text-foreground underline">
             Ver torneio em modo público
           </Link>
         </section>
@@ -91,7 +91,7 @@ export function PlayerEntryPage() {
           />
           <Link
             to={`/edicao/${editionId}`}
-            className="block text-center text-sm text-slate-500 underline"
+            className="block text-center text-sm text-subtle underline"
           >
             Ver torneio sem entrar
           </Link>

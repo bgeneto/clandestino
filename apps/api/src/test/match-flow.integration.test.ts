@@ -61,7 +61,9 @@ describe.skipIf(!hasTestDb)('fluxo de partidas e autorização (integração HTT
   }
 
   async function setupTournament(): Promise<FlowContext> {
-    const seasonId = (await org('POST', '/seasons', { name: `Temporada ${Date.now()}` })).json<{
+    const championshipId = (
+      await org('POST', '/championships', { name: `Campeonato ${Date.now()}` })
+    ).json<{
       id: string;
     }>().id;
 
@@ -73,8 +75,7 @@ describe.skipIf(!hasTestDb)('fluxo de partidas e autorização (integração HTT
     }
 
     const edition = await org('POST', '/editions', {
-      seasonId,
-      name: 'Edição Fluxo',
+      championshipId,
       date: '2026-07-04',
       rules: FLOW_RULES,
       autoConfirmMinutes: 15,
@@ -150,13 +151,12 @@ describe.skipIf(!hasTestDb)('fluxo de partidas e autorização (integração HTT
     const [reporter] = participants(match);
 
     // Cria uma segunda edição e inscreve o mesmo jogador nela.
-    const otherSeasonId = (
-      await org('POST', '/seasons', { name: `Temporada Outra ${Date.now()}` })
+    const otherChampionshipId = (
+      await org('POST', '/championships', { name: `Campeonato Outro ${Date.now()}` })
     ).json<{ id: string }>().id;
     const otherEditionId = (
       await org('POST', '/editions', {
-        seasonId: otherSeasonId,
-        name: 'Outra Edição',
+        championshipId: otherChampionshipId,
         date: '2026-07-11',
         rules: FLOW_RULES,
       })

@@ -26,7 +26,7 @@ export const AuditEventSchema = Type.Object(
   {
     id: UuidSchema,
     editionId: Type.Union([UuidSchema, Type.Null()]),
-    seasonId: Type.Union([UuidSchema, Type.Null()]),
+    championshipId: Type.Union([UuidSchema, Type.Null()]),
     matchId: Type.Union([UuidSchema, Type.Null()]),
     eventType: AuditEventTypeSchema,
     payload: JsonValueSchema,

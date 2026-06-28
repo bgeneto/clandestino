@@ -11,7 +11,7 @@ const tabs = [
 
 export function PublicTabs({ active, onChange }: PublicTabsProps) {
   return (
-    <div className="flex border-b border-slate-200 bg-white">
+    <div className="flex border-b border-line bg-card">
       {tabs.map((tab) => (
         <button
           key={tab.id}
@@ -20,8 +20,8 @@ export function PublicTabs({ active, onChange }: PublicTabsProps) {
           className={[
             'flex-1 py-3 text-sm transition',
             active === tab.id
-              ? 'border-b-2 border-[#1a1a2e] font-bold text-[#1a1a2e]'
-              : 'text-slate-500',
+              ? 'border-b-2 border-foreground font-bold text-foreground'
+              : 'text-subtle',
           ].join(' ')}
         >
           {tab.label}

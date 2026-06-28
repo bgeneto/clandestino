@@ -28,7 +28,7 @@ export const PlacementStageFormatSchema = Type.Union(
 
 export type PlacementStageFormat = Static<typeof PlacementStageFormatSchema>;
 
-export const TournamentRulesSchema = Type.Object(
+export const EditionRulesSchema = Type.Object(
   {
     minimumGroupSize: Type.Integer({ minimum: 2 }),
     preferredGroupSize: Type.Integer({ minimum: 2 }),
@@ -40,10 +40,10 @@ export const TournamentRulesSchema = Type.Object(
     groupRankingCriteria: Type.Array(RankingCriterionSchema, { minItems: 1 }),
     placementStageFormat: PlacementStageFormatSchema,
   },
-  { $id: 'TournamentRules' },
+  { $id: 'EditionRules' },
 );
 
-export type TournamentRules = Static<typeof TournamentRulesSchema>;
+export type EditionRules = Static<typeof EditionRulesSchema>;
 
 export const DEFAULT_GROUP_RANKING_CRITERIA: RankingCriterion[] = [
   'SETS_WON',
@@ -51,7 +51,7 @@ export const DEFAULT_GROUP_RANKING_CRITERIA: RankingCriterion[] = [
   'MATCHES_WON',
 ];
 
-export const DEFAULT_TOURNAMENT_RULES: TournamentRules = {
+export const DEFAULT_EDITION_RULES: EditionRules = {
   minimumGroupSize: 4,
   preferredGroupSize: 5,
   maximumGroupSize: 6,
@@ -62,3 +62,12 @@ export const DEFAULT_TOURNAMENT_RULES: TournamentRules = {
   groupRankingCriteria: DEFAULT_GROUP_RANKING_CRITERIA,
   placementStageFormat: 'round-robin',
 };
+
+/** @deprecated Use DEFAULT_EDITION_RULES */
+export const DEFAULT_TOURNAMENT_RULES = DEFAULT_EDITION_RULES;
+
+/** @deprecated Use EditionRulesSchema */
+export const TournamentRulesSchema = EditionRulesSchema;
+
+/** @deprecated Use EditionRules */
+export type TournamentRules = EditionRules;

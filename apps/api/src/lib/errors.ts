@@ -1,4 +1,4 @@
-import type { ScoringTable, TournamentRules } from '@clandestino/shared-contracts';
+import type { EditionRules, ScoringTable } from '@clandestino/shared-contracts';
 
 export class ApiError extends Error {
   constructor(
@@ -35,7 +35,7 @@ export function unprocessableEntity(message: string, details?: unknown): ApiErro
   return new ApiError(422, message, details);
 }
 
-export function validateTournamentRules(rules: TournamentRules): string | null {
+export function validateEditionRules(rules: EditionRules): string | null {
   if (rules.minimumGroupSize > rules.preferredGroupSize) {
     return 'minimumGroupSize não pode ser maior que preferredGroupSize.';
   }
@@ -58,6 +58,9 @@ export function validateTournamentRules(rules: TournamentRules): string | null {
 
   return null;
 }
+
+/** @deprecated Use validateEditionRules */
+export const validateTournamentRules = validateEditionRules;
 
 export function validateScoringTable(scoringTable: ScoringTable): string | null {
   const positions = new Set<number>();

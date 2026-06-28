@@ -1,6 +1,6 @@
 import { type Static, Type } from '@sinclair/typebox';
 import { IsoDateSchema, IsoDateTimeSchema, UuidSchema } from './common.js';
-import { TournamentRulesSchema } from './tournament-rules.js';
+import { EditionRulesSchema } from './edition-rules.js';
 
 export const EditionStatusSchema = Type.Union(
   [
@@ -19,10 +19,10 @@ export type EditionStatus = Static<typeof EditionStatusSchema>;
 export const EditionSchema = Type.Object(
   {
     id: UuidSchema,
-    seasonId: UuidSchema,
+    championshipId: UuidSchema,
     name: Type.String({ minLength: 1, maxLength: 120 }),
     date: IsoDateSchema,
-    rules: TournamentRulesSchema,
+    rules: EditionRulesSchema,
     status: EditionStatusSchema,
     autoConfirmMinutes: Type.Integer({ minimum: 1 }),
     createdAt: IsoDateTimeSchema,
@@ -34,10 +34,9 @@ export type Edition = Static<typeof EditionSchema>;
 
 export const CreateEditionBodySchema = Type.Object(
   {
-    seasonId: UuidSchema,
-    name: Type.String({ minLength: 1, maxLength: 120 }),
+    championshipId: UuidSchema,
     date: IsoDateSchema,
-    rules: Type.Optional(TournamentRulesSchema),
+    rules: Type.Optional(EditionRulesSchema),
     autoConfirmMinutes: Type.Optional(Type.Integer({ minimum: 1 })),
   },
   { $id: 'CreateEditionBody' },

@@ -57,7 +57,7 @@ export function PublicEditionPage() {
 
       <Link
         to={`/edicao/${editionId}/entrar`}
-        className="block rounded-xl border-2 border-dashed border-[#1a1a2e] bg-white px-4 py-3 text-center text-sm font-semibold text-[#1a1a2e]"
+        className="block rounded-xl border-2 border-dashed border-line bg-card px-4 py-3 text-center text-sm font-semibold text-foreground"
       >
         📷 Sou jogador — entrar com QR code
       </Link>
@@ -71,9 +71,9 @@ export function PublicEditionPage() {
       ) : null}
 
       {activeTab === 'matches' ? (
-        <div className="overflow-hidden rounded-xl bg-white shadow-sm">
+        <div className="overflow-hidden rounded-xl bg-card shadow-sm">
           {(matchesQuery.data ?? []).length === 0 ? (
-            <p className="p-6 text-center text-sm text-slate-500">Nenhuma partida publicada.</p>
+            <p className="p-6 text-center text-sm text-subtle">Nenhuma partida publicada.</p>
           ) : (
             (matchesQuery.data ?? []).map((match) => (
               <PublicMatchRow

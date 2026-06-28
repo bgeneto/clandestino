@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
 import type { ImportScoresCsvRow } from '@clandestino/shared-contracts';
 import {
@@ -7,8 +7,8 @@ import {
   resolveImportScoresCsvColumns,
 } from '@clandestino/shared-contracts';
 import { ApiError } from '../../lib/api-client.js';
-import { importSeasonScores } from '../../lib/organizer-api.js';
-import { useSeasons } from '../../hooks/use-organizer-data.js';
+import { importChampionshipScores } from '../../lib/organizer-api.js';
+import { useChampionship } from '../../hooks/use-organizer-data.js';
 
 function parseCsvPreview(content: string): { rows: ImportScoresCsvRow[]; errors: string[] } {
   const normalized = content.replace(/^\uFEFF/, '').trim();
@@ -65,19 +65,18 @@ function parseCsvPreview(content: string): { rows: ImportScoresCsvRow[]; errors:
 }
 
 export function ImportCsvPage() {
-  const seasonsQuery = useSeasons();
-  const [seasonId, setSeasonId] = useState('');
+  const { championshipId } = useParams<{ championshipId: string }>();
+  const championshipQuery = useChampionship(championshipId);
   const [csvContent, setCsvContent] = useState('');
   const [confirmed, setConfirmed] = useState(false);
   const [acknowledged, setAcknowledged] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const effectiveSeasonId = seasonId || seasonsQuery.data?.[0]?.id || '';
   const preview = useMemo(() => parseCsvPreview(csvContent), [csvContent]);
 
   const importMutation = useMutation({
-    mutationFn: () => importSeasonScores(effectiveSeasonId, csvContent),
+    mutationFn: () => importChampionshipScores(championshipId!, csvContent),
     onSuccess: (response) => {
       setConfirmed(true);
       const parts = [
@@ -102,51 +101,52 @@ export function ImportCsvPage() {
     },
   });
 
+  if (!championshipId) {
+    return (
+      <section className="rounded-2xl border border-danger-surface bg-danger-surface p-6 text-sm text-danger-foreground">
+        Campeonato não informado.
+      </section>
+    );
+  }
+
   return (
     <section className="space-y-6">
-      <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
-        <Link className="text-sm text-slate-400 underline" to="/organizador/painel">
-          ← Voltar ao painel
+      <div className="rounded-2xl border border-line bg-card p-6">
+        <Link
+          className="text-sm text-subtle underline"
+          to={`/organizador/campeonato/${championshipId}`}
+        >
+          ← Voltar ao campeonato
         </Link>
-        <h2 className="mt-3 text-xl font-semibold text-white">Importar pontuação CSV</h2>
-        <p className="mt-2 text-sm text-slate-300">
-          Colunas obrigatórias:{' '}
-          <code className="text-slate-200">{IMPORT_SCORES_CSV_FORMAT_HINT}</code>. Colunas extras
-          (ex.: posição) são ignoradas.
+        <h2 className="mt-3 text-xl font-semibold text-foreground">Importar pontuação CSV</h2>
+        <p className="mt-2 text-sm text-muted">
+          {championshipQuery.data
+            ? `Campeonato: ${championshipQuery.data.name}`
+            : 'Importar ranking acumulado para este campeonato.'}
         </p>
-        <div className="mt-4 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
-          <p className="font-medium text-amber-50">Antes de confirmar, saiba o que acontece:</p>
+        <p className="mt-2 text-sm text-subtle">
+          Colunas obrigatórias: <code className="text-muted">{IMPORT_SCORES_CSV_FORMAT_HINT}</code>
+        </p>
+        <div className="mt-4 rounded-lg border border-warning-surface bg-warning-surface px-4 py-3 text-sm text-warning-foreground">
+          <p className="font-medium">Antes de confirmar, saiba o que acontece:</p>
           <ul className="mt-2 list-inside list-disc space-y-1">
             <li>Jogadores ausentes no cadastro serão criados automaticamente.</li>
             <li>
-              Pontuações já importadas para esta temporada <strong>não serão alteradas</strong>.
+              Pontuações já importadas para este campeonato <strong>não serão alteradas</strong>.
             </li>
-            <li>Somente jogadores sem pontuação na temporada receberão os valores do CSV.</li>
+            <li>Somente jogadores sem pontuação no campeonato receberão os valores do CSV.</li>
           </ul>
         </div>
       </div>
 
-      {seasonsQuery.isLoading ? (
-        <p className="text-sm text-slate-400">Carregando temporadas…</p>
+      {championshipQuery.isLoading ? (
+        <p className="text-sm text-subtle">Carregando campeonato…</p>
+      ) : championshipQuery.isError ? (
+        <p className="text-sm text-danger-foreground">Campeonato não encontrado.</p>
       ) : (
-        <div className="space-y-4 rounded-2xl border border-slate-800 bg-slate-900/40 p-6">
+        <div className="space-y-4 rounded-2xl border border-line bg-card p-6">
           <label className="block space-y-2 text-sm">
-            <span className="text-slate-300">Temporada</span>
-            <select
-              value={effectiveSeasonId}
-              onChange={(event) => setSeasonId(event.target.value)}
-              className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2.5 text-white"
-            >
-              {(seasonsQuery.data ?? []).map((season) => (
-                <option key={season.id} value={season.id}>
-                  {season.name}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label className="block space-y-2 text-sm">
-            <span className="text-slate-300">Conteúdo CSV</span>
+            <span className="text-muted">Conteúdo CSV</span>
             <textarea
               value={csvContent}
               onChange={(event) => {
@@ -157,13 +157,13 @@ export function ImportCsvPage() {
                 setError(null);
               }}
               rows={8}
-              className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2.5 font-mono text-sm text-white"
+              className="w-full rounded-lg border border-line bg-card-muted px-3 py-2.5 font-mono text-sm text-foreground"
               placeholder={'Posição,Nome,Pontuação\n1,Carlos Mendes,1200\n2,Ana Souza,980'}
             />
           </label>
 
           {preview.errors.length > 0 ? (
-            <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-100">
+            <div className="rounded-lg border border-warning-surface bg-warning-surface px-3 py-2 text-sm text-warning-foreground">
               {preview.errors.map((entry) => (
                 <p key={entry}>{entry}</p>
               ))}
@@ -171,9 +171,9 @@ export function ImportCsvPage() {
           ) : null}
 
           {preview.rows.length > 0 ? (
-            <div className="overflow-hidden rounded-lg border border-slate-700">
+            <div className="overflow-hidden rounded-lg border border-line">
               <table className="w-full text-left text-sm">
-                <thead className="bg-slate-900 text-slate-400">
+                <thead className="bg-card-muted text-subtle">
                   <tr>
                     <th className="px-3 py-2">Jogador</th>
                     <th className="px-3 py-2">Pontos</th>
@@ -181,9 +181,9 @@ export function ImportCsvPage() {
                 </thead>
                 <tbody>
                   {preview.rows.map((row) => (
-                    <tr key={row.playerName} className="border-t border-slate-800">
-                      <td className="px-3 py-2 text-white">{row.playerName}</td>
-                      <td className="px-3 py-2 text-slate-300">{row.accumulatedPoints}</td>
+                    <tr key={row.playerName} className="border-t border-line">
+                      <td className="px-3 py-2 text-foreground">{row.playerName}</td>
+                      <td className="px-3 py-2 text-muted">{row.accumulatedPoints}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -192,23 +192,23 @@ export function ImportCsvPage() {
           ) : null}
 
           {error ? (
-            <p className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-sm text-rose-100">
+            <p className="rounded-lg border border-danger-surface bg-danger-surface px-3 py-2 text-sm text-danger-foreground">
               {error}
             </p>
           ) : null}
 
           {feedback ? (
-            <p className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-100">
+            <p className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-700 dark:text-emerald-100">
               {feedback}
             </p>
           ) : null}
 
-          <label className="flex items-start gap-2 text-sm text-slate-300">
+          <label className="flex items-start gap-2 text-sm text-muted">
             <input
               type="checkbox"
               checked={acknowledged}
               onChange={(event) => setAcknowledged(event.target.checked)}
-              className="mt-1 rounded border-slate-600 bg-slate-950"
+              className="mt-1 rounded border-line bg-card-muted"
             />
             <span>
               Entendo que jogadores ausentes serão cadastrados e pontuações já existentes não serão

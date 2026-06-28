@@ -18,7 +18,7 @@ const migrationsFolder = fileURLToPath(new URL('../../drizzle', import.meta.url)
 
 const ALL_TABLES = [
   'player',
-  'season',
+  'championship',
   'edition',
   'edition_registration',
   'draw_snapshot',
@@ -28,7 +28,7 @@ const ALL_TABLES = [
   'match_participant',
   'standing',
   'final_placement',
-  'season_player_points',
+  'championship_player_points',
   'organizer_magic_token',
   'organizer_session',
   'audit_event',
@@ -101,7 +101,7 @@ export async function createTestApp(
 /** Executa o fluxo real de magic link e retorna um sessionToken de organizador. */
 export async function loginOrganizer(
   app: FastifyInstance,
-  email = 'organizador@fitpong.local',
+  email = 'organizador@gmail.com',
 ): Promise<string> {
   const requested = await app.inject({
     method: 'POST',

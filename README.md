@@ -1,6 +1,8 @@
 # Clandestino
 
-Sistema web progressivo (PWA) para gerenciar o campeonato de tênis de mesa **Clandestino** da academia **FitPong**. Substitui o processo manual em papel — sorteio de grupos, registro de partidas e apuração de classificação — por um app mobile-first com ranking acumulado da temporada.
+Sistema web progressivo (PWA) para gerenciar campeonatos de tênis de mesa **Clandestino** da academia **FitPong**. Substitui o processo manual em papel — sorteio de grupos, registro de partidas e apuração de classificação — por um app mobile-first com ranking acumulado por campeonato.
+
+Consulte [docs/domain-taxonomy.md](docs/domain-taxonomy.md) para a taxonomia do domínio (Championship, Edition, EditionRules).
 
 ## O que o sistema faz
 
@@ -71,7 +73,7 @@ O comportamento da API depende de `NODE_ENV` e das variáveis abaixo. Use esta t
 | Banco                       | Container (`:5433`) ou Postgres local (`:5432`)   | container `db` (`:5433`)                    | Container na rede interna do Compose                |
 | Seed                        | `db:seed` manual                                  | `./start dev --seed`                        | **Não** usar seed (`SEED_ON_START=false`)           |
 | `PUBLIC_APP_URL`            | `http://localhost:5173`                           | `http://clandestino.test`                   | URL pública HTTPS do PWA                            |
-| `ORGANIZER_ALLOWED_EMAILS`  | `organizador@fitpong.local`                       | `organizador@fitpong.local`                 | E-mails reais do organizador                        |
+| `ORGANIZER_ALLOWED_EMAILS`  | `organizador@gmail.com`                           | `organizador@gmail.com`                     | E-mails reais do organizador                        |
 | Rate limit (magic link)     | Ativo (padrão 10 req / 15 min)                    | Ativo (padrão 10 req / 15 min)              | Ativo                                               |
 | Testes de integração        | `TEST_DATABASE_URL` → `clandestino_test`          | idem (banco exposto em `:5433`)             | Não rodam em deploy                                 |
 
@@ -134,7 +136,7 @@ SEED_ON_START=true docker compose -f docker-compose.dev.yml up -d --build
 | PWA             | `http://clandestino.test`            |
 | API (via proxy) | `http://clandestino.test/api/health` |
 
-- Magic link do organizador: `POST http://clandestino.test/api/auth/organizer/magic-link` com `{"email":"organizador@fitpong.local"}` — o campo `magicLink` vem na resposta JSON (`NODE_ENV=development`).
+- Magic link do organizador: `POST http://clandestino.test/api/auth/organizer/magic-link` com `{"email":"organizador@gmail.com"}` — o campo `magicLink` vem na resposta JSON (`NODE_ENV=development`).
 - Roteamento do Caddy: `/api/*` → `api:3000` (remove o prefixo `/api`); `/*` → Vite (`web:5173`, HMR via WebSocket).
 
 #### 5. Parar / logs / rebuild
@@ -240,7 +242,7 @@ Edite `docker-compose.yml` (ou use um arquivo `.env` na raiz lido pelo Compose) 
 | Variável                   | Valor em produção                                                |
 | -------------------------- | ---------------------------------------------------------------- |
 | `NODE_ENV`                 | `production` (já definido no serviço `api`)                      |
-| `PUBLIC_APP_URL`           | URL pública do PWA, ex. `https://clandestino.fitpong.com`        |
+| `PUBLIC_APP_URL`           | URL pública do PWA, ex. `https://clandestino.sistema.pro.br`     |
 | `ORGANIZER_ALLOWED_EMAILS` | E-mails reais, separados por vírgula                             |
 | `DATABASE_URL`             | `postgres://postgres:<senha>@db:5432/clandestino` (rede interna) |
 | `SEED_ON_START`            | `false` (padrão) — **não** popular dados fictícios               |
@@ -263,7 +265,7 @@ O entrypoint da API (`apps/api/docker-entrypoint.sh`) aplica migrações Drizzle
 
 ```bash
 # Aponte para a URL pública da API (sem proxy /api)
-VITE_API_URL=https://clandestino.fitpong.com/api pnpm --filter @clandestino/web build
+VITE_API_URL=https://clandestino.sistema.pro.br/api pnpm --filter @clandestino/web build
 ```
 
 Sirva `apps/web/dist` via Caddy/nginx. Exemplo de roteamento:
@@ -332,22 +334,22 @@ pnpm --filter @clandestino/api test
 
 ### API (`apps/api/.env`)
 
-| Variável                           | Padrão                      | Descrição                                                   |
-| ---------------------------------- | --------------------------- | ----------------------------------------------------------- |
-| `DATABASE_URL`                     | —                           | **Obrigatória.** String de conexão PostgreSQL               |
-| `API_HOST`                         | `0.0.0.0`                   | Host do Fastify                                             |
-| `API_PORT`                         | `3000`                      | Porta da API                                                |
-| `NODE_ENV`                         | —                           | `production` ativa modo seguro (sem magic link na resposta) |
-| `PUBLIC_APP_URL`                   | `http://localhost:5173`     | Base do PWA nos links de organizador                        |
-| `ORGANIZER_ALLOWED_EMAILS`         | `organizador@fitpong.local` | E-mails autorizados (vírgula)                               |
-| `ORGANIZER_MAGIC_LINK_TTL_MINUTES` | `15`                        | Validade do magic link                                      |
-| `ORGANIZER_SESSION_TTL_HOURS`      | `168`                       | Validade da sessão do organizador                           |
-| `EXPOSE_MAGIC_LINKS`               | exposto em dev              | Força exposição em dev; **ignorado** em produção            |
-| `AUTH_RATE_LIMIT_MAX`              | `10`                        | Máx. requisições nas rotas de magic link                    |
-| `AUTH_RATE_LIMIT_WINDOW_MINUTES`   | `15`                        | Janela do rate limit                                        |
-| `CSV_IMPORT_MAX_BYTES`             | `1048576`                   | Limite do corpo na importação CSV                           |
-| `TEST_DATABASE_URL`                | —                           | Banco para testes de integração (não usar em produção)      |
-| `SEED_ON_START`                    | `false`                     | Só no Docker: rodar `db:seed` no entrypoint                 |
+| Variável                           | Padrão                  | Descrição                                                   |
+| ---------------------------------- | ----------------------- | ----------------------------------------------------------- |
+| `DATABASE_URL`                     | —                       | **Obrigatória.** String de conexão PostgreSQL               |
+| `API_HOST`                         | `0.0.0.0`               | Host do Fastify                                             |
+| `API_PORT`                         | `3000`                  | Porta da API                                                |
+| `NODE_ENV`                         | —                       | `production` ativa modo seguro (sem magic link na resposta) |
+| `PUBLIC_APP_URL`                   | `http://localhost:5173` | Base do PWA nos links de organizador                        |
+| `ORGANIZER_ALLOWED_EMAILS`         | `organizador@gmail.com` | E-mails autorizados (vírgula)                               |
+| `ORGANIZER_MAGIC_LINK_TTL_MINUTES` | `15`                    | Validade do magic link                                      |
+| `ORGANIZER_SESSION_TTL_HOURS`      | `168`                   | Validade da sessão do organizador                           |
+| `EXPOSE_MAGIC_LINKS`               | exposto em dev          | Força exposição em dev; **ignorado** em produção            |
+| `AUTH_RATE_LIMIT_MAX`              | `10`                    | Máx. requisições nas rotas de magic link                    |
+| `AUTH_RATE_LIMIT_WINDOW_MINUTES`   | `15`                    | Janela do rate limit                                        |
+| `CSV_IMPORT_MAX_BYTES`             | `1048576`               | Limite do corpo na importação CSV                           |
+| `TEST_DATABASE_URL`                | —                       | Banco para testes de integração (não usar em produção)      |
+| `SEED_ON_START`                    | `false`                 | Só no Docker: rodar `db:seed` no entrypoint                 |
 
 Fonte da verdade: `apps/api/src/config.ts`.
 
@@ -416,5 +418,3 @@ Detalhes em [Epic Brief](docs/Epic%20Brief%20—%20Clandestino.md) e [Core Flows
 | [AGENTS.md](AGENTS.md)                                                     | Guia para agentes de IA e convenções de código |
 
 ## Licença
-
-Projeto privado — uso interno FitPong / Clandestino.

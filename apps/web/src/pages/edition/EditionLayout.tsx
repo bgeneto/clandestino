@@ -9,22 +9,18 @@ export function EditionLayout() {
   useEditionSse(editionId);
 
   if (editionQuery.isLoading) {
-    return <p className="text-sm text-slate-400">Carregando edição…</p>;
+    return <p className="text-sm text-subtle">Carregando edição…</p>;
   }
 
   if (editionQuery.isError || !editionQuery.data) {
     return (
-      <section className="rounded-2xl border border-rose-500/30 bg-rose-500/10 p-6 text-sm text-rose-100">
+      <section className="rounded-2xl border border-danger-surface bg-danger-surface p-6 text-sm text-danger-foreground">
         Não foi possível carregar esta edição.
       </section>
     );
   }
 
-  return (
-    <div className="-mx-4 -my-6 min-h-full flex-1 bg-slate-100 px-4 py-6 text-slate-900">
-      <Outlet context={{ edition: editionQuery.data, editionId: editionQuery.data.id }} />
-    </div>
-  );
+  return <Outlet context={{ edition: editionQuery.data, editionId: editionQuery.data.id }} />;
 }
 
 export type EditionOutletContext = {

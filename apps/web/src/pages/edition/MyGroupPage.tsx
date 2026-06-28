@@ -31,7 +31,9 @@ export function MyGroupPage() {
         subtitle={session.playerName ?? 'Jogador'}
         badge={
           myGroup ? (
-            <span className="rounded bg-white/10 px-2 py-1 text-[11px]">{myGroup.group.name}</span>
+            <span className="rounded bg-header-foreground/10 px-2 py-1 text-[11px]">
+              {myGroup.group.name}
+            </span>
           ) : null
         }
       />
@@ -43,7 +45,7 @@ export function MyGroupPage() {
           highlightPlayerId={session.playerId}
         />
       ) : (
-        <p className="rounded-xl bg-white p-6 text-center text-sm text-slate-500">
+        <p className="rounded-xl bg-card p-6 text-center text-sm text-subtle">
           Você ainda não foi alocado em um grupo.
         </p>
       )}

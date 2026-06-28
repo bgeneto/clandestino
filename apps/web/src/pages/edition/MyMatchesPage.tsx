@@ -69,24 +69,24 @@ export function MyMatchesPage() {
         subtitle={`${session.playerName ?? 'Jogador'} · ${myGroup?.group.name ?? 'Sem grupo'}`}
         badge={
           myGroup ? (
-            <span className="rounded bg-white/10 px-2 py-1 text-[11px]">{myGroup.group.name}</span>
+            <span className="rounded bg-header-foreground/10 px-2 py-1 text-[11px]">
+              {myGroup.group.name}
+            </span>
           ) : null
         }
       />
 
-      {matchesQuery.isLoading ? (
-        <p className="text-sm text-slate-400">Carregando partidas…</p>
-      ) : null}
+      {matchesQuery.isLoading ? <p className="text-sm text-subtle">Carregando partidas…</p> : null}
 
       {groupedMatches.length === 0 && !matchesQuery.isLoading ? (
-        <p className="rounded-xl bg-white p-6 text-center text-sm text-slate-500">
+        <p className="rounded-xl bg-card p-6 text-center text-sm text-subtle">
           Nenhuma partida atribuída a você ainda.
         </p>
       ) : null}
 
       {groupedMatches.map((group) => (
         <section key={group.phase} className="space-y-2">
-          <h2 className="px-1 text-[11px] font-bold uppercase tracking-wide text-slate-500">
+          <h2 className="px-1 text-[11px] font-bold uppercase tracking-wide text-subtle">
             {group.label}
           </h2>
           {group.matches.map((match) => {

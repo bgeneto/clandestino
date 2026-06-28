@@ -65,7 +65,7 @@ services:
       # Dev: magic link exposto na resposta JSON (NODE_ENV != production).
       NODE_ENV: development
       PUBLIC_APP_URL: http://clandestino.test
-      ORGANIZER_ALLOWED_EMAILS: organizador@fitpong.local
+      ORGANIZER_ALLOWED_EMAILS: ${ORGANIZER_ALLOWED_EMAILS:-organizador@gmail.com}
       # Popula dados de exemplo no start quando "true".
       SEED_ON_START: ${SEED_ON_START:-false}
     volumes: *dev-volumes

@@ -1,7 +1,9 @@
 import type {
+  Championship,
   DrawSnapshot,
   Edition,
   EditionRegistration,
+  EditionSummary,
   FinalPlacement,
   Group,
   GroupPlayer,
@@ -9,11 +11,11 @@ import type {
   Match,
   MatchParticipant,
   Player,
-  Season,
   Standing,
 } from '@clandestino/shared-contracts';
 import type { InferSelectModel } from 'drizzle-orm';
 import type {
+  championships,
   drawSnapshots,
   editionRegistrations,
   editions,
@@ -23,12 +25,11 @@ import type {
   matchParticipants,
   matches,
   players,
-  seasons,
   standings,
 } from '../db/schema.js';
 
 type PlayerRow = InferSelectModel<typeof players>;
-type SeasonRow = InferSelectModel<typeof seasons>;
+type ChampionshipRow = InferSelectModel<typeof championships>;
 type EditionRow = InferSelectModel<typeof editions>;
 type RegistrationRow = InferSelectModel<typeof editionRegistrations>;
 type GroupRow = InferSelectModel<typeof groups>;
@@ -59,11 +60,12 @@ export function mapPlayer(row: PlayerRow): Player {
   };
 }
 
-export function mapSeason(row: SeasonRow): Season {
+export function mapChampionship(row: ChampionshipRow): Championship {
   return {
     id: row.id,
     name: row.name,
     scoringTable: row.scoringTable,
+    ...(row.defaultEditionRules ? { defaultEditionRules: row.defaultEditionRules } : {}),
     createdAt: toIsoDateTime(row.createdAt),
   };
 }
@@ -71,12 +73,23 @@ export function mapSeason(row: SeasonRow): Season {
 export function mapEdition(row: EditionRow): Edition {
   return {
     id: row.id,
-    seasonId: row.seasonId,
+    championshipId: row.championshipId,
     name: row.name,
     date: toIsoDate(row.date),
     rules: row.rules,
     status: row.status,
     autoConfirmMinutes: row.autoConfirmMinutes,
+    createdAt: toIsoDateTime(row.createdAt),
+  };
+}
+
+export function mapEditionSummary(row: EditionRow): EditionSummary {
+  return {
+    id: row.id,
+    championshipId: row.championshipId,
+    name: row.name,
+    date: toIsoDate(row.date),
+    status: row.status,
     createdAt: toIsoDateTime(row.createdAt),
   };
 }

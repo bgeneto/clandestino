@@ -98,8 +98,8 @@ function RegistrationsSection({ edition }: { edition: Edition }) {
   const canRegister = edition.status === 'RASCUNHO' || edition.status === 'INSCRICOES_ABERTAS';
 
   return (
-    <section className="space-y-4 rounded-xl bg-white p-4 shadow-sm">
-      <h3 className="text-sm font-bold uppercase tracking-wide text-slate-500">Inscrições</h3>
+    <section className="space-y-4 rounded-xl bg-card p-4 shadow-sm">
+      <h3 className="text-sm font-bold uppercase tracking-wide text-subtle">Inscrições</h3>
 
       {canRegister ? (
         <>
@@ -108,7 +108,7 @@ function RegistrationsSection({ edition }: { edition: Edition }) {
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             placeholder="Buscar jogador no cadastro…"
-            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            className="w-full rounded-lg border border-line px-3 py-2 text-sm"
           />
           <div className="space-y-2">
             {filteredPlayers.map((player) => (
@@ -117,7 +117,7 @@ function RegistrationsSection({ edition }: { edition: Edition }) {
                 type="button"
                 disabled={registerMutation.isPending}
                 onClick={() => void registerMutation.mutateAsync(player.id)}
-                className="flex w-full items-center justify-between rounded-lg border border-slate-200 px-3 py-2 text-left text-sm hover:bg-slate-50"
+                className="flex w-full items-center justify-between rounded-lg border border-line px-3 py-2 text-left text-sm hover:bg-card-muted"
               >
                 <span>{player.name}</span>
                 <span className="text-xs text-brand">Inscrever</span>
@@ -128,7 +128,7 @@ function RegistrationsSection({ edition }: { edition: Edition }) {
       ) : null}
 
       <div>
-        <p className="mb-2 text-xs font-semibold uppercase text-slate-400">
+        <p className="mb-2 text-xs font-semibold uppercase text-subtle">
           Inscritos ({registrationsQuery.data?.length ?? 0})
         </p>
         <ul className="space-y-2">
@@ -141,14 +141,14 @@ function RegistrationsSection({ edition }: { edition: Edition }) {
             return (
               <li
                 key={participant.playerId}
-                className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2 text-sm"
+                className="flex items-center justify-between rounded-lg bg-card-muted px-3 py-2 text-sm"
               >
                 <span>{participantNames.get(participant.playerId) ?? participant.playerName}</span>
-                <div className="flex items-center gap-2 text-xs text-slate-500">
+                <div className="flex items-center gap-2 text-xs text-subtle">
                   <span>{participant.rankPosition}º</span>
                   <span>{participant.accumulatedPoints} pts</span>
                   {isSeed ? (
-                    <span className="rounded-full bg-amber-300 px-2 py-0.5 font-bold text-slate-800">
+                    <span className="rounded-full bg-amber-300 px-2 py-0.5 font-bold text-foreground">
                       SEED
                     </span>
                   ) : null}
@@ -159,7 +159,7 @@ function RegistrationsSection({ edition }: { edition: Edition }) {
         </ul>
       </div>
 
-      {feedback ? <p className="text-sm text-slate-600">{feedback}</p> : null}
+      {feedback ? <p className="text-sm text-muted">{feedback}</p> : null}
     </section>
   );
 }
@@ -250,13 +250,13 @@ function DrawSection({ edition }: { edition: Edition }) {
   const canGenerate = edition.status === 'SORTEIO_PUBLICADO' && hasDraw && !hasMatches;
 
   return (
-    <section className="space-y-4 rounded-xl bg-white p-4 shadow-sm">
-      <h3 className="text-sm font-bold uppercase tracking-wide text-slate-500">Sorteio e grupos</h3>
+    <section className="space-y-4 rounded-xl bg-card p-4 shadow-sm">
+      <h3 className="text-sm font-bold uppercase tracking-wide text-subtle">Sorteio e grupos</h3>
 
       {canDraw ? (
         <>
           {drawWarning ? (
-            <p className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+            <p className="rounded-lg border border-warning-surface bg-warning-surface px-3 py-2 text-sm text-warning-foreground">
               {drawWarning}
             </p>
           ) : null}
@@ -264,7 +264,7 @@ function DrawSection({ edition }: { edition: Edition }) {
             type="button"
             disabled={drawMutation.isPending || drawWarning !== null}
             onClick={() => void drawMutation.mutateAsync()}
-            className="w-full rounded-lg bg-[#1a1a2e] px-4 py-3 text-sm font-semibold text-white disabled:opacity-50"
+            className="w-full rounded-lg bg-header px-4 py-3 text-sm font-semibold text-header-foreground disabled:opacity-50"
           >
             {drawMutation.isPending ? 'Executando sorteio…' : 'Executar sorteio'}
           </button>
@@ -279,8 +279,8 @@ function DrawSection({ edition }: { edition: Edition }) {
       ) : null}
 
       {qrQuery.data ? (
-        <div className="rounded-xl border border-slate-200 p-4">
-          <h4 className="mb-3 text-center text-sm font-bold uppercase text-slate-500">
+        <div className="rounded-xl border border-line p-4">
+          <h4 className="mb-3 text-center text-sm font-bold uppercase text-subtle">
             QR Code da edição
           </h4>
           <EditionQrCode url={qrQuery.data.url} label="Exiba para os jogadores entrarem" />
@@ -292,7 +292,7 @@ function DrawSection({ edition }: { edition: Edition }) {
           type="button"
           disabled={generateMutation.isPending}
           onClick={() => void generateMutation.mutateAsync()}
-          className="w-full rounded-lg bg-[#1a1a2e] px-4 py-3 text-sm font-semibold text-white disabled:opacity-50"
+          className="w-full rounded-lg bg-header px-4 py-3 text-sm font-semibold text-header-foreground disabled:opacity-50"
         >
           {generateMutation.isPending ? 'Gerando partidas…' : 'Gerar partidas'}
         </button>
@@ -309,7 +309,7 @@ function DrawSection({ edition }: { edition: Edition }) {
         </button>
       ) : null}
 
-      {feedback ? <p className="text-sm text-slate-600">{feedback}</p> : null}
+      {feedback ? <p className="text-sm text-muted">{feedback}</p> : null}
     </section>
   );
 }
@@ -361,15 +361,15 @@ function ContestCorrectionCard({
 
   return (
     <article className="rounded-lg border border-rose-200 bg-rose-50/50 p-4">
-      <p className="text-sm font-semibold text-slate-800">
+      <p className="text-sm font-semibold text-foreground">
         {playerNames.get(playerOneId) ?? 'Jogador 1'} vs{' '}
         {playerNames.get(playerTwoId) ?? 'Jogador 2'}
       </p>
-      <p className="mt-1 text-xs text-slate-500">
+      <p className="mt-1 text-xs text-subtle">
         Placar contestado: {formatMatchScore(match.participants, playerOneId, playerTwoId)}
       </p>
       {contest.contestReason ? (
-        <p className="mt-2 text-sm text-slate-600">
+        <p className="mt-2 text-sm text-muted">
           <span className="font-medium">Motivo:</span> {contest.contestReason}
         </p>
       ) : null}
@@ -393,7 +393,7 @@ function ContestCorrectionCard({
 
       {!validation.valid ? <p className="mt-3 text-sm text-rose-700">{validation.reason}</p> : null}
 
-      <label className="mt-4 flex items-start gap-2 text-sm text-slate-700">
+      <label className="mt-4 flex items-start gap-2 text-sm text-muted">
         <input
           type="checkbox"
           checked={confirmedOfficial}
@@ -407,12 +407,12 @@ function ContestCorrectionCard({
         type="button"
         disabled={!validation.valid || !confirmedOfficial || correctMutation.isPending}
         onClick={() => void correctMutation.mutateAsync()}
-        className="mt-4 w-full rounded-lg bg-[#1a1a2e] px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
+        className="mt-4 w-full rounded-lg bg-header px-4 py-2.5 text-sm font-semibold text-header-foreground disabled:opacity-50"
       >
         {correctMutation.isPending ? 'Salvando…' : 'Oficializar resultado corrigido'}
       </button>
 
-      {feedback ? <p className="mt-3 text-sm text-slate-600">{feedback}</p> : null}
+      {feedback ? <p className="mt-3 text-sm text-muted">{feedback}</p> : null}
     </article>
   );
 }
@@ -435,8 +435,8 @@ function ContestsSection({ edition }: { edition: Edition }) {
   }
 
   return (
-    <section className="space-y-4 rounded-xl bg-white p-4 shadow-sm">
-      <h3 className="text-sm font-bold uppercase tracking-wide text-slate-500">Contestações</h3>
+    <section className="space-y-4 rounded-xl bg-card p-4 shadow-sm">
+      <h3 className="text-sm font-bold uppercase tracking-wide text-subtle">Contestações</h3>
       <div className="space-y-4">
         {contests.map((contest) => (
           <ContestCorrectionCard
@@ -495,21 +495,19 @@ function PlacementSection({ edition }: { edition: Edition }) {
   }
 
   return (
-    <section className="space-y-4 rounded-xl bg-white p-4 shadow-sm">
-      <h3 className="text-sm font-bold uppercase tracking-wide text-slate-500">
-        Fase de colocação
-      </h3>
-      <p className="text-sm text-slate-600">Revise os grupos gerados automaticamente e publique.</p>
+    <section className="space-y-4 rounded-xl bg-card p-4 shadow-sm">
+      <h3 className="text-sm font-bold uppercase tracking-wide text-subtle">Fase de colocação</h3>
+      <p className="text-sm text-muted">Revise os grupos gerados automaticamente e publique.</p>
       <GroupsView groups={placementGroups} playerNames={playerNames} />
       <button
         type="button"
         disabled={publishMutation.isPending || placementGroups.length === 0}
         onClick={() => void publishMutation.mutateAsync()}
-        className="w-full rounded-lg bg-[#1a1a2e] px-4 py-3 text-sm font-semibold text-white disabled:opacity-50"
+        className="w-full rounded-lg bg-header px-4 py-3 text-sm font-semibold text-header-foreground disabled:opacity-50"
       >
         {publishMutation.isPending ? 'Publicando…' : 'Publicar fase de colocação'}
       </button>
-      {feedback ? <p className="text-sm text-slate-600">{feedback}</p> : null}
+      {feedback ? <p className="text-sm text-muted">{feedback}</p> : null}
     </section>
   );
 }
@@ -546,13 +544,13 @@ function FinalizeSection({ edition }: { edition: Edition }) {
 
   if (edition.status === 'ENCERRADA') {
     return (
-      <section className="space-y-4 rounded-xl bg-white p-4 shadow-sm">
-        <h3 className="text-sm font-bold uppercase tracking-wide text-slate-500">
+      <section className="space-y-4 rounded-xl bg-card p-4 shadow-sm">
+        <h3 className="text-sm font-bold uppercase tracking-wide text-subtle">
           Classificação final
         </h3>
         <table className="w-full text-left text-sm">
           <thead>
-            <tr className="border-b border-slate-200 text-slate-500">
+            <tr className="border-b border-line text-subtle">
               <th className="py-2">Pos.</th>
               <th className="py-2">Jogador</th>
               <th className="py-2 text-right">Pontos</th>
@@ -560,7 +558,7 @@ function FinalizeSection({ edition }: { edition: Edition }) {
           </thead>
           <tbody>
             {(finalPlacementsQuery.data ?? []).map((placement) => (
-              <tr key={placement.id} className="border-b border-slate-100">
+              <tr key={placement.id} className="border-b border-line">
                 <td className="py-2 font-semibold">{placement.position}º</td>
                 <td className="py-2">
                   {playerNames.get(placement.playerId) ?? placement.playerId}
@@ -579,9 +577,9 @@ function FinalizeSection({ edition }: { edition: Edition }) {
   }
 
   return (
-    <section className="space-y-4 rounded-xl bg-white p-4 shadow-sm">
-      <h3 className="text-sm font-bold uppercase tracking-wide text-slate-500">Encerramento</h3>
-      <p className="text-sm text-slate-600">
+    <section className="space-y-4 rounded-xl bg-card p-4 shadow-sm">
+      <h3 className="text-sm font-bold uppercase tracking-wide text-subtle">Encerramento</h3>
+      <p className="text-sm text-muted">
         Encerre a edição para registrar a classificação final e atribuir pontos da temporada.
       </p>
       <button
@@ -592,7 +590,7 @@ function FinalizeSection({ edition }: { edition: Edition }) {
       >
         {finalizeMutation.isPending ? 'Encerrando…' : 'Encerrar edição'}
       </button>
-      {feedback ? <p className="text-sm text-slate-600">{feedback}</p> : null}
+      {feedback ? <p className="text-sm text-muted">{feedback}</p> : null}
     </section>
   );
 }
@@ -604,12 +602,12 @@ export function OrganizerEditionPage() {
   useEditionSse(editionId);
 
   if (editionQuery.isLoading) {
-    return <p className="text-sm text-slate-400">Carregando edição…</p>;
+    return <p className="text-sm text-subtle">Carregando edição…</p>;
   }
 
   if (editionQuery.isError || !editionQuery.data) {
     return (
-      <section className="rounded-2xl border border-rose-500/30 bg-rose-500/10 p-6 text-sm text-rose-100">
+      <section className="rounded-2xl border border-danger-surface bg-danger-surface p-6 text-sm text-danger-foreground">
         Edição não encontrada.
       </section>
     );
@@ -618,13 +616,16 @@ export function OrganizerEditionPage() {
   const edition = editionQuery.data;
 
   return (
-    <div className="-mx-4 -my-6 min-h-full flex-1 space-y-4 bg-slate-100 px-4 py-6 text-slate-900">
-      <section className="rounded-xl bg-[#1a1a2e] p-4 text-white">
-        <Link className="text-xs text-white/70 underline" to="/organizador/painel">
-          ← Painel do organizador
+    <div className="space-y-4">
+      <section className="rounded-xl bg-header p-4 text-header-foreground">
+        <Link
+          className="text-xs text-header-foreground/70 underline"
+          to={`/organizador/campeonato/${edition.championshipId}`}
+        >
+          ← {edition.championshipId ? 'Voltar ao campeonato' : 'Painel do organizador'}
         </Link>
         <h2 className="mt-2 text-lg font-bold">{formatEditionTitle(edition)}</h2>
-        <p className="text-sm text-white/70">{formatEditionStatus(edition.status)}</p>
+        <p className="text-sm text-header-foreground/70">{formatEditionStatus(edition.status)}</p>
       </section>
 
       <RegistrationsSection edition={edition} />

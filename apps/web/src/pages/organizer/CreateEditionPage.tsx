@@ -1,10 +1,10 @@
-import { useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useState } from 'react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
-import { DEFAULT_TOURNAMENT_RULES } from '@clandestino/shared-contracts';
+import { DEFAULT_EDITION_RULES } from '@clandestino/shared-contracts';
 import { ApiError } from '../../lib/api-client.js';
 import { createEdition } from '../../lib/organizer-api.js';
-import { useSeasons } from '../../hooks/use-organizer-data.js';
+import { useChampionship } from '../../hooks/use-organizer-data.js';
 
 function todayIsoDate(): string {
   const now = new Date();
@@ -16,28 +16,26 @@ function todayIsoDate(): string {
 
 export function CreateEditionPage() {
   const navigate = useNavigate();
-  const seasonsQuery = useSeasons();
-  const [name, setName] = useState('');
+  const { championshipId } = useParams<{ championshipId: string }>();
+  const championshipQuery = useChampionship(championshipId);
   const [date, setDate] = useState(todayIsoDate);
-  const [seasonId, setSeasonId] = useState('');
-  const [groupCount, setGroupCount] = useState(DEFAULT_TOURNAMENT_RULES.protectedSeedCount);
+  const [groupCount, setGroupCount] = useState(DEFAULT_EDITION_RULES.protectedSeedCount);
   const [bestOfThreeThreshold, setBestOfThreeThreshold] = useState(
-    DEFAULT_TOURNAMENT_RULES.participantThresholdForBestOfThree,
+    DEFAULT_EDITION_RULES.participantThresholdForBestOfThree,
   );
   const [autoConfirmMinutes, setAutoConfirmMinutes] = useState(15);
   const [error, setError] = useState<string | null>(null);
 
-  const effectiveSeasonId = seasonId || seasonsQuery.data?.[0]?.id || '';
+  const defaultRules = championshipQuery.data?.defaultEditionRules ?? DEFAULT_EDITION_RULES;
 
   const createMutation = useMutation({
     mutationFn: () =>
       createEdition({
-        seasonId: effectiveSeasonId,
-        name: name.trim(),
+        championshipId: championshipId!,
         date,
         autoConfirmMinutes,
         rules: {
-          ...DEFAULT_TOURNAMENT_RULES,
+          ...defaultRules,
           protectedSeedCount: groupCount,
           participantThresholdForBestOfThree: bestOfThreeThreshold,
         },
@@ -55,74 +53,64 @@ export function CreateEditionPage() {
     },
   });
 
-  const seasonOptions = useMemo(() => seasonsQuery.data ?? [], [seasonsQuery.data]);
+  if (!championshipId) {
+    return (
+      <section className="rounded-2xl border border-danger-surface bg-danger-surface p-6 text-sm text-danger-foreground">
+        Campeonato não informado.
+      </section>
+    );
+  }
 
   return (
     <section className="space-y-6">
-      <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
-        <Link className="text-sm text-slate-400 underline" to="/organizador/painel">
-          ← Voltar ao painel
+      <div className="rounded-2xl border border-line bg-card p-6">
+        <Link
+          className="text-sm text-subtle underline"
+          to={`/organizador/campeonato/${championshipId}`}
+        >
+          ← Voltar ao campeonato
         </Link>
-        <h2 className="mt-3 text-xl font-semibold text-white">Nova edição</h2>
-        <p className="mt-2 text-sm text-slate-300">
-          Configure a rodada semanal. A tabela de pontuação vem da temporada selecionada.
+        <h2 className="mt-3 text-xl font-semibold text-foreground">Nova edição</h2>
+        <p className="mt-2 text-sm text-muted">
+          {championshipQuery.data
+            ? `Campeonato: ${championshipQuery.data.name}`
+            : 'Configure a rodada neste campeonato.'}
         </p>
       </div>
 
-      {seasonsQuery.isLoading ? (
-        <p className="text-sm text-slate-400">Carregando temporadas…</p>
-      ) : seasonOptions.length === 0 ? (
-        <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-100">
-          Nenhuma temporada cadastrada. Crie uma temporada pela API antes de criar edições.
+      {championshipQuery.isLoading ? (
+        <p className="text-sm text-subtle">Carregando campeonato…</p>
+      ) : championshipQuery.isError ? (
+        <div className="rounded-2xl border border-warning-surface bg-warning-surface p-4 text-sm text-warning-foreground">
+          Campeonato não encontrado.
         </div>
       ) : (
         <form
-          className="space-y-4 rounded-2xl border border-slate-800 bg-slate-900/40 p-6"
+          className="space-y-4 rounded-2xl border border-line bg-card p-6"
           onSubmit={(event) => {
             event.preventDefault();
             setError(null);
             void createMutation.mutateAsync();
           }}
         >
-          <label className="block space-y-2 text-sm">
-            <span className="text-slate-300">Temporada</span>
-            <select
-              value={effectiveSeasonId}
-              onChange={(event) => setSeasonId(event.target.value)}
-              className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2.5 text-white"
-            >
-              {seasonOptions.map((season) => (
-                <option key={season.id} value={season.id}>
-                  {season.name}
-                </option>
-              ))}
-            </select>
-          </label>
+          <p className="rounded-lg border border-line bg-card-muted px-3 py-2.5 text-sm text-subtle">
+            O nome será atribuído automaticamente (ex.: Clandestino #3) conforme a numeração
+            sequencial deste campeonato.
+          </p>
 
           <label className="block space-y-2 text-sm">
-            <span className="text-slate-300">Nome da edição</span>
-            <input
-              required
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-              className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2.5 text-white"
-              placeholder="Clandestino #42"
-            />
-          </label>
-
-          <label className="block space-y-2 text-sm">
-            <span className="text-slate-300">Data</span>
+            <span className="text-muted">Data</span>
             <input
               required
               type="date"
               value={date}
               onChange={(event) => setDate(event.target.value)}
-              className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2.5 text-white"
+              className="w-full rounded-lg border border-line bg-card-muted px-3 py-2.5 text-foreground"
             />
           </label>
 
           <label className="block space-y-2 text-sm">
-            <span className="text-slate-300">Número de grupos</span>
+            <span className="text-muted">Número de grupos</span>
             <input
               required
               type="number"
@@ -130,15 +118,15 @@ export function CreateEditionPage() {
               max={12}
               value={groupCount}
               onChange={(event) => setGroupCount(Number.parseInt(event.target.value, 10) || 1)}
-              className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2.5 text-white"
+              className="w-full rounded-lg border border-line bg-card-muted px-3 py-2.5 text-foreground"
             />
-            <span className="text-xs text-slate-500">
+            <span className="text-xs text-subtle">
               1 seed por grupo (top {groupCount} do ranking)
             </span>
           </label>
 
           <label className="block space-y-2 text-sm">
-            <span className="text-slate-300">Limiar para melhor de 3</span>
+            <span className="text-muted">Limiar para melhor de 3</span>
             <input
               required
               type="number"
@@ -147,15 +135,15 @@ export function CreateEditionPage() {
               onChange={(event) =>
                 setBestOfThreeThreshold(Number.parseInt(event.target.value, 10) || 1)
               }
-              className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2.5 text-white"
+              className="w-full rounded-lg border border-line bg-card-muted px-3 py-2.5 text-foreground"
             />
-            <span className="text-xs text-slate-500">
+            <span className="text-xs text-subtle">
               Acima deste número de inscritos, partidas são melhor de 5
             </span>
           </label>
 
           <label className="block space-y-2 text-sm">
-            <span className="text-slate-300">Auto-confirmação (minutos)</span>
+            <span className="text-muted">Auto-confirmação (minutos)</span>
             <input
               required
               type="number"
@@ -164,12 +152,12 @@ export function CreateEditionPage() {
               onChange={(event) =>
                 setAutoConfirmMinutes(Number.parseInt(event.target.value, 10) || 15)
               }
-              className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2.5 text-white"
+              className="w-full rounded-lg border border-line bg-card-muted px-3 py-2.5 text-foreground"
             />
           </label>
 
           {error ? (
-            <p className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-sm text-rose-100">
+            <p className="rounded-lg border border-danger-surface bg-danger-surface px-3 py-2 text-sm text-danger-foreground">
               {error}
             </p>
           ) : null}

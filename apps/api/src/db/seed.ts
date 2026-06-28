@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { DEFAULT_SCORING_TABLE, DEFAULT_TOURNAMENT_RULES } from '@clandestino/shared-contracts';
+import { DEFAULT_EDITION_RULES, DEFAULT_SCORING_TABLE } from '@clandestino/shared-contracts';
 import { createDb, createPool, schema } from './index.js';
 
 const playerIds = [
@@ -28,8 +28,9 @@ const playerNames = [
   'Juliana Freitas',
 ] as const;
 
-const season2026Id = '10000000-0000-4000-8000-000000000001';
-const season2027Id = '10000000-0000-4000-8000-000000000002';
+const championshipAguasClaras2026Id = '10000000-0000-4000-8000-000000000001';
+const championshipAsaSul2026Id = '10000000-0000-4000-8000-000000000002';
+const championshipAguasClaras2027Id = '10000000-0000-4000-8000-000000000003';
 const editionOpeningId = '20000000-0000-4000-8000-000000000001';
 const editionWinterId = '20000000-0000-4000-8000-000000000002';
 const groupAId = '30000000-0000-4000-8000-000000000001';
@@ -52,16 +53,21 @@ async function main() {
         .onConflictDoNothing();
 
       await tx
-        .insert(schema.seasons)
+        .insert(schema.championships)
         .values([
           {
-            id: season2026Id,
-            name: 'Temporada 2026',
+            id: championshipAguasClaras2026Id,
+            name: 'Clandestino 2026 Águas Claras',
             scoringTable: DEFAULT_SCORING_TABLE,
           },
           {
-            id: season2027Id,
-            name: 'Temporada 2027',
+            id: championshipAsaSul2026Id,
+            name: 'Clandestino 2026 Asa Sul',
+            scoringTable: DEFAULT_SCORING_TABLE,
+          },
+          {
+            id: championshipAguasClaras2027Id,
+            name: 'Clandestino 2027 Águas Claras',
             scoringTable: DEFAULT_SCORING_TABLE,
           },
         ])
@@ -72,19 +78,19 @@ async function main() {
         .values([
           {
             id: editionOpeningId,
-            seasonId: season2026Id,
-            name: 'Abertura 2026',
+            championshipId: championshipAguasClaras2026Id,
+            name: 'Clandestino #1',
             date: '2026-07-04',
-            rules: DEFAULT_TOURNAMENT_RULES,
+            rules: DEFAULT_EDITION_RULES,
             status: 'SORTEIO_PUBLICADO',
             autoConfirmMinutes: 15,
           },
           {
             id: editionWinterId,
-            seasonId: season2026Id,
-            name: 'Inverno 2026',
+            championshipId: championshipAguasClaras2026Id,
+            name: 'Clandestino #2',
             date: '2026-08-01',
-            rules: DEFAULT_TOURNAMENT_RULES,
+            rules: DEFAULT_EDITION_RULES,
             status: 'RASCUNHO',
             autoConfirmMinutes: 15,
           },
@@ -102,10 +108,10 @@ async function main() {
         .onConflictDoNothing();
 
       await tx
-        .insert(schema.seasonPlayerPoints)
+        .insert(schema.championshipPlayerPoints)
         .values(
           playerIds.map((playerId, index) => ({
-            seasonId: season2026Id,
+            championshipId: championshipAguasClaras2026Id,
             playerId,
             accumulatedPoints: Math.max(0, 220 - index * 18),
           })),
@@ -121,7 +127,7 @@ async function main() {
             playerId,
             accumulatedPoints: Math.max(0, 220 - index * 18),
             rankPosition: index + 1,
-            isSeed: index < DEFAULT_TOURNAMENT_RULES.protectedSeedCount,
+            isSeed: index < DEFAULT_EDITION_RULES.protectedSeedCount,
             algorithm: 'seeded-balanced-v1',
             randomSeed: 'dev-seed-2026-opening',
             drawnBy: 'dev-seed',
@@ -154,7 +160,7 @@ async function main() {
             groupId: index < 5 ? groupAId : groupBId,
             editionId: editionOpeningId,
             playerId,
-            isSeed: index < DEFAULT_TOURNAMENT_RULES.protectedSeedCount,
+            isSeed: index < DEFAULT_EDITION_RULES.protectedSeedCount,
           })),
         )
         .onConflictDoNothing();

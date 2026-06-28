@@ -1,20 +1,23 @@
 import type { TypeBoxTypeProvider } from '@fastify/type-provider-typebox';
 import {
+  ChampionshipEditionsResponseSchema,
+  ChampionshipListResponseSchema,
+  ChampionshipRankingResponseSchema,
+  ChampionshipSchema,
+  CreateChampionshipBodySchema,
   CreatePlayerBodySchema,
-  CreateSeasonBodySchema,
   ErrorResponseSchema,
+  ImportScoresResponseSchema,
   OrganizerSessionResponseSchema,
   PlayerListResponseSchema,
   PlayerSchema,
   RequestOrganizerMagicLinkBodySchema,
   RequestOrganizerMagicLinkResponseSchema,
-  SeasonListResponseSchema,
-  SeasonSchema,
   UpdateScoringTableBodySchema,
   VerifyOrganizerMagicLinkBodySchema,
 } from '@clandestino/shared-contracts';
 import { Type } from '@sinclair/typebox';
-import { eq } from 'drizzle-orm';
+import { and, asc, desc, eq, sql } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import { schema } from '../db/index.js';
 import {
@@ -24,7 +27,8 @@ import {
   normalizeEmail,
 } from '../lib/crypto.js';
 import { badRequest, conflict, forbidden, notFound, unauthorized } from '../lib/errors.js';
-import { mapPlayer, mapSeason } from '../lib/mappers.js';
+import { mapChampionship, mapEditionSummary, mapPlayer } from '../lib/mappers.js';
+import { parseImportScoresCsv } from '../lib/csv.js';
 import { consumeMagicToken } from '../plugins/auth.js';
 
 export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
@@ -71,7 +75,8 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
       request.log.info({ email, verifyUrl }, 'Magic link gerado para organizador');
 
       return {
-        message: 'Se o e-mail estiver autorizado, um link de acesso foi enviado.',
+        message:
+          'Verifique seu e-mail, se ele estiver autorizado, um link de acesso foi enviado para você.',
         expiresInMinutes: app.config.organizerMagicLinkTtlMinutes,
         ...(app.config.exposeMagicLinks ? { magicLink: verifyUrl } : {}),
       };
@@ -197,32 +202,144 @@ export async function registerPlayerRoutes(app: FastifyInstance): Promise<void> 
   );
 }
 
-export async function registerSeasonRoutes(app: FastifyInstance): Promise<void> {
+export async function registerChampionshipRoutes(app: FastifyInstance): Promise<void> {
   const typed = app.withTypeProvider<TypeBoxTypeProvider>();
+  const championshipIdParams = Type.Object({ id: Type.String({ format: 'uuid' }) });
 
   typed.get(
-    '/seasons',
+    '/championships',
     {
       schema: {
         response: {
-          200: SeasonListResponseSchema,
+          200: ChampionshipListResponseSchema,
         },
       },
     },
     async () => {
-      const rows = await app.db.select().from(schema.seasons).orderBy(schema.seasons.createdAt);
-      return { seasons: rows.map(mapSeason) };
+      const rows = await app.db
+        .select()
+        .from(schema.championships)
+        .orderBy(schema.championships.createdAt);
+      return { championships: rows.map(mapChampionship) };
+    },
+  );
+
+  typed.get(
+    '/championships/:id',
+    {
+      schema: {
+        params: championshipIdParams,
+        response: {
+          200: ChampionshipSchema,
+          404: ErrorResponseSchema,
+        },
+      },
+    },
+    async (request) => {
+      const [row] = await app.db
+        .select()
+        .from(schema.championships)
+        .where(eq(schema.championships.id, request.params.id))
+        .limit(1);
+
+      if (!row) {
+        throw notFound('Campeonato não encontrado.');
+      }
+
+      return mapChampionship(row);
+    },
+  );
+
+  typed.get(
+    '/championships/:id/editions',
+    {
+      schema: {
+        params: championshipIdParams,
+        response: {
+          200: ChampionshipEditionsResponseSchema,
+          404: ErrorResponseSchema,
+        },
+      },
+    },
+    async (request) => {
+      const championshipId = request.params.id;
+      const [championship] = await app.db
+        .select({ id: schema.championships.id })
+        .from(schema.championships)
+        .where(eq(schema.championships.id, championshipId))
+        .limit(1);
+
+      if (!championship) {
+        throw notFound('Campeonato não encontrado.');
+      }
+
+      const editionRows = await app.db
+        .select()
+        .from(schema.editions)
+        .where(eq(schema.editions.championshipId, championshipId))
+        .orderBy(desc(schema.editions.date), desc(schema.editions.createdAt));
+
+      return {
+        championshipId,
+        editions: editionRows.map(mapEditionSummary),
+      };
+    },
+  );
+
+  typed.get(
+    '/championships/:id/ranking',
+    {
+      schema: {
+        params: championshipIdParams,
+        response: {
+          200: ChampionshipRankingResponseSchema,
+          404: ErrorResponseSchema,
+        },
+      },
+    },
+    async (request) => {
+      const championshipId = request.params.id;
+      const [championship] = await app.db
+        .select({ id: schema.championships.id })
+        .from(schema.championships)
+        .where(eq(schema.championships.id, championshipId))
+        .limit(1);
+
+      if (!championship) {
+        throw notFound('Campeonato não encontrado.');
+      }
+
+      const rows = await app.db
+        .select({
+          playerId: schema.championshipPlayerPoints.playerId,
+          playerName: schema.players.name,
+          accumulatedPoints: schema.championshipPlayerPoints.accumulatedPoints,
+        })
+        .from(schema.championshipPlayerPoints)
+        .innerJoin(schema.players, eq(schema.championshipPlayerPoints.playerId, schema.players.id))
+        .where(eq(schema.championshipPlayerPoints.championshipId, championshipId))
+        .orderBy(desc(schema.championshipPlayerPoints.accumulatedPoints), asc(schema.players.name));
+
+      return {
+        championshipId,
+        ranking: rows.map((row, index) => ({
+          playerId: row.playerId,
+          playerName: row.playerName,
+          accumulatedPoints: row.accumulatedPoints,
+          rank: index + 1,
+        })),
+      };
     },
   );
 
   typed.post(
-    '/seasons',
+    '/championships',
     {
       preHandler: app.requireOrganizer,
       schema: {
-        body: CreateSeasonBodySchema,
+        body: CreateChampionshipBodySchema,
         response: {
-          201: SeasonSchema,
+          201: ChampionshipSchema,
           400: ErrorResponseSchema,
           401: ErrorResponseSchema,
           409: ErrorResponseSchema,
@@ -242,22 +359,25 @@ export async function registerSeasonRoutes(app: FastifyInstance): Promise<void> 
 
       try {
         const [row] = await app.db
-          .insert(schema.seasons)
+          .insert(schema.championships)
           .values({
             name: request.body.name.trim(),
             ...(scoringTable ? { scoringTable } : {}),
+            ...(request.body.defaultEditionRules
+              ? { defaultEditionRules: request.body.defaultEditionRules }
+              : {}),
           })
           .returning();
 
         if (!row) {
-          throw badRequest('Não foi possível criar a temporada.');
+          throw badRequest('Não foi possível criar o campeonato.');
         }
 
         reply.code(201);
-        return mapSeason(row);
+        return mapChampionship(row);
       } catch (error) {
         if (isUniqueViolation(error)) {
-          throw conflict('Já existe uma temporada com este nome.');
+          throw conflict('Já existe um campeonato com este nome.');
         }
 
         throw error;
@@ -266,14 +386,14 @@ export async function registerSeasonRoutes(app: FastifyInstance): Promise<void> 
   );
 
   typed.put(
-    '/seasons/:id/scoring-table',
+    '/championships/:id/scoring-table',
     {
       preHandler: app.requireOrganizer,
       schema: {
-        params: Type.Object({ id: Type.String({ format: 'uuid' }) }),
+        params: championshipIdParams,
         body: UpdateScoringTableBodySchema,
         response: {
-          200: SeasonSchema,
+          200: ChampionshipSchema,
           400: ErrorResponseSchema,
           401: ErrorResponseSchema,
           404: ErrorResponseSchema,
@@ -288,16 +408,129 @@ export async function registerSeasonRoutes(app: FastifyInstance): Promise<void> 
       }
 
       const [row] = await app.db
-        .update(schema.seasons)
+        .update(schema.championships)
         .set({ scoringTable: request.body.scoringTable })
-        .where(eq(schema.seasons.id, request.params.id))
+        .where(eq(schema.championships.id, request.params.id))
         .returning();
 
       if (!row) {
-        throw notFound('Temporada não encontrada.');
+        throw notFound('Campeonato não encontrado.');
       }
 
-      return mapSeason(row);
+      return mapChampionship(row);
+    },
+  );
+
+  typed.post(
+    '/championships/:id/import-scores',
+    {
+      preHandler: app.requireOrganizer,
+      bodyLimit: app.config.csvImportMaxBytes,
+      schema: {
+        params: championshipIdParams,
+        response: {
+          200: ImportScoresResponseSchema,
+          400: ErrorResponseSchema,
+          401: ErrorResponseSchema,
+          404: ErrorResponseSchema,
+        },
+      },
+    },
+    async (request) => {
+      const championshipId = request.params.id;
+      const [championship] = await app.db
+        .select({ id: schema.championships.id })
+        .from(schema.championships)
+        .where(eq(schema.championships.id, championshipId))
+        .limit(1);
+
+      if (!championship) {
+        throw notFound('Campeonato não encontrado.');
+      }
+
+      const csvContent = typeof request.body === 'string' ? request.body : '';
+      if (!csvContent.trim()) {
+        throw badRequest('Envie o conteúdo CSV no corpo da requisição com Content-Type text/csv.');
+      }
+
+      const parsedRows = parseImportScoresCsv(csvContent);
+      const importedScores: Array<{ playerName: string; accumulatedPoints: number }> = [];
+      let createdPlayersCount = 0;
+      let skippedExistingCount = 0;
+
+      await app.db.transaction(async (tx) => {
+        for (const row of parsedRows) {
+          const playerName = row.playerName.trim();
+          let [player] = await tx
+            .select({ id: schema.players.id, name: schema.players.name })
+            .from(schema.players)
+            .where(sql`lower(trim(${schema.players.name})) = lower(${playerName})`)
+            .limit(1);
+
+          if (!player) {
+            const [created] = await tx
+              .insert(schema.players)
+              .values({ name: playerName })
+              .returning({ id: schema.players.id, name: schema.players.name });
+
+            if (!created) {
+              throw badRequest(
+                `Linha ${row.lineNumber}: não foi possível cadastrar "${playerName}".`,
+              );
+            }
+
+            player = created;
+            createdPlayersCount += 1;
+          }
+
+          const [existingPoints] = await tx
+            .select({ playerId: schema.championshipPlayerPoints.playerId })
+            .from(schema.championshipPlayerPoints)
+            .where(
+              and(
+                eq(schema.championshipPlayerPoints.championshipId, championshipId),
+                eq(schema.championshipPlayerPoints.playerId, player.id),
+              ),
+            )
+            .limit(1);
+
+          if (existingPoints) {
+            skippedExistingCount += 1;
+            continue;
+          }
+
+          await tx.insert(schema.championshipPlayerPoints).values({
+            championshipId,
+            playerId: player.id,
+            accumulatedPoints: row.accumulatedPoints,
+          });
+
+          importedScores.push({
+            playerName: player.name,
+            accumulatedPoints: row.accumulatedPoints,
+          });
+        }
+
+        await tx.insert(schema.auditEvents).values({
+          championshipId,
+          eventType: 'CSV_IMPORTED',
+          payload: {
+            importedCount: importedScores.length,
+            createdPlayersCount,
+            skippedExistingCount,
+            scores: importedScores,
+          },
+          createdBy: request.organizerEmail ?? 'organizer',
+        });
+      });
+
+      return {
+        championshipId,
+        importedCount: importedScores.length,
+        createdPlayersCount,
+        skippedExistingCount,
+        scores: importedScores,
+      };
     },
   );
 }

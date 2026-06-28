@@ -23,11 +23,16 @@ Uso: ./start <dev|prod> [opções]
 
 Ambientes:
   dev              Sobe db + api + web + caddy (hot reload, http://clandestino.test)
+                   Assets do PWA (ícones, etc.) servidos ao vivo pelo Vite.
   prod             Sobe db + api em produção local (http://localhost:3000)
+                   Build estático do PWA em apps/web/dist (sirva via reverse proxy).
 
 Opções:
   --seed           (só dev) Popula dados de exemplo após migrar
   --help, -h       Mostra esta ajuda
+
+Variáveis:
+  VITE_API_URL     (prod) URL/prefixo da API no build do PWA (padrão: /api)
 
 Exemplos:
   ./start dev
@@ -86,6 +91,20 @@ assert_no_other_stack() {
   fi
 }
 
+build_web_assets() {
+  local vite_api_url="${VITE_API_URL:-/api}"
+
+  if ! command -v pnpm >/dev/null 2>&1; then
+    warn "pnpm não encontrado no host; build do PWA (apps/web/dist) foi pulado."
+    warn "Build manual: VITE_API_URL=<url> pnpm --filter \"@clandestino/web...\" build"
+    return 0
+  fi
+
+  log "Construindo PWA estático (apps/web/dist) — VITE_API_URL=${vite_api_url}..."
+  ( cd "${ROOT_DIR}" && VITE_API_URL="${vite_api_url}" pnpm --filter "@clandestino/web..." build )
+  log "PWA atualizado em apps/web/dist (sirva via reverse proxy)."
+}
+
 warn_hosts_entry() {
   local hosts_file=""
   if [[ -r /etc/hosts ]]; then
@@ -124,6 +143,8 @@ start_dev() {
 
 start_prod() {
   assert_no_other_stack "prod"
+
+  build_web_assets
 
   log "Subindo stack de produção local (db + api)..."
   SEED_ON_START=false docker compose -f "${COMPOSE_PROD}" up -d --build

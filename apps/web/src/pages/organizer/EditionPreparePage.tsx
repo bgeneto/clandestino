@@ -34,6 +34,50 @@ function createRandomSeed(): string {
   return `seed-${Date.now()}`;
 }
 
+function sameStringArray(left: readonly string[], right: readonly string[]): boolean {
+  return left.length === right.length && left.every((value, index) => value === right[index]);
+}
+
+function sameNumberArray(left: readonly number[], right: readonly number[]): boolean {
+  return left.length === right.length && left.every((value, index) => value === right[index]);
+}
+
+function shouldRunDrawPreview(draft: EditionWizardDraft, seedPlayerIds: string[]): boolean {
+  if (!draft.drawPreview?.length || !draft.drawRandomSeed) {
+    return true;
+  }
+
+  const checkedInPlayerIds = new Set(draft.checkedInPlayers.map((player) => player.playerId));
+  const previewPlayerIds = new Set(
+    draft.drawPreview.flatMap((group) => group.players.map((player) => player.playerId)),
+  );
+
+  if (checkedInPlayerIds.size !== previewPlayerIds.size) {
+    return true;
+  }
+
+  for (const playerId of checkedInPlayerIds) {
+    if (!previewPlayerIds.has(playerId)) {
+      return true;
+    }
+  }
+
+  if (!draft.seedPlayerIds || !sameStringArray(draft.seedPlayerIds, seedPlayerIds)) {
+    return true;
+  }
+
+  if (!draft.groupSizes) {
+    return true;
+  }
+
+  const previewGroupSizes = draft.drawPreview.map((group) => group.players.length);
+  if (!sameNumberArray(draft.groupSizes, previewGroupSizes)) {
+    return true;
+  }
+
+  return false;
+}
+
 function buildDrawPreview(
   draft: EditionWizardDraft,
   randomSeed: string,
@@ -243,8 +287,13 @@ export function EditionPreparePage() {
             void persistDraft({ ...draft, seedPlayerIds });
           }}
           onBack={() => void goToStep(3)}
-          onContinue={async () => {
-            await runDrawPreview(draft);
+          onContinue={async (seedPlayerIds) => {
+            const draftWithSeeds = { ...draft, seedPlayerIds };
+            if (shouldRunDrawPreview(draft, seedPlayerIds)) {
+              await runDrawPreview(draftWithSeeds, createRandomSeed());
+            } else {
+              await persistDraft(draftWithSeeds);
+            }
             await goToStep(5);
           }}
         />

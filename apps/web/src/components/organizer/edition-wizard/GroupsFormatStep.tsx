@@ -88,7 +88,7 @@ export function GroupsFormatStep({ draft, onChange, onContinue, onBack }: Groups
             </li>
           ))}
         </ul>
-        <p className="mt-3 text-subtle">Total estimado de partidas: {totalMatches}</p>
+        <p className="mt-3 text-subtle">Número de partidas na fase de grupos: {totalMatches}</p>
         {largestGroup > WIZARD_WARN_GROUP_SIZE ? (
           <p className="mt-2 text-warning-foreground">
             Atenção: um grupo com {largestGroup} jogadores gera muitas partidas ({totalMatches}{' '}

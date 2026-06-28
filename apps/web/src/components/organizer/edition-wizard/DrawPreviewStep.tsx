@@ -15,7 +15,7 @@ export function DrawPreviewStep({ draft, onBack, onContinue, onRedraw }: DrawPre
       <div>
         <h3 className="text-lg font-semibold text-foreground">Grupos formados</h3>
         <p className="mt-1 text-sm text-muted">
-          Revise a distribuição antes de publicar o sorteio.
+          Revise a distribuição dos jogadores antes de publicar o sorteio dos grupos.
         </p>
       </div>
 
@@ -42,7 +42,7 @@ export function DrawPreviewStep({ draft, onBack, onContinue, onRedraw }: DrawPre
         onClick={onRedraw}
         className="w-full rounded-lg border border-line px-4 py-2.5 text-sm font-medium text-foreground"
       >
-        Refazer sorteio dos demais jogadores
+        🔄 Refazer sorteio dos jogadores
       </button>
 
       <div className="flex gap-3">

@@ -285,7 +285,7 @@ function DrawSection({ edition }: { edition: Edition }) {
           </h4>
           <EditionQrCode
             url={qrQuery.data.url}
-            label="Exiba para os jogadores entrarem"
+            label="Exiba para os jogadores entrarem ou compartilhe no WhatsApp"
             editionName={edition.name}
           />
         </div>
@@ -584,7 +584,8 @@ function FinalizeSection({ edition }: { edition: Edition }) {
     <section className="space-y-4 rounded-xl bg-card p-4 shadow-sm">
       <h3 className="text-sm font-bold uppercase tracking-wide text-subtle">Encerramento</h3>
       <p className="text-sm text-muted">
-        Encerre a edição para registrar a classificação final e atribuir pontos da temporada.
+        Encerre a edição para registrar a classificação final das partidas e atribuir pontos aos
+        jogadores.
       </p>
       <button
         type="button"

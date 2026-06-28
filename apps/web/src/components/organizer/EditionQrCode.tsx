@@ -77,9 +77,6 @@ export function EditionQrCode({ url, label, editionName }: EditionQrCodeProps) {
         </p>
       ) : null}
       <div className="mt-2 flex flex-wrap items-center justify-center gap-2">
-        <a href={url} className="break-all text-[11px] text-subtle underline hover:text-foreground">
-          {url}
-        </a>
         <WhatsAppShareButton url={url} editionName={editionName} />
       </div>
     </div>

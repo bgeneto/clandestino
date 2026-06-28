@@ -5,7 +5,7 @@ import { selectDefaultSeeds } from '@clandestino/tournament-engine';
 type SeedsStepProps = {
   draft: EditionWizardDraft;
   onChange: (seedPlayerIds: string[]) => void;
-  onContinue: () => void;
+  onContinue: (seedPlayerIds: string[]) => void;
   onBack: () => void;
 };
 
@@ -109,8 +109,7 @@ export function SeedsStep({ draft, onChange, onContinue, onBack }: SeedsStepProp
           type="button"
           disabled={!canContinue}
           onClick={() => {
-            onChange([...selectedSeedIds] as string[]);
-            onContinue();
+            onContinue([...selectedSeedIds]);
           }}
           className="flex-1 rounded-lg bg-brand px-4 py-2.5 text-sm font-medium text-white disabled:opacity-50"
         >

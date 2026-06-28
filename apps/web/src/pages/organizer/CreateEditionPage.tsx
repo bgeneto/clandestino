@@ -148,8 +148,8 @@ export function CreateEditionPage() {
               className="w-full rounded-lg border border-line bg-card-muted px-3 py-2.5 text-foreground"
             />
             <span className="text-xs text-subtle">
-              Após esse tempo, resultados aguardando confirmação são confirmados automaticamente se
-              não houver contestação.
+              💡Após esse tempo, resultados aguardando confirmação são confirmados automaticamente
+              se não houver contestação.
             </span>
           </label>
 

@@ -54,7 +54,7 @@ export function ReviewStep({
           <dd className="text-foreground">{draft.groupCount}</dd>
         </div>
         <div className="flex justify-between gap-4">
-          <dt className="text-subtle">Formato</dt>
+          <dt className="text-subtle">Formato das partidas</dt>
           <dd className="text-foreground">Melhor de {draft.matchBestOf}</dd>
         </div>
         <div className="flex justify-between gap-4">

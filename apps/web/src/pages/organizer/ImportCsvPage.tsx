@@ -193,7 +193,7 @@ export function ImportCsvPage() {
         <p className="mt-2 text-sm text-muted">
           {championshipQuery.data
             ? `Campeonato: ${championshipQuery.data.name}`
-            : 'Importar ranking acumulado para este campeonato.'}
+            : 'Importar ranking atual para este campeonato.'}
         </p>
         <p className="mt-2 text-sm text-subtle">
           Colunas obrigatórias: <code className="text-muted">{IMPORT_SCORES_CSV_FORMAT_HINT}</code>

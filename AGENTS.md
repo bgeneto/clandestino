@@ -4,7 +4,7 @@ Este arquivo orienta agentes de código (Cursor, Copilot, etc.) a trabalhar no r
 
 ## Visão geral
 
-**Clandestino** é um PWA para o campeonato de tênis de mesa da FitPong. O MVP cobre o ciclo completo de uma edição: inscrições, sorteio, partidas, confirmação de resultados, fase de colocação e ranking acumulado.
+**Clandestino** é um PWA para o campeonato de tênis de mesa da FitPong. O MVP cobre o ciclo completo de uma edição: inscrições, sorteio, partidas, confirmação de resultados, fase de colocação e ranking atual.
 
 Leia [docs/domain-taxonomy.md](docs/domain-taxonomy.md) para a taxonomia canônica (Championship, Edition, EditionRules).
 
@@ -169,7 +169,7 @@ Ordem de dependência: `shared-contracts` → `tournament-engine` → `api` / `w
 | Tópico           | Regra                                                                                               |
 | ---------------- | --------------------------------------------------------------------------------------------------- |
 | Desempate        | sets ganhos → saldo de sets → partidas vencidas                                                     |
-| Seeds            | exatamente 1 por grupo; do ranking acumulado                                                        |
+| Seeds            | exatamente 1 por grupo; do ranking atual                                                            |
 | Confirmação      | adversário confirma; contestação → organizador                                                      |
 | Auto-confirmação | job no Fastify (`setInterval`), configurável por edição                                             |
 | Match status     | `AGENDADA \| AGUARDANDO_CONFIRMACAO \| CONFIRMADA \| CONTESTADA \| CORRIGIDA \| CANCELADA`          |

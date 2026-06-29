@@ -420,7 +420,7 @@ Depois de validar o funcionamento real:
 - funcionamento completo sem conexão;
 - códigos QR;
 - atualização em tempo real;
-- ranking acumulado;
+- ranking atual/acumulado;
 - estatísticas individuais;
 - histórico de confrontos.
 
@@ -467,4 +467,4 @@ Não utilizaria inicialmente:
 - inteligência artificial;
 - arquitetura excessivamente genérica para qualquer modalidade esportiva.
 
-O melhor produto inicial seria um **sistema específico para o regulamento do Cladestino**, mas com regras configuráveis e um motor de torneios suficientemente isolado para evoluir posteriormente. Antes da codificação, o passo mais importante é transformar o regulamento informal atual em uma especificação determinística, principalmente quanto à formação dos grupos, critérios de desempate, fases de colocação e cálculo do ranking acumulado.
+O melhor produto inicial seria um **sistema específico para o regulamento do Cladestino**, mas com regras configuráveis e um motor de torneios suficientemente isolado para evoluir posteriormente. Antes da codificação, o passo mais importante é transformar o regulamento informal atual em uma especificação determinística, principalmente quanto à formação dos grupos, critérios de desempate, fases de colocação e cálculo do ranking atual/acumulado.

@@ -1,6 +1,6 @@
 # Clandestino
 
-Sistema web progressivo (PWA) para gerenciar campeonatos de tênis de mesa **Clandestino** da academia **FitPong**. Substitui o processo manual em papel — sorteio de grupos, registro de partidas e apuração de classificação — por um app mobile-first com ranking acumulado por campeonato.
+Sistema web progressivo (PWA) para gerenciar campeonatos de tênis de mesa **Clandestino** da academia **FitPong**. Substitui o processo manual em papel — sorteio de grupos, registro de partidas e apuração de classificação — por um app mobile-first com ranking atual/acumulado por campeonato.
 
 Consulte [docs/domain-taxonomy.md](docs/domain-taxonomy.md) para a taxonomia do domínio (Championship, Edition, EditionRules).
 
@@ -10,7 +10,7 @@ Consulte [docs/domain-taxonomy.md](docs/domain-taxonomy.md) para a taxonomia do 
 - Gera partidas automaticamente (round-robin por grupo)
 - Valida placares de sets conforme o formato da partida (melhor de 3 ou 5)
 - Calcula classificação com critérios de desempate formalizados
-- Mantém ranking acumulado da temporada com tabela de pontos configurável
+- Mantém ranking atual da temporada com tabela de pontos configurável
 - Permite acesso do jogador via QR code (sem senha) e do organizador via magic link
 
 ## Stack
@@ -386,7 +386,7 @@ Fonte da verdade: `apps/api/src/config.ts`.
 ## Regras de negócio (resumo)
 
 - **Desempate:** sets ganhos → saldo de sets → partidas vencidas
-- **Seeds:** 1 por grupo, definidos pelo ranking acumulado da temporada
+- **Seeds:** 1 por grupo, definidos pelo ranking atual/acumulado da temporada
 - **Ranking:** pontos por colocação (tabela padrão editável por temporada)
 - **Resultado:** placar em sets; adversário confirma; organizador resolve contestações
 - **Classificação oficial:** sempre recalculada no servidor — nunca no cliente

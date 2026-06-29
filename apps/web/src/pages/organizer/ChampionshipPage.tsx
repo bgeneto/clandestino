@@ -56,7 +56,7 @@ export function ChampionshipPage() {
       </div>
 
       <div className="rounded-2xl border border-line bg-card p-6">
-        <h3 className="text-lg font-semibold text-foreground">Ranking acumulado</h3>
+        <h3 className="text-lg font-semibold text-foreground">Ranking atual</h3>
         {rankingQuery.isLoading ? (
           <p className="mt-3 text-sm text-subtle">Carregando ranking…</p>
         ) : ranking.length === 0 ? (

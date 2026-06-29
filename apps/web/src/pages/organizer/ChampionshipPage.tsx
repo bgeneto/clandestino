@@ -10,8 +10,15 @@ import { formatEditionDate, formatEditionStatus } from '../../lib/format.js';
 import { Alert } from '../../components/ui/Alert.js';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog.js';
 import { ApiError } from '../../lib/api-client.js';
-import { deleteChampionship } from '../../lib/organizer-api.js';
+import {
+  archiveChampionship,
+  deleteChampionship,
+  unarchiveChampionship,
+} from '../../lib/organizer-api.js';
 import { queryKeys } from '../../lib/query-keys.js';
+
+const archiveButtonBaseClasses =
+  'mt-4 inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium transition';
 
 export function ChampionshipPage() {
   const { championshipId } = useParams<{ championshipId: string }>();
@@ -21,7 +28,9 @@ export function ChampionshipPage() {
   const editionsQuery = useChampionshipEditions(championshipId);
   const rankingQuery = useChampionshipRanking(championshipId);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isArchiveDialogOpen, setIsArchiveDialogOpen] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [archiveError, setArchiveError] = useState<string | null>(null);
 
   const deleteMutation = useMutation({
     mutationFn: () => deleteChampionship(championshipId!),
@@ -36,6 +45,30 @@ export function ChampionshipPage() {
         error instanceof ApiError ? error.message : 'Não foi possível excluir o campeonato.',
       );
       setIsDeleteDialogOpen(false);
+    },
+  });
+
+  const archiveMutation = useMutation({
+    mutationFn: async () => {
+      const isArchived = championshipQuery.data?.archivedAt;
+      if (isArchived) {
+        return unarchiveChampionship(championshipId!);
+      }
+      return archiveChampionship(championshipId!);
+    },
+    onSuccess: async () => {
+      setArchiveError(null);
+      setIsArchiveDialogOpen(false);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.championships() }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.championship(championshipId!) }),
+      ]);
+    },
+    onError: (error) => {
+      setArchiveError(
+        error instanceof ApiError ? error.message : 'Não foi possível atualizar o campeonato.',
+      );
+      setIsArchiveDialogOpen(false);
     },
   });
 
@@ -63,15 +96,34 @@ export function ChampionshipPage() {
         <p className="mt-2 text-sm text-muted">
           {activeEditions.length} edição(ões) em andamento · {ranking.length} jogadores no ranking
         </p>
-        {canDelete ? (
-          <button
-            type="button"
-            onClick={() => setIsDeleteDialogOpen(true)}
-            className="mt-4 inline-flex items-center gap-2 rounded-lg border border-rose-200 bg-rose-50 px-4 py-2 text-sm font-medium text-rose-700 transition hover:bg-rose-100 dark:border-rose-900 dark:bg-rose-950 dark:text-rose-300 dark:hover:bg-rose-900"
-          >
-            🗑️ Excluir campeonato
-          </button>
-        ) : null}
+        <div className="mt-4 flex flex-wrap items-center gap-3">
+          {championship.archivedAt ? (
+            <button
+              type="button"
+              onClick={() => setIsArchiveDialogOpen(true)}
+              className={`${archiveButtonBaseClasses} border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-300 dark:hover:bg-amber-900`}
+            >
+              📂 Desarquivar campeonato
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setIsArchiveDialogOpen(true)}
+              className={`${archiveButtonBaseClasses} border-line bg-card text-subtle hover:bg-card-muted`}
+            >
+              📁 Arquivar campeonato
+            </button>
+          )}
+          {canDelete ? (
+            <button
+              type="button"
+              onClick={() => setIsDeleteDialogOpen(true)}
+              className="inline-flex items-center gap-2 rounded-lg border border-rose-200 bg-rose-50 px-4 py-2 text-sm font-medium text-rose-700 transition hover:bg-rose-100 dark:border-rose-900 dark:bg-rose-950 dark:text-rose-300 dark:hover:bg-rose-900"
+            >
+              🗑️ Excluir campeonato
+            </button>
+          ) : null}
+        </div>
       </div>
 
       <ConfirmDialog
@@ -91,24 +143,56 @@ export function ChampionshipPage() {
         onCancel={() => setIsDeleteDialogOpen(false)}
       />
 
-      {deleteError ? <Alert variant="danger">{deleteError}</Alert> : null}
+      <ConfirmDialog
+        isOpen={isArchiveDialogOpen}
+        title={championship.archivedAt ? 'Desarquivar campeonato' : 'Arquivar campeonato'}
+        description={
+          championship.archivedAt ? (
+            <>
+              Tem certeza que deseja desarquivar <strong>{championship.name}</strong>? Ele voltará a
+              aparecer na lista principal e permitirá novas edições e importações.
+            </>
+          ) : (
+            <>
+              Tem certeza que deseja arquivar <strong>{championship.name}</strong>? Campeonatos
+              arquivados não permitem criar novas edições nem importar pontuações CSV.
+            </>
+          )
+        }
+        confirmLabel={championship.archivedAt ? 'Desarquivar' : 'Arquivar'}
+        cancelLabel="Cancelar"
+        variant="warning"
+        isLoading={archiveMutation.isPending}
+        onConfirm={() => void archiveMutation.mutateAsync()}
+        onCancel={() => setIsArchiveDialogOpen(false)}
+      />
 
-      <div className="grid gap-3 sm:grid-cols-2">
-        <Link
-          to={`/organizador/campeonato/${championship.id}/edicao/nova`}
-          className="rounded-2xl border border-line bg-card px-5 py-4 text-foreground transition hover:border-brand"
-        >
-          <p className="font-medium">Nova edição</p>
-          <p className="mt-1 text-sm text-subtle">Criar rodada neste campeonato</p>
-        </Link>
-        <Link
-          to={`/organizador/campeonato/${championship.id}/importar`}
-          className="rounded-2xl border border-line bg-card px-5 py-4 text-foreground transition hover:border-brand"
-        >
-          <p className="font-medium">Importar pontuação CSV</p>
-          <p className="mt-1 text-sm text-subtle">Utilizar pontuação já existente</p>
-        </Link>
-      </div>
+      {deleteError ? <Alert variant="danger">{deleteError}</Alert> : null}
+      {archiveError ? <Alert variant="danger">{archiveError}</Alert> : null}
+
+      {championship.archivedAt ? (
+        <Alert variant="warning">
+          Este campeonato está arquivado. Não é possível criar novas edições nem importar pontuações
+          até que seja desarquivado.
+        </Alert>
+      ) : (
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Link
+            to={`/organizador/campeonato/${championship.id}/edicao/nova`}
+            className="rounded-2xl border border-line bg-card px-5 py-4 text-foreground transition hover:border-brand"
+          >
+            <p className="font-medium">Nova edição</p>
+            <p className="mt-1 text-sm text-subtle">Criar rodada neste campeonato</p>
+          </Link>
+          <Link
+            to={`/organizador/campeonato/${championship.id}/importar`}
+            className="rounded-2xl border border-line bg-card px-5 py-4 text-foreground transition hover:border-brand"
+          >
+            <p className="font-medium">Importar pontuação CSV</p>
+            <p className="mt-1 text-sm text-subtle">Utilizar pontuação já existente</p>
+          </Link>
+        </div>
+      )}
 
       <div className="rounded-2xl border border-line bg-card p-6">
         <h3 className="text-lg font-semibold text-foreground">Ranking atual</h3>
@@ -150,12 +234,14 @@ export function ChampionshipPage() {
         ) : editions.length === 0 ? (
           <div>
             <p className="mt-3 text-sm text-subtle">Nenhuma edição criada ainda.</p>
-            <Link
-              to={`/organizador/campeonato/${championship.id}/edicao/nova`}
-              className="mt-3 inline-block rounded-lg border border-brand bg-brand/10 px-4 py-2 text-sm font-medium text-brand transition hover:bg-brand/20"
-            >
-              Nova edição
-            </Link>
+            {!championship.archivedAt ? (
+              <Link
+                to={`/organizador/campeonato/${championship.id}/edicao/nova`}
+                className="mt-3 inline-block rounded-lg border border-brand bg-brand/10 px-4 py-2 text-sm font-medium text-brand transition hover:bg-brand/20"
+              >
+                Nova edição
+              </Link>
+            ) : null}
           </div>
         ) : (
           <ul className="mt-4 space-y-2">

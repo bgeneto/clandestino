@@ -101,6 +101,10 @@ export function CreateEditionPage() {
         <p className="text-sm text-subtle">Carregando campeonato…</p>
       ) : championshipQuery.isError ? (
         <Alert variant="warning">Campeonato não encontrado.</Alert>
+      ) : championshipQuery.data?.archivedAt ? (
+        <Alert variant="warning">
+          Este campeonato está arquivado. Desarquive-o para criar novas edições.
+        </Alert>
       ) : (
         <form
           className="space-y-4 rounded-2xl border border-line bg-card p-6"

@@ -1,5 +1,6 @@
 import type { TypeBoxTypeProvider } from '@fastify/type-provider-typebox';
 import {
+  ArchiveChampionshipResponseSchema,
   ChampionshipEditionsResponseSchema,
   ChampionshipListResponseSchema,
   ChampionshipRankingResponseSchema,
@@ -16,6 +17,7 @@ import {
   PlayerSchema,
   RequestOrganizerMagicLinkBodySchema,
   RequestOrganizerMagicLinkResponseSchema,
+  UnarchiveChampionshipResponseSchema,
   UpdateScoringTableBodySchema,
   validatePlayerName,
   PLAYER_NAME_DUPLICATE_MESSAGE,
@@ -569,6 +571,92 @@ export async function registerChampionshipRoutes(app: FastifyInstance): Promise<
   );
 
   typed.post(
+    '/championships/:id/archive',
+    {
+      preHandler: app.requireOrganizer,
+      schema: {
+        params: championshipIdParams,
+        response: {
+          200: ArchiveChampionshipResponseSchema,
+          401: ErrorResponseSchema,
+          404: ErrorResponseSchema,
+          409: ErrorResponseSchema,
+        },
+      },
+    },
+    async (request) => {
+      const championshipId = request.params.id;
+      const [championship] = await app.db
+        .select({ id: schema.championships.id, archivedAt: schema.championships.archivedAt })
+        .from(schema.championships)
+        .where(eq(schema.championships.id, championshipId))
+        .limit(1);
+
+      if (!championship) {
+        throw notFound('Campeonato não encontrado.');
+      }
+
+      if (championship.archivedAt) {
+        throw conflict('Campeonato já está arquivado.');
+      }
+
+      const archivedAt = new Date();
+      const [row] = await app.db
+        .update(schema.championships)
+        .set({ archivedAt })
+        .where(eq(schema.championships.id, championshipId))
+        .returning();
+
+      return {
+        id: championshipId,
+        archivedAt: row!.archivedAt!.toISOString(),
+      };
+    },
+  );
+
+  typed.post(
+    '/championships/:id/unarchive',
+    {
+      preHandler: app.requireOrganizer,
+      schema: {
+        params: championshipIdParams,
+        response: {
+          200: UnarchiveChampionshipResponseSchema,
+          401: ErrorResponseSchema,
+          404: ErrorResponseSchema,
+          409: ErrorResponseSchema,
+        },
+      },
+    },
+    async (request) => {
+      const championshipId = request.params.id;
+      const [championship] = await app.db
+        .select({ id: schema.championships.id, archivedAt: schema.championships.archivedAt })
+        .from(schema.championships)
+        .where(eq(schema.championships.id, championshipId))
+        .limit(1);
+
+      if (!championship) {
+        throw notFound('Campeonato não encontrado.');
+      }
+
+      if (!championship.archivedAt) {
+        throw conflict('Campeonato não está arquivado.');
+      }
+
+      await app.db
+        .update(schema.championships)
+        .set({ archivedAt: null })
+        .where(eq(schema.championships.id, championshipId));
+
+      return {
+        id: championshipId,
+        archivedAt: null,
+      };
+    },
+  );
+
+  typed.post(
     '/championships/:id/import-scores',
     {
       preHandler: app.requireOrganizer,
@@ -580,19 +668,24 @@ export async function registerChampionshipRoutes(app: FastifyInstance): Promise<
           400: ErrorResponseSchema,
           401: ErrorResponseSchema,
           404: ErrorResponseSchema,
+          409: ErrorResponseSchema,
         },
       },
     },
     async (request) => {
       const championshipId = request.params.id;
       const [championship] = await app.db
-        .select({ id: schema.championships.id })
+        .select({ id: schema.championships.id, archivedAt: schema.championships.archivedAt })
         .from(schema.championships)
         .where(eq(schema.championships.id, championshipId))
         .limit(1);
 
       if (!championship) {
         throw notFound('Campeonato não encontrado.');
+      }
+
+      if (championship.archivedAt) {
+        throw conflict('Não é possível importar pontuação em um campeonato arquivado.');
       }
 
       const csvContent = typeof request.body === 'string' ? request.body : '';

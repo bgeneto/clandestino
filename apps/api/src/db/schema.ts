@@ -64,6 +64,7 @@ export const championships = sqliteTable(
       .notNull()
       .default(DEFAULT_SCORING_TABLE),
     defaultEditionRules: text('default_edition_rules', { mode: 'json' }).$type<EditionRules>(),
+    archivedAt: integer('archived_at', { mode: 'timestamp_ms' }),
     createdAt,
   },
   (table) => [

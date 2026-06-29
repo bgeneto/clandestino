@@ -51,6 +51,10 @@ export async function registerEditionRoutes(app: FastifyInstance): Promise<void>
         throw notFound('Campeonato não encontrado.');
       }
 
+      if (championship.archivedAt) {
+        throw conflict('Não é possível criar edições em um campeonato arquivado.');
+      }
+
       const rules = request.body.rules ?? championship.defaultEditionRules ?? DEFAULT_EDITION_RULES;
       const rulesError = validateEditionRules(rules);
       if (rulesError) {

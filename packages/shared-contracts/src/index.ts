@@ -30,6 +30,8 @@ export {
   EditionSummarySchema,
   ChampionshipEditionsResponseSchema,
   DeleteChampionshipResponseSchema,
+  ArchiveChampionshipResponseSchema,
+  UnarchiveChampionshipResponseSchema,
   DEFAULT_SCORING_TABLE,
   type ScoringTableEntry,
   type ScoringTable,
@@ -44,6 +46,8 @@ export {
   type EditionSummary,
   type ChampionshipEditionsResponse,
   type DeleteChampionshipResponse,
+  type ArchiveChampionshipResponse,
+  type UnarchiveChampionshipResponse,
 } from './championship.js';
 
 export {

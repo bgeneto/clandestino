@@ -224,6 +224,10 @@ export function ImportCsvPage() {
         <p className="text-sm text-subtle">Carregando campeonato…</p>
       ) : championshipQuery.isError ? (
         <Alert variant="danger">Campeonato não encontrado.</Alert>
+      ) : championshipQuery.data?.archivedAt ? (
+        <Alert variant="warning">
+          Este campeonato está arquivado. Desarquive-o para importar pontuações.
+        </Alert>
       ) : (
         <div className="space-y-4 rounded-2xl border border-line bg-card p-6">
           <label className="block space-y-2 text-sm">

@@ -66,6 +66,7 @@ export function mapChampionship(row: ChampionshipRow): Championship {
     name: row.name,
     scoringTable: row.scoringTable,
     ...(row.defaultEditionRules ? { defaultEditionRules: row.defaultEditionRules } : {}),
+    ...(row.archivedAt ? { archivedAt: toIsoDateTime(row.archivedAt) } : {}),
     createdAt: toIsoDateTime(row.createdAt),
   };
 }

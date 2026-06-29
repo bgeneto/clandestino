@@ -1,4 +1,5 @@
 import type {
+  ArchiveChampionshipResponse,
   Championship,
   ChampionshipEditionsResponse,
   ChampionshipListResponse,
@@ -28,6 +29,7 @@ import type {
   RegisterPlayerBody,
   RequestOrganizerMagicLinkBody,
   RequestOrganizerMagicLinkResponse,
+  UnarchiveChampionshipResponse,
   UpdateScoringTableBody,
   VerifyOrganizerMagicLinkBody,
 } from '@clandestino/shared-contracts';
@@ -112,6 +114,24 @@ export async function deleteChampionship(
 ): Promise<DeleteChampionshipResponse> {
   return apiRequest<DeleteChampionshipResponse>(`/championships/${championshipId}`, {
     method: 'DELETE',
+    ...organizer,
+  });
+}
+
+export async function archiveChampionship(
+  championshipId: string,
+): Promise<ArchiveChampionshipResponse> {
+  return apiRequest<ArchiveChampionshipResponse>(`/championships/${championshipId}/archive`, {
+    method: 'POST',
+    ...organizer,
+  });
+}
+
+export async function unarchiveChampionship(
+  championshipId: string,
+): Promise<UnarchiveChampionshipResponse> {
+  return apiRequest<UnarchiveChampionshipResponse>(`/championships/${championshipId}/unarchive`, {
+    method: 'POST',
     ...organizer,
   });
 }

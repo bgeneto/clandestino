@@ -25,6 +25,7 @@ export const ChampionshipSchema = Type.Object(
     name: Type.String({ minLength: 1, maxLength: 120 }),
     scoringTable: ScoringTableSchema,
     defaultEditionRules: Type.Optional(EditionRulesSchema),
+    archivedAt: Type.Optional(IsoDateTimeSchema),
     createdAt: IsoDateTimeSchema,
   },
   { $id: 'Championship' },
@@ -137,6 +138,26 @@ export const DeleteChampionshipResponseSchema = Type.Object(
 );
 
 export type DeleteChampionshipResponse = Static<typeof DeleteChampionshipResponseSchema>;
+
+export const ArchiveChampionshipResponseSchema = Type.Object(
+  {
+    id: UuidSchema,
+    archivedAt: IsoDateTimeSchema,
+  },
+  { $id: 'ArchiveChampionshipResponse' },
+);
+
+export type ArchiveChampionshipResponse = Static<typeof ArchiveChampionshipResponseSchema>;
+
+export const UnarchiveChampionshipResponseSchema = Type.Object(
+  {
+    id: UuidSchema,
+    archivedAt: Type.Null(),
+  },
+  { $id: 'UnarchiveChampionshipResponse' },
+);
+
+export type UnarchiveChampionshipResponse = Static<typeof UnarchiveChampionshipResponseSchema>;
 
 /** Default scoring table: 1st=200 … 20th=1; positions beyond 20 receive 0 points. */
 export const DEFAULT_SCORING_TABLE: ScoringTable = [

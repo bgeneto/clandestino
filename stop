@@ -5,16 +5,17 @@
 #   ./stop                 # detecta a stack ativa e para
 #   ./stop dev               # para a stack de desenvolvimento
 #   ./stop prod              # para a stack de produção
-#   ./stop dev --volumes     # para e REMOVE o volume do banco (destrutivo)
+#   ./stop dev --volumes     # para e APAGA data/clandestino.db (destrutivo)
 #   ./stop --help
 #
-# Sem --volumes, os dados SQLite são preservados (apenas `down`).
+# Sem --volumes, os dados SQLite em data/ são preservados (apenas `down`).
 # ---------------------------------------------------------------------------
 set -euo pipefail
 
 readonly ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly COMPOSE_DEV="${ROOT_DIR}/docker-compose.dev.yml"
 readonly COMPOSE_PROD="${ROOT_DIR}/docker-compose.yml"
+readonly SQLITE_DB="${ROOT_DIR}/data/clandestino.db"
 
 usage() {
   cat <<'EOF'
@@ -26,7 +27,7 @@ Ambientes:
   prod             Para a stack de produção (api)
 
 Opções:
-  --volumes        Remove também o volume SQLite (DESTRUTIVO — apaga dados)
+  --volumes        Apaga também data/clandestino.db (DESTRUTIVO — dados perdidos)
   --help, -h       Mostra esta ajuda
 
 Exemplos:
@@ -95,12 +96,28 @@ detect_env() {
 
 confirm_volumes() {
   local env="$1"
-  warn "--volumes vai REMOVER o volume SQLite da stack ${env} (dados perdidos)."
+  warn "--volumes vai APAGAR data/clandestino.db da stack ${env} (dados perdidos)."
   printf '[stop] Digite "sim" para confirmar: '
   local answer=""
   read -r answer
   if [[ "${answer}" != "sim" ]]; then
-    die "Cancelado — volume preservado."
+    die "Cancelado — banco preservado."
+  fi
+}
+
+remove_sqlite_data() {
+  local removed="false"
+  local f
+  for f in "${SQLITE_DB}" "${SQLITE_DB}-wal" "${SQLITE_DB}-shm"; do
+    if [[ -f "${f}" ]]; then
+      rm -f "${f}"
+      removed="true"
+    fi
+  done
+  if [[ "${removed}" == "true" ]]; then
+    log "Banco removido: data/clandestino.db"
+  else
+    log "Nenhum arquivo data/clandestino.db encontrado."
   fi
 }
 
@@ -110,21 +127,29 @@ stop_stack() {
   local compose_file
   compose_file="$(compose_file_for "${env}")"
 
-  if ! compose_running "${compose_file}"; then
+  if [[ "${remove_volumes}" == "true" ]]; then
+    confirm_volumes "${env}"
+  fi
+
+  if compose_running "${compose_file}"; then
+    if [[ "${remove_volumes}" == "true" ]]; then
+      log "Parando stack ${env} e removendo volumes Docker..."
+      docker compose -f "${compose_file}" down --volumes
+    else
+      log "Parando stack ${env} (dados preservados)..."
+      docker compose -f "${compose_file}" down
+    fi
+    log "Stack ${env} parada."
+  elif [[ "${remove_volumes}" != "true" ]]; then
     log "Stack ${env} não está ativa. Nada a parar."
     return 0
+  else
+    log "Stack ${env} não está ativa; removendo banco em data/..."
   fi
 
   if [[ "${remove_volumes}" == "true" ]]; then
-    confirm_volumes "${env}"
-    log "Parando stack ${env} e removendo volumes..."
-    docker compose -f "${compose_file}" down --volumes
-  else
-    log "Parando stack ${env} (dados preservados)..."
-    docker compose -f "${compose_file}" down
+    remove_sqlite_data
   fi
-
-  log "Stack ${env} parada."
 }
 
 main() {

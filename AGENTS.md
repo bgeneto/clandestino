@@ -105,7 +105,7 @@ React + Vite + PWA (`apps/web/`):
 | ------------------------------- | ---------------------------------------------------------------- |
 | `start`                         | Wrapper: `./start dev`, `./start dev --seed`, `./start prod`     |
 | `stop`                          | Wrapper: `./stop [dev\|prod] [--volumes]` (auto-detecta a stack) |
-| `docker-compose.yml`            | Serviço `api` (produção) com volume SQLite `clandestino-data`    |
+| `docker-compose.yml`            | Serviço `api` (produção) com bind mount `./data` → `/app/data`   |
 | `docker-compose.dev.yml`        | Dev completo: `api` + `web` + `caddy` (`clandestino.test`)       |
 | `Dockerfile.dev`                | Imagem compartilhada dev (deps + build de `packages/*`)          |
 | `docker/caddy/Caddyfile.dev`    | Reverse proxy dev: `/api/*` → API, `/*` → Vite                   |
@@ -209,11 +209,11 @@ Pré-requisito: `127.0.0.1 clandestino.test` no hosts (no WSL2, hosts do **Windo
 # com seed de exemplo
 ./start dev --seed
 
-# parar (volume clandestino-data-dev preservado)
+# parar (data/clandestino.db preservado)
 ./stop dev
 ```
 
-O script `./start` recusa subir dev se prod estiver rodando (e vice-versa). Seed em prod é bloqueado (`./start prod --seed` → erro). Para parar, `./stop` detecta a stack ativa; `./stop <env> --volumes` remove o volume SQLite (pede confirmação).
+O script `./start` recusa subir dev se prod estiver rodando (e vice-versa). Seed em prod é bloqueado (`./start prod --seed` → erro). Para parar, `./stop` detecta a stack ativa; `./stop <env> --volumes` apaga `data/clandestino.db` (pede confirmação; não remove `clandestino_test.db`).
 
 `./start dev` sobe a stack em segundo plano (`-d`). Equivalente manual: `docker compose -f docker-compose.dev.yml up -d --build`.
 
@@ -228,7 +228,7 @@ O script `./start` recusa subir dev se prod estiver rodando (e vice-versa). Seed
 | Seed              | `./start dev --seed` (opcional)                               |
 | Hot reload        | `apps/api` e `apps/web` montados por volume                   |
 | Rebuild da imagem | após mudar `Dockerfile.dev`, deps ou `packages/*` (`--build`) |
-| Banco SQLite      | volume `clandestino-data-dev` → `/app/data/clandestino.db`    |
+| Banco SQLite      | bind mount `./data` → `/app/data/clandestino.db`              |
 
 Não depende de `apps/api/.env` — variáveis vêm do `docker-compose.dev.yml`.
 

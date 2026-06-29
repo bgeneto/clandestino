@@ -68,7 +68,7 @@ O comportamento da API depende de `NODE_ENV` e das variáveis abaixo. Use esta t
 | URL do app                  | `http://localhost:5173`                           | `http://clandestino.test` (hosts + Caddy)   | URL pública HTTPS                                   |
 | API                         | `pnpm dev` no host (hot reload)                   | container `api` (hot reload via volume)     | Imagem Docker (`docker compose up api`)             |
 | PWA                         | `pnpm dev` no host (Vite, proxy `/api` → `:3000`) | container `web` (Vite atrás do Caddy)       | `pnpm build` + servir `apps/web/dist` (Caddy/nginx) |
-| Banco                       | Arquivo SQLite (`data/clandestino.db`)            | volume Docker `clandestino-data-dev`        | volume Docker `clandestino-data`                    |
+| Banco                       | Arquivo SQLite (`data/clandestino.db`)            | bind mount `./data` → `/app/data`           | bind mount `./data` → `/app/data`                   |
 | Seed                        | `db:seed` manual                                  | `./start dev --seed`                        | **Não** usar seed (`SEED_ON_START=false`)           |
 | `PUBLIC_APP_URL`            | `http://localhost:5173`                           | `http://clandestino.test`                   | URL pública HTTPS do PWA                            |
 | `ORGANIZER_ALLOWED_EMAILS`  | `organizador@gmail.com`                           | `organizador@gmail.com`                     | E-mails reais do organizador                        |
@@ -90,7 +90,7 @@ Dois fluxos válidos:
 
 ### Stack completa via Caddy (`clandestino.test`) — recomendado para testar no browser
 
-Um único comando sobe **API + PWA + Caddy**. O proxy encaminha `/api/*` para a API e `/*` para o Vite — mesmo padrão de produção. Hot reload em `apps/api` e `apps/web` (código montado por volume). O banco SQLite fica no volume `clandestino-data-dev`.
+Um único comando sobe **API + PWA + Caddy**. O proxy encaminha `/api/*` para a API e `/*` para o Vite — mesmo padrão de produção. Hot reload em `apps/api` e `apps/web` (código montado por volume). O banco SQLite fica em `data/clandestino.db` (bind mount compartilhado com o fluxo host).
 
 Arquivos: `start`, `docker-compose.dev.yml`, `Dockerfile.dev`, `docker/caddy/Caddyfile.dev`.
 
@@ -142,7 +142,7 @@ SEED_ON_START=true docker compose -f docker-compose.dev.yml up -d --build
 ```bash
 ./stop                                                   # detecta a stack ativa e para (dados preservados)
 ./stop dev                                               # para explicitamente a stack dev
-./stop dev --volumes                                     # para e REMOVE o volume SQLite (pede confirmação)
+./stop dev --volumes                                     # para e APAGA data/clandestino.db (pede confirmação)
 docker compose -f docker-compose.dev.yml logs -f         # acompanhar todos os serviços
 docker compose -f docker-compose.dev.yml logs -f api     # só a API
 ./start dev                                              # rebuild após mudar Dockerfile.dev / packages/*
@@ -151,7 +151,7 @@ docker compose -f docker-compose.dev.yml logs -f api     # só a API
 Observações:
 
 - Editou `packages/shared-contracts` ou `packages/tournament-engine`? Rebuild (`./start dev` refaz `--build`) — eles são consumidos via `./dist`.
-- Dev e prod usam volumes Docker distintos (`clandestino-data-dev` vs `clandestino-data`).
+- Dev e prod compartilham o mesmo bind mount `./data` (não rodam ao mesmo tempo).
 - `./start prod --seed` é rejeitado (seed só em dev).
 - `./stop` sem argumento detecta automaticamente qual stack está ativa; sem `--volumes`, os dados SQLite são preservados.
 
@@ -221,7 +221,7 @@ O diretório pai do arquivo é criado automaticamente no primeiro acesso.
 
 ## Produção (Docker Compose)
 
-O `docker-compose.yml` sobe a **API** com `NODE_ENV=production`. O banco SQLite persiste no volume `clandestino-data`. O PWA é buildado separadamente e servido por proxy reverso (Caddy/nginx) na frente da API e dos arquivos estáticos.
+O `docker-compose.yml` sobe a **API** com `NODE_ENV=production`. O banco SQLite persiste em `data/clandestino.db` (bind mount `./data`). O PWA é buildado separadamente e servido por proxy reverso (Caddy/nginx) na frente da API e dos arquivos estáticos.
 
 ### 1. Ajustar variáveis no Compose
 
@@ -232,7 +232,7 @@ Edite `docker-compose.yml` (ou use um arquivo `.env` na raiz lido pelo Compose) 
 | `NODE_ENV`                 | `production` (já definido no serviço `api`)                  |
 | `PUBLIC_APP_URL`           | URL pública do PWA, ex. `https://clandestino.sistema.pro.br` |
 | `ORGANIZER_ALLOWED_EMAILS` | E-mails reais, separados por vírgula                         |
-| `DATABASE_URL`             | `file:/app/data/clandestino.db` (volume Docker)              |
+| `DATABASE_URL`             | `file:/app/data/clandestino.db` (bind mount `./data`)        |
 | `SEED_ON_START`            | `false` (padrão) — **não** popular dados fictícios           |
 
 Em produção, magic links **não** aparecem na resposta HTTP — é necessário enviar o link por e-mail (integração futura) ou consultar os logs do servidor.
@@ -358,7 +358,7 @@ Fonte da verdade: `apps/api/src/config.ts`.
 | `./start --help`                             | Ajuda do wrapper de start                        |
 | `./stop`                                     | Detecta a stack ativa e para (dados preservados) |
 | `./stop dev` / `./stop prod`                 | Para a stack indicada                            |
-| `./stop <env> --volumes`                     | Para e remove o volume SQLite (confirmação)      |
+| `./stop <env> --volumes`                     | Para e apaga `data/clandestino.db` (confirmação) |
 | `pnpm build`                                 | Compila todos os workspaces                      |
 | `pnpm test`                                  | Testes da raiz (contracts + engine)              |
 | `pnpm typecheck`                             | TypeScript em todos os pacotes                   |

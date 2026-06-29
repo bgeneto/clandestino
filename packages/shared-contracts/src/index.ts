@@ -178,8 +178,10 @@ export {
   RequestOrganizerMagicLinkResponseSchema,
   VerifyOrganizerMagicLinkBodySchema,
   OrganizerSessionResponseSchema,
+  OrganizerSessionStatusSchema,
   type RequestOrganizerMagicLinkBody,
   type RequestOrganizerMagicLinkResponse,
   type VerifyOrganizerMagicLinkBody,
   type OrganizerSessionResponse,
+  type OrganizerSessionStatus,
 } from './auth.js';

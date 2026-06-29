@@ -42,3 +42,13 @@ export const OrganizerSessionResponseSchema = Type.Object(
 );
 
 export type OrganizerSessionResponse = Static<typeof OrganizerSessionResponseSchema>;
+
+export const OrganizerSessionStatusSchema = Type.Object(
+  {
+    email: Type.String({ format: 'email' }),
+    expiresAt: IsoDateTimeSchema,
+  },
+  { $id: 'OrganizerSessionStatus' },
+);
+
+export type OrganizerSessionStatus = Static<typeof OrganizerSessionStatusSchema>;

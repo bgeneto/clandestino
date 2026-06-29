@@ -1,4 +1,8 @@
-import { Navigate, Outlet } from 'react-router-dom';
+import { useEffect } from 'react';
+import { Navigate, Outlet, useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import { ApiError } from '../../lib/api-client.js';
+import { fetchOrganizerSession } from '../../lib/organizer-api.js';
 import { useOrganizerSession } from '../../hooks/use-organizer-session.js';
 
 export type OrganizerOutletContext = {
@@ -6,9 +10,37 @@ export type OrganizerOutletContext = {
 };
 
 export function OrganizerLayout() {
+  const navigate = useNavigate();
   const { session, isLoading, clearSession } = useOrganizerSession();
 
-  if (isLoading) {
+  const sessionCheck = useQuery({
+    queryKey: ['organizer', 'session-check'],
+    queryFn: fetchOrganizerSession,
+    enabled: !isLoading && session !== undefined,
+    retry: false,
+    staleTime: 60_000,
+  });
+
+  const sessionInvalid =
+    sessionCheck.isError &&
+    sessionCheck.error instanceof ApiError &&
+    sessionCheck.error.status === 401;
+
+  useEffect(() => {
+    if (!sessionInvalid) {
+      return;
+    }
+
+    void clearSession().then(() => {
+      void navigate('/organizador?sessao=expirada', { replace: true });
+    });
+  }, [sessionInvalid, clearSession, navigate]);
+
+  if (isLoading || (session && sessionCheck.isPending)) {
+    return null;
+  }
+
+  if (sessionInvalid) {
     return null;
   }
 

@@ -96,6 +96,25 @@ describe.skipIf(!hasTestDb)('autenticação do organizador (integração HTTP)',
     expect(created.statusCode).toBe(201);
   });
 
+  it('GET /auth/organizer/session valida sessão ativa e rejeita token inválido', async () => {
+    const sessionToken = await loginOrganizer(app);
+
+    const valid = await app.inject({
+      method: 'GET',
+      url: '/auth/organizer/session',
+      headers: { authorization: `Bearer ${sessionToken}` },
+    });
+    expect(valid.statusCode).toBe(200);
+    expect(valid.json<{ email: string; expiresAt: string }>().email).toBe(ALLOWED_EMAIL);
+
+    const invalid = await app.inject({
+      method: 'GET',
+      url: '/auth/organizer/session',
+      headers: { authorization: 'Bearer token-invalido' },
+    });
+    expect(invalid.statusCode).toBe(401);
+  });
+
   it('NÃO expõe magic link quando NODE_ENV=production', async () => {
     const prodApp = await createTestApp({ NODE_ENV: 'production' });
     try {

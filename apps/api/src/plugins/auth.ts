@@ -40,16 +40,7 @@ export async function registerAuthHooks(app: FastifyInstance): Promise<void> {
         throw unauthorized();
       }
 
-      const [session] = await app.db
-        .select({ email: schema.organizerSessions.email })
-        .from(schema.organizerSessions)
-        .where(
-          and(
-            eq(schema.organizerSessions.tokenHash, hashToken(token)),
-            gt(schema.organizerSessions.expiresAt, new Date()),
-          ),
-        )
-        .limit(1);
+      const session = await resolveOrganizerSession(app, token);
 
       if (!session) {
         throw unauthorized('Sessão de organizador inválida ou expirada.');
@@ -104,9 +95,12 @@ declare module 'fastify' {
 export async function resolveOrganizerSession(
   app: FastifyInstance,
   token: string,
-): Promise<string | null> {
+): Promise<{ email: string; expiresAt: Date } | null> {
   const [session] = await app.db
-    .select({ email: schema.organizerSessions.email })
+    .select({
+      email: schema.organizerSessions.email,
+      expiresAt: schema.organizerSessions.expiresAt,
+    })
     .from(schema.organizerSessions)
     .where(
       and(
@@ -116,7 +110,11 @@ export async function resolveOrganizerSession(
     )
     .limit(1);
 
-  return session?.email ?? null;
+  if (!session) {
+    return null;
+  }
+
+  return session;
 }
 
 export async function consumeMagicToken(

@@ -1,6 +1,8 @@
 import type { SubmitMatchResultBody } from '@clandestino/shared-contracts';
 import { buildApiUrl } from './api-config.js';
-import { db, ORGANIZER_SESSION_ROW_ID, SESSION_ROW_ID } from '../db/clandestino-db.js';
+import { getOrganizerSession } from './organizer-session.js';
+import { invalidateOrganizerSession } from './organizer-session-guard.js';
+import { db, SESSION_ROW_ID } from '../db/clandestino-db.js';
 
 export class ApiError extends Error {
   readonly status: number;
@@ -21,7 +23,7 @@ export type ApiRequestOptions = Omit<RequestInit, 'body'> & {
 };
 
 async function readOrganizerHeaders(): Promise<Record<string, string>> {
-  const session = await db.organizerSession.get(ORGANIZER_SESSION_ROW_ID);
+  const session = await getOrganizerSession();
   if (!session) {
     return {};
   }
@@ -83,6 +85,10 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
       details = payload.details;
     } catch {
       // resposta não-JSON
+    }
+
+    if (response.status === 401 && options.organizerAuth) {
+      await invalidateOrganizerSession();
     }
 
     throw new ApiError(message, response.status, details);

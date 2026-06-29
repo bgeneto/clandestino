@@ -35,6 +35,7 @@ data/
 .agents/
 .cursor/
 .vscode/
+.VSCodeCounter/
 .idea/
 .kilo/
 

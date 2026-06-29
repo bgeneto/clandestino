@@ -9,6 +9,7 @@ import {
   ErrorResponseSchema,
   ImportScoresResponseSchema,
   OrganizerSessionResponseSchema,
+  OrganizerSessionStatusSchema,
   PlayerListResponseSchema,
   PlayerSchema,
   RequestOrganizerMagicLinkBodySchema,
@@ -38,7 +39,7 @@ import {
 import { mapChampionship, mapEditionSummary, mapPlayer } from '../lib/mappers.js';
 import { parseImportScoresCsv } from '../lib/csv.js';
 import { findOrCreatePlayerByName } from '../lib/players.js';
-import { consumeMagicToken } from '../plugins/auth.js';
+import { consumeMagicToken, resolveOrganizerSession } from '../plugins/auth.js';
 
 export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
   const typed = app.withTypeProvider<TypeBoxTypeProvider>();
@@ -125,6 +126,39 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
         sessionToken,
         email: consumed.email,
         expiresAt: expiresAt.toISOString(),
+      };
+    },
+  );
+
+  typed.get(
+    '/auth/organizer/session',
+    {
+      schema: {
+        response: {
+          200: OrganizerSessionStatusSchema,
+          401: ErrorResponseSchema,
+        },
+      },
+    },
+    async (request) => {
+      const header = request.headers.authorization;
+      if (!header?.startsWith('Bearer ')) {
+        throw unauthorized();
+      }
+
+      const token = header.slice('Bearer '.length).trim();
+      if (!token) {
+        throw unauthorized();
+      }
+
+      const session = await resolveOrganizerSession(app, token);
+      if (!session) {
+        throw unauthorized('Sessão de organizador inválida ou expirada.');
+      }
+
+      return {
+        email: session.email,
+        expiresAt: session.expiresAt.toISOString(),
       };
     },
   );

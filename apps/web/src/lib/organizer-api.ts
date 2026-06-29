@@ -18,6 +18,7 @@ import type {
   GenerateMatchesResponse,
   ImportScoresResponse,
   OrganizerSessionResponse,
+  OrganizerSessionStatus,
   Player,
   PlayerListResponse,
   CreatePlayerBody,
@@ -30,7 +31,8 @@ import type {
 } from '@clandestino/shared-contracts';
 import { apiRequest, ApiError } from './api-client.js';
 import { buildApiUrl } from './api-config.js';
-import { db, ORGANIZER_SESSION_ROW_ID } from '../db/clandestino-db.js';
+import { getOrganizerSession } from './organizer-session.js';
+import { invalidateOrganizerSession } from './organizer-session-guard.js';
 
 const organizer = { organizerAuth: true } as const;
 
@@ -49,6 +51,12 @@ export async function verifyOrganizerMagicLink(
   return apiRequest<OrganizerSessionResponse>('/auth/organizer/verify', {
     method: 'POST',
     body,
+  });
+}
+
+export async function fetchOrganizerSession(): Promise<OrganizerSessionStatus> {
+  return apiRequest<OrganizerSessionStatus>('/auth/organizer/session', {
+    ...organizer,
   });
 }
 
@@ -202,7 +210,7 @@ export async function importChampionshipScores(
   championshipId: string,
   csvContent: string,
 ): Promise<ImportScoresResponse> {
-  const session = await db.organizerSession.get(ORGANIZER_SESSION_ROW_ID);
+  const session = await getOrganizerSession();
   const headers: Record<string, string> = {
     Accept: 'application/json',
     'Content-Type': 'text/csv',
@@ -227,6 +235,10 @@ export async function importChampionshipScores(
       }
     } catch {
       // resposta não-JSON
+    }
+
+    if (response.status === 401) {
+      await invalidateOrganizerSession();
     }
 
     throw new ApiError(message, response.status);

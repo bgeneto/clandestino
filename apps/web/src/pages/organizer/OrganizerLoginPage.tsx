@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Link, Navigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Link, Navigate, useSearchParams } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
 import { ApiError } from '../../lib/api-client.js';
 import { requestOrganizerMagicLink } from '../../lib/organizer-api.js';
@@ -7,11 +7,19 @@ import { useOrganizerSession } from '../../hooks/use-organizer-session.js';
 import { Alert } from '../../components/ui/Alert.js';
 
 export function OrganizerLoginPage() {
-  const { isLoggedIn } = useOrganizerSession();
+  const [searchParams] = useSearchParams();
+  const sessionExpired = searchParams.get('sessao') === 'expirada';
+  const { isLoggedIn, clearSession } = useOrganizerSession();
   const [email, setEmail] = useState('');
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [devLink, setDevLink] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (sessionExpired) {
+      void clearSession();
+    }
+  }, [sessionExpired, clearSession]);
 
   const requestMutation = useMutation({
     mutationFn: () => requestOrganizerMagicLink({ email: email.trim() }),
@@ -31,7 +39,7 @@ export function OrganizerLoginPage() {
     },
   });
 
-  if (isLoggedIn) {
+  if (isLoggedIn && !sessionExpired) {
     return <Navigate to="/organizador/painel" replace />;
   }
 
@@ -43,6 +51,12 @@ export function OrganizerLoginPage() {
           Informe o e-mail autorizado para receber um link de acesso seguro.
         </p>
       </div>
+
+      {sessionExpired ? (
+        <Alert variant="warning">
+          Sessão de organizador inválida ou expirada. Solicite um novo link de acesso.
+        </Alert>
+      ) : null}
 
       <form
         className="space-y-4 rounded-2xl border border-line bg-card p-6"

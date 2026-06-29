@@ -7,6 +7,7 @@ import type {
   CorrectMatchResultBody,
   CreateChampionshipBody,
   CreateEditionBody,
+  DeleteChampionshipResponse,
   DrawSnapshotListResponse,
   Edition,
   EditionContestedMatchesResponse,
@@ -104,6 +105,15 @@ export async function fetchChampionshipRoster(
   championshipId: string,
 ): Promise<ChampionshipRosterResponse> {
   return apiRequest<ChampionshipRosterResponse>(`/championships/${championshipId}/roster`);
+}
+
+export async function deleteChampionship(
+  championshipId: string,
+): Promise<DeleteChampionshipResponse> {
+  return apiRequest<DeleteChampionshipResponse>(`/championships/${championshipId}`, {
+    method: 'DELETE',
+    ...organizer,
+  });
 }
 
 export async function fetchPlayers(): Promise<PlayerListResponse> {

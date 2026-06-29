@@ -29,6 +29,7 @@ export {
   ChampionshipRosterResponseSchema,
   EditionSummarySchema,
   ChampionshipEditionsResponseSchema,
+  DeleteChampionshipResponseSchema,
   DEFAULT_SCORING_TABLE,
   type ScoringTableEntry,
   type ScoringTable,
@@ -42,6 +43,7 @@ export {
   type ChampionshipRosterResponse,
   type EditionSummary,
   type ChampionshipEditionsResponse,
+  type DeleteChampionshipResponse,
 } from './championship.js';
 
 export {

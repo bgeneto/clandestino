@@ -128,6 +128,16 @@ export const ChampionshipEditionsResponseSchema = Type.Object(
 
 export type ChampionshipEditionsResponse = Static<typeof ChampionshipEditionsResponseSchema>;
 
+export const DeleteChampionshipResponseSchema = Type.Object(
+  {
+    id: UuidSchema,
+    deletedAt: IsoDateTimeSchema,
+  },
+  { $id: 'DeleteChampionshipResponse' },
+);
+
+export type DeleteChampionshipResponse = Static<typeof DeleteChampionshipResponseSchema>;
+
 /** Default scoring table: 1st=200 … 20th=1; positions beyond 20 receive 0 points. */
 export const DEFAULT_SCORING_TABLE: ScoringTable = [
   { position: 1, points: 200 },

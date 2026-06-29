@@ -7,6 +7,7 @@ import {
   ChampionshipSchema,
   CreateChampionshipBodySchema,
   CreatePlayerBodySchema,
+  DeleteChampionshipResponseSchema,
   ErrorResponseSchema,
   ImportScoresResponseSchema,
   OrganizerSessionResponseSchema,
@@ -21,7 +22,7 @@ import {
   VerifyOrganizerMagicLinkBodySchema,
 } from '@clandestino/shared-contracts';
 import { Type } from '@sinclair/typebox';
-import { and, asc, desc, eq } from 'drizzle-orm';
+import { and, asc, desc, eq, sql } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import { schema } from '../db/index.js';
 import {
@@ -89,7 +90,7 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
 
       return {
         message:
-          'Verifique seu e-mail, se ele estiver autorizado, um link de acesso terá sido enviado para você.',
+          'Verifique seu e-mail. Se ele estiver autorizado, um link de acesso terá sido enviado para você.',
         expiresInMinutes: app.config.organizerMagicLinkTtlMinutes,
         ...(app.config.exposeMagicLinks ? { magicLink: verifyUrl } : {}),
       };
@@ -506,6 +507,64 @@ export async function registerChampionshipRoutes(app: FastifyInstance): Promise<
       }
 
       return mapChampionship(row);
+    },
+  );
+
+  typed.delete(
+    '/championships/:id',
+    {
+      preHandler: app.requireOrganizer,
+      schema: {
+        params: championshipIdParams,
+        response: {
+          200: DeleteChampionshipResponseSchema,
+          401: ErrorResponseSchema,
+          404: ErrorResponseSchema,
+          409: ErrorResponseSchema,
+        },
+      },
+    },
+    async (request) => {
+      const championshipId = request.params.id;
+
+      const [championship] = await app.db
+        .select({ id: schema.championships.id })
+        .from(schema.championships)
+        .where(eq(schema.championships.id, championshipId))
+        .limit(1);
+
+      if (!championship) {
+        throw notFound('Campeonato não encontrado.');
+      }
+
+      const [editionCountRow, pointsCountRow] = await Promise.all([
+        app.db
+          .select({ count: sql<number>`count(*)` })
+          .from(schema.editions)
+          .where(eq(schema.editions.championshipId, championshipId)),
+        app.db
+          .select({ count: sql<number>`count(*)` })
+          .from(schema.championshipPlayerPoints)
+          .where(eq(schema.championshipPlayerPoints.championshipId, championshipId)),
+      ]);
+
+      const editionCount = editionCountRow[0]?.count ?? 0;
+      const pointsCount = pointsCountRow[0]?.count ?? 0;
+
+      if (editionCount > 0) {
+        throw conflict('Não é possível excluir um campeonato que possui edições.');
+      }
+
+      if (pointsCount > 0) {
+        throw conflict('Não é possível excluir um campeonato que possui pontuações importadas.');
+      }
+
+      await app.db.delete(schema.championships).where(eq(schema.championships.id, championshipId));
+
+      return {
+        id: championshipId,
+        deletedAt: new Date().toISOString(),
+      };
     },
   );
 

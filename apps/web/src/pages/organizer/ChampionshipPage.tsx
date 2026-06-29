@@ -1,4 +1,6 @@
-import { Link, useParams } from 'react-router-dom';
+import { useState } from 'react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   useChampionship,
   useChampionshipEditions,
@@ -6,12 +8,36 @@ import {
 } from '../../hooks/use-organizer-data.js';
 import { formatEditionDate, formatEditionStatus } from '../../lib/format.js';
 import { Alert } from '../../components/ui/Alert.js';
+import { ConfirmDialog } from '../../components/ui/ConfirmDialog.js';
+import { ApiError } from '../../lib/api-client.js';
+import { deleteChampionship } from '../../lib/organizer-api.js';
+import { queryKeys } from '../../lib/query-keys.js';
 
 export function ChampionshipPage() {
   const { championshipId } = useParams<{ championshipId: string }>();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const championshipQuery = useChampionship(championshipId);
   const editionsQuery = useChampionshipEditions(championshipId);
   const rankingQuery = useChampionshipRanking(championshipId);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  const deleteMutation = useMutation({
+    mutationFn: () => deleteChampionship(championshipId!),
+    onSuccess: async () => {
+      setDeleteError(null);
+      setIsDeleteDialogOpen(false);
+      await queryClient.invalidateQueries({ queryKey: queryKeys.championships() });
+      void navigate('/organizador/painel');
+    },
+    onError: (error) => {
+      setDeleteError(
+        error instanceof ApiError ? error.message : 'Não foi possível excluir o campeonato.',
+      );
+      setIsDeleteDialogOpen(false);
+    },
+  });
 
   if (championshipQuery.isLoading) {
     return <p className="text-sm text-subtle">Carregando campeonato…</p>;
@@ -25,6 +51,7 @@ export function ChampionshipPage() {
   const editions = editionsQuery.data ?? [];
   const ranking = rankingQuery.data ?? [];
   const activeEditions = editions.filter((edition) => edition.status !== 'ENCERRADA');
+  const canDelete = editions.length === 0 && ranking.length === 0;
 
   return (
     <section className="space-y-6">
@@ -36,7 +63,35 @@ export function ChampionshipPage() {
         <p className="mt-2 text-sm text-muted">
           {activeEditions.length} edição(ões) em andamento · {ranking.length} jogadores no ranking
         </p>
+        {canDelete ? (
+          <button
+            type="button"
+            onClick={() => setIsDeleteDialogOpen(true)}
+            className="mt-4 inline-flex items-center gap-2 rounded-lg border border-rose-200 bg-rose-50 px-4 py-2 text-sm font-medium text-rose-700 transition hover:bg-rose-100 dark:border-rose-900 dark:bg-rose-950 dark:text-rose-300 dark:hover:bg-rose-900"
+          >
+            🗑️ Excluir campeonato
+          </button>
+        ) : null}
       </div>
+
+      <ConfirmDialog
+        isOpen={isDeleteDialogOpen}
+        title="Excluir campeonato"
+        description={
+          <>
+            Tem certeza que deseja excluir <strong>{championship.name}</strong>? Esta ação não pode
+            ser desfeita.
+          </>
+        }
+        confirmLabel="Excluir"
+        cancelLabel="Cancelar"
+        variant="danger"
+        isLoading={deleteMutation.isPending}
+        onConfirm={() => void deleteMutation.mutateAsync()}
+        onCancel={() => setIsDeleteDialogOpen(false)}
+      />
+
+      {deleteError ? <Alert variant="danger">{deleteError}</Alert> : null}
 
       <div className="grid gap-3 sm:grid-cols-2">
         <Link

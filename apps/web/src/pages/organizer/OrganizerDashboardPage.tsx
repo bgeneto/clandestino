@@ -17,12 +17,12 @@ export function OrganizerDashboardPage() {
       </div>
 
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-foreground">Campeonatos</h3>
+        <h3 className="text-lg font-semibold text-foreground">Todos os Campeonatos</h3>
         <Link
           to="/organizador/campeonato/novo"
           className="rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white"
         >
-          Novo Campeonato
+          🞤 Novo campeonato
         </Link>
       </div>
 

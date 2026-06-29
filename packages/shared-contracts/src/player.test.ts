@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { normalizePlayerName, validatePlayerName } from './player.js';
+import {
+  findDuplicateNormalizedPlayerName,
+  normalizePlayerName,
+  validatePlayerName,
+} from './player.js';
 
 describe('normalizePlayerName', () => {
   it('trims whitespace and uppercases', () => {
@@ -38,5 +42,19 @@ describe('validatePlayerName', () => {
       ok: false,
       error: 'Nome deve ter ao menos 2 caracteres.',
     });
+  });
+});
+
+describe('findDuplicateNormalizedPlayerName', () => {
+  it('detects duplicates after trimming, casing and whitespace normalization', () => {
+    const existing = ['ANA SOUZA', 'BRUNO LIMA'];
+
+    expect(findDuplicateNormalizedPlayerName('ana souza', existing)).toBe('ANA SOUZA');
+    expect(findDuplicateNormalizedPlayerName('  Ana   Souza  ', existing)).toBe('ANA SOUZA');
+    expect(findDuplicateNormalizedPlayerName('CARLA MENDES', existing)).toBeNull();
+  });
+
+  it('returns null for invalid candidate names', () => {
+    expect(findDuplicateNormalizedPlayerName('a', ['ANA SOUZA'])).toBeNull();
   });
 });

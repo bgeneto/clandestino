@@ -102,6 +102,22 @@ describe.skipIf(!hasTestDb)('jogadores, campeonatos e importação CSV (integra�
     );
   });
 
+  it('rejeita cadastro com nome equivalente após normalização de espaços (409)', async () => {
+    await createPlayer('Ana Souza');
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/players',
+      headers: organizerHeaders(organizerToken),
+      payload: { name: '  ana   souza  ' },
+    });
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json<{ error: string }>().error.toLowerCase()).toContain(
+      'já existe um jogador',
+    );
+  });
+
   it('rejeita criação duplicada de campeonato (409)', async () => {
     await createChampionship('Campeonato Duplicado');
 

@@ -17,6 +17,7 @@ import {
   RequestOrganizerMagicLinkResponseSchema,
   UpdateScoringTableBodySchema,
   validatePlayerName,
+  PLAYER_NAME_DUPLICATE_MESSAGE,
   VerifyOrganizerMagicLinkBodySchema,
 } from '@clandestino/shared-contracts';
 import { Type } from '@sinclair/typebox';
@@ -40,7 +41,7 @@ import {
 import { mapChampionship, mapEditionSummary, mapPlayer } from '../lib/mappers.js';
 import { parseImportScoresCsv } from '../lib/csv.js';
 import { listChampionshipRoster } from '../lib/championship-roster.js';
-import { findOrCreatePlayerByName } from '../lib/players.js';
+import { findOrCreatePlayerByName, findPlayerByNormalizedName } from '../lib/players.js';
 import { consumeMagicToken, resolveOrganizerSession } from '../plugins/auth.js';
 
 export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
@@ -232,6 +233,11 @@ export async function registerPlayerRoutes(app: FastifyInstance): Promise<void> 
 
       const name = nameValidation.name;
 
+      const existing = await findPlayerByNormalizedName(app.db, name);
+      if (existing) {
+        throw conflict(PLAYER_NAME_DUPLICATE_MESSAGE);
+      }
+
       try {
         const [row] = await app.db.insert(schema.players).values({ name }).returning();
 
@@ -243,7 +249,7 @@ export async function registerPlayerRoutes(app: FastifyInstance): Promise<void> 
         return mapPlayer(row);
       } catch (error) {
         if (isUniqueViolation(error)) {
-          throw conflict('Já existe um jogador com este nome.');
+          throw conflict(PLAYER_NAME_DUPLICATE_MESSAGE);
         }
 
         throw error;

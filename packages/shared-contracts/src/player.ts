@@ -30,6 +30,29 @@ export function validatePlayerName(name: string): PlayerNameValidationResult {
   return { ok: true, name: normalized };
 }
 
+export const PLAYER_NAME_DUPLICATE_MESSAGE = 'Já existe um jogador com este nome.';
+
+/** Returns the conflicting normalized name when `candidateName` duplicates an entry in `existingNames`. */
+export function findDuplicateNormalizedPlayerName(
+  candidateName: string,
+  existingNames: readonly string[],
+): string | null {
+  const validation = validatePlayerName(candidateName);
+  if (!validation.ok) {
+    return null;
+  }
+
+  const normalizedCandidate = validation.name;
+  for (const existing of existingNames) {
+    const normalizedExisting = normalizePlayerName(existing);
+    if (normalizedExisting === normalizedCandidate) {
+      return normalizedExisting;
+    }
+  }
+
+  return null;
+}
+
 export const PlayerSchema = Type.Object(
   {
     id: UuidSchema,

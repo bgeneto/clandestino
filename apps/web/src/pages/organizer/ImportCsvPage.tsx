@@ -76,6 +76,7 @@ function parseCsvPreview(content: string): { rows: ImportScoresCsvRow[]; errors:
 
   const rows: ImportScoresCsvRow[] = [];
   const errors: string[] = [];
+  const seenPlayers = new Map<string, number>();
 
   for (let index = 1; index < lines.length; index++) {
     const lineNumber = index + 1;
@@ -100,6 +101,15 @@ function parseCsvPreview(content: string): { rows: ImportScoresCsvRow[]; errors:
       continue;
     }
 
+    const previousLine = seenPlayers.get(nameValidation.name);
+    if (previousLine !== undefined) {
+      errors.push(
+        `Linha ${lineNumber}: jogador "${nameValidation.name}" já aparece na linha ${previousLine}.`,
+      );
+      continue;
+    }
+
+    seenPlayers.set(nameValidation.name, lineNumber);
     rows.push({ playerName: nameValidation.name, accumulatedPoints: points });
   }
 

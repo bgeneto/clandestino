@@ -1,5 +1,9 @@
 import { useMemo, useState } from 'react';
-import { validatePlayerName } from '@clandestino/shared-contracts';
+import {
+  validatePlayerName,
+  findDuplicateNormalizedPlayerName,
+  PLAYER_NAME_DUPLICATE_MESSAGE,
+} from '@clandestino/shared-contracts';
 import type { EditionWizardDraft, WizardDraftPlayer } from '../../../db/clandestino-db.js';
 import { WIZARD_MIN_GROUP_SIZE } from '@clandestino/tournament-engine';
 import { Alert } from '../../../components/ui/Alert.js';
@@ -97,6 +101,15 @@ export function CheckInStep({
           const validation = validatePlayerName(newPlayerName);
           if (!validation.ok) {
             setNameError(validation.error);
+            return;
+          }
+
+          const existingNames = [
+            ...availablePlayers.map((player) => player.playerName),
+            ...draft.checkedInPlayers.map((player) => player.playerName),
+          ];
+          if (findDuplicateNormalizedPlayerName(validation.name, existingNames)) {
+            setNameError(PLAYER_NAME_DUPLICATE_MESSAGE);
             return;
           }
 

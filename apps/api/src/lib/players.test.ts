@@ -50,4 +50,19 @@ describe.skipIf(!hasTestDb)('findOrCreatePlayerByName', () => {
       await app.close();
     }
   });
+
+  it('treats names equivalent after normalization as the same player', async () => {
+    const app = await createTestApp();
+    try {
+      const first = await findOrCreatePlayerByName(app.db, 'Ana Souza');
+      const second = await findOrCreatePlayerByName(app.db, '  ana   souza  ');
+
+      expect(first.created).toBe(true);
+      expect(second.created).toBe(false);
+      expect(second.player.id).toBe(first.player.id);
+      expect(second.player.name).toBe('ANA SOUZA');
+    } finally {
+      await app.close();
+    }
+  });
 });

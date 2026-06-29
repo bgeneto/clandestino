@@ -69,17 +69,17 @@ export function OrganizerDashboardPage() {
     <section className="space-y-6">
       <div className="rounded-2xl border border-line bg-card p-6">
         <p className="text-xs uppercase tracking-[0.2em] text-subtle">Organizador</p>
-        <h2 className="mt-1 text-xl font-semibold text-foreground">Painel</h2>
+        <h2 className="mt-1 text-xl font-semibold text-foreground">Painel de Administração</h2>
         <p className="mt-2 text-sm text-muted">{organizerEmail}</p>
       </div>
 
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-foreground">Campeonatos</h3>
+        <h3 className="text-lg font-semibold text-foreground">Todos os Campeonatos</h3>
         <Link
           to="/organizador/campeonato/novo"
           className="rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white"
         >
-          Novo Campeonato
+          🞤 Novo campeonato
         </Link>
       </div>
 

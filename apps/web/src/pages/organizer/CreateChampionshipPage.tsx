@@ -37,10 +37,11 @@ export function CreateChampionshipPage() {
         <Link className="text-sm text-subtle underline" to="/organizador/painel">
           ← Voltar ao painel
         </Link>
-        <h2 className="mt-3 text-xl font-semibold text-foreground">Novo Campeonato</h2>
+        <h2 className="mt-3 text-xl font-semibold text-foreground">Novo campeonato</h2>
         <p className="mt-2 text-sm text-muted">
-          Crie um campeonato com ranking e pontuação próprios, como &quot;Clandestino 2026 - Águas
-          Claras&quot;.
+          Crie um campeonato com ranking e pontuação próprios.
+          <br />
+          Atribua um nome abaixo, como &quot;Clandestino 2026 - Águas Claras&quot;.
         </p>
       </div>
 

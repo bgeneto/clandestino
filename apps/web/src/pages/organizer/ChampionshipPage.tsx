@@ -18,7 +18,7 @@ import {
 import { queryKeys } from '../../lib/query-keys.js';
 
 const archiveButtonBaseClasses =
-  'mt-4 inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium transition';
+  'inline-flex items-center gap-2 rounded-lg border px-4 py-1.5 text-sm font-medium transition';
 
 export function ChampionshipPage() {
   const { championshipId } = useParams<{ championshipId: string }>();
@@ -63,6 +63,7 @@ export function ChampionshipPage() {
         queryClient.invalidateQueries({ queryKey: queryKeys.championships() }),
         queryClient.invalidateQueries({ queryKey: queryKeys.championship(championshipId!) }),
       ]);
+      void navigate('/organizador/painel');
     },
     onError: (error) => {
       setArchiveError(
@@ -96,7 +97,7 @@ export function ChampionshipPage() {
         <p className="mt-2 text-sm text-muted">
           {activeEditions.length} edição(ões) em andamento · {ranking.length} jogadores no ranking
         </p>
-        <div className="mt-4 flex flex-wrap items-center gap-3">
+        <div className="mt-4 flex flex-row flex-wrap items-center gap-3">
           {championship.archivedAt ? (
             <button
               type="button"
@@ -118,7 +119,7 @@ export function ChampionshipPage() {
             <button
               type="button"
               onClick={() => setIsDeleteDialogOpen(true)}
-              className="inline-flex items-center gap-2 rounded-lg border border-rose-200 bg-rose-50 px-4 py-2 text-sm font-medium text-rose-700 transition hover:bg-rose-100 dark:border-rose-900 dark:bg-rose-950 dark:text-rose-300 dark:hover:bg-rose-900"
+              className={`inline-flex items-center gap-2 rounded-lg border border-rose-200 bg-rose-50 px-4 py-1.5 text-sm font-medium text-rose-700 transition hover:bg-rose-100 dark:border-rose-900 dark:bg-rose-950 dark:text-rose-300 dark:hover:bg-rose-900`}
             >
               🗑️ Excluir campeonato
             </button>

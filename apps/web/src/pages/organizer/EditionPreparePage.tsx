@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { executeExplicitDraw } from '@clandestino/tournament-engine';
-import { useChampionshipRanking, usePlayers } from '../../hooks/use-organizer-data.js';
+import { useChampionshipRoster } from '../../hooks/use-organizer-data.js';
 import { useEdition } from '../../hooks/use-edition.js';
 import { createEditionWizardDraft } from '../../offline/edition-wizard-draft.js';
 import { useOnlineStatus } from '../../hooks/use-online-status.js';
@@ -123,10 +123,9 @@ export function EditionPreparePage() {
     'synced' | 'conflict' | 'error' | 'info' | 'success' | null
   >(null);
   const [isPublishing, setIsPublishing] = useState(false);
-  const rankingChampionshipId =
+  const rosterChampionshipId =
     draft?.championshipId ?? championshipId ?? editionQuery.data?.championshipId;
-  const rankingQuery = useChampionshipRanking(rankingChampionshipId);
-  const playersQuery = usePlayers();
+  const rosterQuery = useChampionshipRoster(rosterChampionshipId);
 
   const loadDraft = useCallback(async () => {
     if (draftId) {
@@ -171,18 +170,12 @@ export function EditionPreparePage() {
   }, [loadDraft]);
 
   const availablePlayers = useMemo<WizardDraftPlayer[]>(() => {
-    const pointsByPlayerId = new Map(
-      (rankingQuery.data ?? []).map((entry) => [entry.playerId, entry.accumulatedPoints]),
-    );
-
-    return (playersQuery.data ?? [])
-      .map((player) => ({
-        playerId: player.id,
-        playerName: player.name,
-        accumulatedPoints: pointsByPlayerId.get(player.id) ?? 0,
-      }))
-      .sort((left, right) => left.playerName.localeCompare(right.playerName, 'pt-BR'));
-  }, [playersQuery.data, rankingQuery.data]);
+    return (rosterQuery.data ?? []).map((entry) => ({
+      playerId: entry.playerId,
+      playerName: entry.playerName,
+      accumulatedPoints: entry.accumulatedPoints,
+    }));
+  }, [rosterQuery.data]);
 
   const persistDraft = useCallback(async (nextDraft: EditionWizardDraft) => {
     const saved = await saveEditionWizardDraft(nextDraft);

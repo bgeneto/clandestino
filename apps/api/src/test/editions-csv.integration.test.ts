@@ -149,6 +149,74 @@ describe.skipIf(!hasTestDb)('jogadores, campeonatos e importação CSV (integra�
     expect(second.json<{ error: string }>().error).toContain('já inscrito');
   });
 
+  it('lista elenco do campeonato sem jogadores de outros campeonatos', async () => {
+    const championshipA = await createChampionship('Campeonato A');
+    const championshipB = await createChampionship('Campeonato B');
+    await createPlayer('JOGA SÓ NO B');
+
+    const csvA = 'player_name,accumulated_points\nJOGADOR A,100\nJOGADOR B,200\n';
+    const importA = await app.inject({
+      method: 'POST',
+      url: `/championships/${championshipA}/import-scores`,
+      headers: {
+        ...organizerHeaders(organizerToken),
+        'content-type': 'text/csv',
+      },
+      payload: csvA,
+    });
+    expect(importA.statusCode).toBe(200);
+
+    const rosterA = await app.inject({
+      method: 'GET',
+      url: `/championships/${championshipA}/roster`,
+    });
+    expect(rosterA.statusCode).toBe(200);
+    const rosterNames = rosterA
+      .json<{ roster: Array<{ playerName: string }> }>()
+      .roster.map((entry) => entry.playerName);
+    expect(rosterNames).toEqual(['JOGADOR A', 'JOGADOR B']);
+    expect(rosterNames).not.toContain('JOGA SÓ NO B');
+
+    const rosterB = await app.inject({
+      method: 'GET',
+      url: `/championships/${championshipB}/roster`,
+    });
+    expect(rosterB.statusCode).toBe(200);
+    expect(rosterB.json<{ roster: unknown[] }>().roster).toHaveLength(0);
+  });
+
+  it('inscrição na edição vincula jogador ao elenco do campeonato com 0 pts', async () => {
+    const championshipId = await createChampionship('Campeonato Elenco');
+    const editionResponse = await app.inject({
+      method: 'POST',
+      url: '/editions',
+      headers: organizerHeaders(organizerToken),
+      payload: { championshipId, date: '2026-08-01' },
+    });
+    expect(editionResponse.statusCode).toBe(201);
+    const editionId = editionResponse.json<{ id: string }>().id;
+    const playerId = await createPlayer('NOVO NO CAMPEONATO');
+
+    const register = await app.inject({
+      method: 'POST',
+      url: `/editions/${editionId}/registrations`,
+      headers: organizerHeaders(organizerToken),
+      payload: { playerId },
+    });
+    expect(register.statusCode).toBe(201);
+
+    const roster = await app.inject({
+      method: 'GET',
+      url: `/championships/${championshipId}/roster`,
+    });
+    expect(roster.statusCode).toBe(200);
+    const entry = roster
+      .json<{ roster: Array<{ playerId: string; accumulatedPoints: number }> }>()
+      .roster.find((row) => row.playerId === playerId);
+    expect(entry).toBeDefined();
+    expect(entry?.accumulatedPoints).toBe(0);
+  });
+
   it('rejeita criação de edição com regras inválidas (400)', async () => {
     const championshipId = await createChampionship('Campeonato Regras');
     const response = await app.inject({

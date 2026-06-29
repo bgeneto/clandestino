@@ -83,6 +83,27 @@ export const ChampionshipRankingResponseSchema = Type.Object(
 
 export type ChampionshipRankingResponse = Static<typeof ChampionshipRankingResponseSchema>;
 
+export const ChampionshipRosterEntrySchema = Type.Object(
+  {
+    playerId: UuidSchema,
+    playerName: Type.String({ minLength: 1 }),
+    accumulatedPoints: Type.Integer({ minimum: 0 }),
+  },
+  { $id: 'ChampionshipRosterEntry' },
+);
+
+export type ChampionshipRosterEntry = Static<typeof ChampionshipRosterEntrySchema>;
+
+export const ChampionshipRosterResponseSchema = Type.Object(
+  {
+    championshipId: UuidSchema,
+    roster: Type.Array(ChampionshipRosterEntrySchema),
+  },
+  { $id: 'ChampionshipRosterResponse' },
+);
+
+export type ChampionshipRosterResponse = Static<typeof ChampionshipRosterResponseSchema>;
+
 export const EditionSummarySchema = Type.Object(
   {
     id: UuidSchema,

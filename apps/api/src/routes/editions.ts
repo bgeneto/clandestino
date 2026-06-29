@@ -11,6 +11,7 @@ import { Type } from '@sinclair/typebox';
 import { eq } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import { schema } from '../db/index.js';
+import { ensureChampionshipPlayer } from '../lib/championship-roster.js';
 import { nextEditionNameForChampionship } from '../lib/editions.js';
 import {
   badRequest,
@@ -208,6 +209,8 @@ export async function registerEditionRoutes(app: FastifyInstance): Promise<void>
 
         throw error;
       }
+
+      await ensureChampionshipPlayer(app.db, edition.championshipId, request.body.playerId);
 
       const registrations = await app.db
         .select()

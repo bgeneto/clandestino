@@ -3,6 +3,7 @@ import type {
   ChampionshipEditionsResponse,
   ChampionshipListResponse,
   ChampionshipRankingResponse,
+  ChampionshipRosterResponse,
   CorrectMatchResultBody,
   CreateChampionshipBody,
   CreateEditionBody,
@@ -97,6 +98,12 @@ export async function fetchChampionshipRanking(
   championshipId: string,
 ): Promise<ChampionshipRankingResponse> {
   return apiRequest<ChampionshipRankingResponse>(`/championships/${championshipId}/ranking`);
+}
+
+export async function fetchChampionshipRoster(
+  championshipId: string,
+): Promise<ChampionshipRosterResponse> {
+  return apiRequest<ChampionshipRosterResponse>(`/championships/${championshipId}/roster`);
 }
 
 export async function fetchPlayers(): Promise<PlayerListResponse> {

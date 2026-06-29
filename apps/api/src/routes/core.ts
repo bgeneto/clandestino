@@ -3,6 +3,7 @@ import {
   ChampionshipEditionsResponseSchema,
   ChampionshipListResponseSchema,
   ChampionshipRankingResponseSchema,
+  ChampionshipRosterResponseSchema,
   ChampionshipSchema,
   CreateChampionshipBodySchema,
   CreatePlayerBodySchema,
@@ -38,6 +39,7 @@ import {
 } from '../lib/errors.js';
 import { mapChampionship, mapEditionSummary, mapPlayer } from '../lib/mappers.js';
 import { parseImportScoresCsv } from '../lib/csv.js';
+import { listChampionshipRoster } from '../lib/championship-roster.js';
 import { findOrCreatePlayerByName } from '../lib/players.js';
 import { consumeMagicToken, resolveOrganizerSession } from '../plugins/auth.js';
 
@@ -376,6 +378,38 @@ export async function registerChampionshipRoutes(app: FastifyInstance): Promise<
           accumulatedPoints: row.accumulatedPoints,
           rank: index + 1,
         })),
+      };
+    },
+  );
+
+  typed.get(
+    '/championships/:id/roster',
+    {
+      schema: {
+        params: championshipIdParams,
+        response: {
+          200: ChampionshipRosterResponseSchema,
+          404: ErrorResponseSchema,
+        },
+      },
+    },
+    async (request) => {
+      const championshipId = request.params.id;
+      const [championship] = await app.db
+        .select({ id: schema.championships.id })
+        .from(schema.championships)
+        .where(eq(schema.championships.id, championshipId))
+        .limit(1);
+
+      if (!championship) {
+        throw notFound('Campeonato não encontrado.');
+      }
+
+      const roster = await listChampionshipRoster(app.db, championshipId);
+
+      return {
+        championshipId,
+        roster,
       };
     },
   );

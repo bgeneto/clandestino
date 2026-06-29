@@ -3,6 +3,7 @@ import {
   fetchChampionship,
   fetchChampionshipEditions,
   fetchChampionshipRanking,
+  fetchChampionshipRoster,
   fetchChampionships,
   fetchContestedMatches,
   fetchDrawSnapshots,
@@ -49,6 +50,17 @@ export function useChampionshipRanking(championshipId: string | undefined) {
     queryFn: () => fetchChampionshipRanking(championshipId!),
     enabled: championshipId !== undefined,
     select: (response) => response.ranking,
+  });
+}
+
+export function useChampionshipRoster(championshipId: string | undefined) {
+  return useQuery({
+    queryKey: championshipId
+      ? queryKeys.championshipRoster(championshipId)
+      : ['championship-roster', 'unknown'],
+    queryFn: () => fetchChampionshipRoster(championshipId!),
+    enabled: championshipId !== undefined,
+    select: (response) => response.roster,
   });
 }
 

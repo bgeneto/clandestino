@@ -23,6 +23,8 @@ export {
   ChampionshipListResponseSchema,
   ChampionshipRankingEntrySchema,
   ChampionshipRankingResponseSchema,
+  ChampionshipRosterEntrySchema,
+  ChampionshipRosterResponseSchema,
   EditionSummarySchema,
   ChampionshipEditionsResponseSchema,
   DEFAULT_SCORING_TABLE,
@@ -34,6 +36,8 @@ export {
   type ChampionshipListResponse,
   type ChampionshipRankingEntry,
   type ChampionshipRankingResponse,
+  type ChampionshipRosterEntry,
+  type ChampionshipRosterResponse,
   type EditionSummary,
   type ChampionshipEditionsResponse,
 } from './championship.js';

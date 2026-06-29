@@ -8,12 +8,12 @@ import { ScoreCounter } from '../../components/edition/ScoreCounter.js';
 import { DrawAuditPanel } from '../../components/organizer/DrawAuditPanel.js';
 import { EditionQrCode } from '../../components/organizer/EditionQrCode.js';
 import {
+  useChampionshipRoster,
   useContestedMatches,
   useDrawSnapshots,
   useEditionQr,
   useEditionRegistrations,
   useFinalPlacements,
-  usePlayers,
 } from '../../hooks/use-organizer-data.js';
 import {
   useEditionGroups,
@@ -48,7 +48,7 @@ function getPlayerTwoId(match: Match): string {
 
 function RegistrationsSection({ edition }: { edition: Edition }) {
   const queryClient = useQueryClient();
-  const playersQuery = usePlayers();
+  const rosterQuery = useChampionshipRoster(edition.championshipId);
   const registrationsQuery = useEditionRegistrations(edition.id);
   const participantsQuery = useEditionParticipants(edition.id);
   const [search, setSearch] = useState('');
@@ -62,17 +62,19 @@ function RegistrationsSection({ edition }: { edition: Edition }) {
 
   const filteredPlayers = useMemo(() => {
     const normalized = search.trim().toLowerCase();
-    const players = playersQuery.data ?? [];
+    const players = rosterQuery.data ?? [];
     if (!normalized) {
-      return players.filter((player) => !registeredIds.has(player.id)).slice(0, 8);
+      return players.filter((player) => !registeredIds.has(player.playerId)).slice(0, 8);
     }
 
     return players
       .filter(
-        (player) => !registeredIds.has(player.id) && player.name.toLowerCase().includes(normalized),
+        (player) =>
+          !registeredIds.has(player.playerId) &&
+          player.playerName.toLowerCase().includes(normalized),
       )
       .slice(0, 8);
-  }, [playersQuery.data, registeredIds, search]);
+  }, [rosterQuery.data, registeredIds, search]);
 
   const participantNames = useMemo(() => {
     const map = new Map<string, string>();
@@ -90,6 +92,9 @@ function RegistrationsSection({ edition }: { edition: Edition }) {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.registrations(edition.id) }),
         queryClient.invalidateQueries({ queryKey: queryKeys.participants(edition.id) }),
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.championshipRoster(edition.championshipId),
+        }),
       ]);
     },
     onError: (error) => {
@@ -118,13 +123,13 @@ function RegistrationsSection({ edition }: { edition: Edition }) {
           <div className="space-y-2">
             {filteredPlayers.map((player) => (
               <button
-                key={player.id}
+                key={player.playerId}
                 type="button"
                 disabled={registerMutation.isPending}
-                onClick={() => void registerMutation.mutateAsync(player.id)}
+                onClick={() => void registerMutation.mutateAsync(player.playerId)}
                 className="flex w-full items-center justify-between rounded-lg border border-line px-3 py-2 text-left text-sm hover:bg-card-muted"
               >
-                <span>{player.name}</span>
+                <span>{player.playerName}</span>
                 <span className="text-xs text-brand">Inscrever</span>
               </button>
             ))}

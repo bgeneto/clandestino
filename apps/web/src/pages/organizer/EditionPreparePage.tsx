@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { executeExplicitDraw } from '@clandestino/tournament-engine';
-import { useChampionshipRoster } from '../../hooks/use-organizer-data.js';
+import { useChampionshipRoster, useEditionRegistrations } from '../../hooks/use-organizer-data.js';
 import { useEdition } from '../../hooks/use-edition.js';
 import { createEditionWizardDraft } from '../../offline/edition-wizard-draft.js';
 import { useOnlineStatus } from '../../hooks/use-online-status.js';
 import type { EditionWizardDraft, WizardDraftPlayer } from '../../db/clandestino-db.js';
 import {
+  deleteEditionWizardDraft,
   getEditionWizardDraft,
   getEditionWizardDraftByEditionId,
   removeCheckedInPlayer,
@@ -22,6 +24,11 @@ import { SeedsStep } from '../../components/organizer/edition-wizard/SeedsStep.j
 import { WizardStepNav } from '../../components/organizer/edition-wizard/WizardStepNav.js';
 import { formatEditionDate } from '../../lib/format.js';
 import { Alert } from '../../components/ui/Alert.js';
+import { ConfirmDialog } from '../../components/ui/ConfirmDialog.js';
+import { ApiError } from '../../lib/api-client.js';
+import { deleteEdition } from '../../lib/organizer-api.js';
+import { queryKeys } from '../../lib/query-keys.js';
+import { purgeEditionLocalState } from '../../lib/purge-edition-state.js';
 
 function createLocalPlayerId(name: string): string {
   return `local-${name.trim().toLowerCase().replace(/\s+/g, '-')}-${Date.now()}`;
@@ -115,10 +122,14 @@ export function EditionPreparePage() {
     draftId?: string;
   }>();
   const isOnline = useOnlineStatus();
+  const queryClient = useQueryClient();
   const editionQuery = useEdition(editionId);
+  const registrationsQuery = useEditionRegistrations(editionId);
   const [draft, setDraft] = useState<EditionWizardDraft | null>(null);
   const [loading, setLoading] = useState(true);
   const [feedback, setFeedback] = useState<string | null>(null);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [resultStatus, setResultStatus] = useState<
     'synced' | 'conflict' | 'error' | 'info' | 'success' | null
   >(null);
@@ -126,6 +137,31 @@ export function EditionPreparePage() {
   const rosterChampionshipId =
     draft?.championshipId ?? championshipId ?? editionQuery.data?.championshipId;
   const rosterQuery = useChampionshipRoster(rosterChampionshipId);
+
+  const deleteMutation = useMutation({
+    mutationFn: () => deleteEdition(draft!.editionId!),
+    onSuccess: async (result) => {
+      setDeleteError(null);
+      setIsDeleteDialogOpen(false);
+      if (draft?.id) {
+        await deleteEditionWizardDraft(draft.id);
+      }
+      await purgeEditionLocalState(result.id);
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.championshipEditions(result.championshipId),
+        }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.organizerActiveEditions() }),
+      ]);
+      void navigate(`/organizador/campeonato/${result.championshipId}`);
+    },
+    onError: (error) => {
+      setDeleteError(
+        error instanceof ApiError ? error.message : 'Não foi possível excluir a edição.',
+      );
+      setIsDeleteDialogOpen(false);
+    },
+  });
 
   const loadDraft = useCallback(async () => {
     if (draftId) {
@@ -228,8 +264,17 @@ export function EditionPreparePage() {
     ? `/organizador/edicao/${draft.editionId}`
     : `/organizador/campeonato/${draft.championshipId}`;
 
+  const canDelete =
+    Boolean(draft.editionId) &&
+    (editionQuery.data?.status === 'RASCUNHO' ||
+      editionQuery.data?.status === 'INSCRICOES_ABERTAS') &&
+    draft.checkedInPlayers.length === 0 &&
+    (registrationsQuery.data?.length ?? 0) === 0;
+
   return (
     <section className="space-y-6">
+      {deleteError ? <Alert variant="danger">{deleteError}</Alert> : null}
+
       <div className="rounded-2xl border border-line bg-card p-6">
         <Link className="text-sm text-subtle underline" to={backLink}>
           ← Voltar
@@ -240,10 +285,37 @@ export function EditionPreparePage() {
         <p className="mt-2 text-sm text-muted">
           Dia {formatEditionDate(draft.date)} · auto-confirmação em {draft.autoConfirmMinutes} min
         </p>
-        <div className="mt-4">
+        <div className="mt-4 flex flex-wrap items-center gap-3">
           <WizardStepNav currentStep={draft.currentStep} />
+          {canDelete ? (
+            <button
+              type="button"
+              onClick={() => setIsDeleteDialogOpen(true)}
+              className="inline-flex rounded-lg border border-rose-200 bg-rose-50 px-4 py-1.5 text-sm font-medium text-rose-700 transition hover:bg-rose-100 dark:border-rose-900 dark:bg-rose-950 dark:text-rose-300 dark:hover:bg-rose-900"
+            >
+              🗑️ Excluir edição
+            </button>
+          ) : null}
         </div>
       </div>
+
+      <ConfirmDialog
+        isOpen={isDeleteDialogOpen}
+        title="Excluir edição"
+        description={
+          <>
+            Tem certeza que deseja excluir <strong>{draft.predictedEditionName}</strong>? A data e o
+            tempo de auto-confirmação serão perdidos. Esta ação não pode ser desfeita — você poderá
+            criar uma nova edição em seguida.
+          </>
+        }
+        confirmLabel="Excluir"
+        cancelLabel="Cancelar"
+        variant="danger"
+        isLoading={deleteMutation.isPending}
+        onConfirm={() => void deleteMutation.mutateAsync()}
+        onCancel={() => setIsDeleteDialogOpen(false)}
+      />
 
       {draft.currentStep === 2 ? (
         <CheckInStep

@@ -4,6 +4,7 @@ import { IsoDateTimeSchema, JsonValueSchema, UuidSchema } from './common.js';
 export const AuditEventTypeSchema = Type.Union(
   [
     Type.Literal('EDITION_CREATED'),
+    Type.Literal('EDITION_DELETED'),
     Type.Literal('CSV_IMPORTED'),
     Type.Literal('DRAW_EXECUTED'),
     Type.Literal('DRAW_CANCELLED'),

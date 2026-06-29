@@ -46,7 +46,30 @@ Parar:
   ./stop            # detecta a stack ativa e para
   ./stop dev        # para a stack dev
   ./stop prod       # para a stack prod
+
+Packages (shared-contracts / tournament-engine):
+  ./start dev recompila os pacotes no container da API e reinicia a API.
+  Com a stack já rodando após git pull, prefira: ./stop dev && ./start dev
 EOF
+}
+
+rebuild_dev_packages() {
+  local compose_file="${COMPOSE_DEV}"
+
+  if ! compose_running "${compose_file}"; then
+    return 0
+  fi
+
+  log "Recompilando shared-contracts e tournament-engine no container da API..."
+  if docker compose -f "${compose_file}" exec -T api sh -c \
+    'pnpm --filter @clandestino/shared-contracts build && pnpm --filter @clandestino/tournament-engine build'; then
+    docker compose -f "${compose_file}" restart api >/dev/null
+    log "  Packages atualizados; serviço api reiniciado."
+  else
+    warn "Falha ao recompilar packages (API pode ainda estar subindo)."
+    warn "Tente: ./stop dev && ./start dev"
+    warn "Se a API não sobe (502), veja README — seção «Parar / logs / rebuild»."
+  fi
 }
 
 log() {
@@ -134,11 +157,14 @@ start_dev() {
     SEED_ON_START=false docker compose -f "${COMPOSE_DEV}" up -d --build
   fi
 
+  rebuild_dev_packages
+
   log "Stack dev em segundo plano."
   log "  PWA:        http://clandestino.test"
   log "  API health: http://clandestino.test/api/health"
   log "  Logs:       docker compose -f docker-compose.dev.yml logs -f"
   log "  Parar:      ./stop dev"
+  log "  Packages:   recompilados em todo ./start dev (mudanças em packages/*)"
 }
 
 start_prod() {

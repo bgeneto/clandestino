@@ -145,12 +145,36 @@ SEED_ON_START=true docker compose -f docker-compose.dev.yml up -d --build
 ./stop dev --volumes                                     # para e APAGA data/clandestino.db (pede confirmação)
 docker compose -f docker-compose.dev.yml logs -f         # acompanhar todos os serviços
 docker compose -f docker-compose.dev.yml logs -f api     # só a API
-./start dev                                              # rebuild após mudar Dockerfile.dev / packages/*
+./stop dev && ./start dev                                # reiniciar stack (recomendado após git pull)
+```
+
+**Packages compartilhados (`shared-contracts`, `tournament-engine`)**
+
+A API e o PWA importam esses pacotes pelo `./dist` (não pelo TypeScript fonte). No Docker dev, o `dist` fica num volume anônimo — se ele ficar desatualizado, a API pode não subir e o browser mostra **502** em `/api/*`.
+
+| Situação                                            | O que fazer                                                                                                                                                  |
+| --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Subiu ou reiniciou a stack                          | `./start dev` já recompila os packages no container e reinicia a API                                                                                         |
+| Fez `git pull` com mudanças em `packages/*`         | `./stop dev && ./start dev`                                                                                                                                  |
+| Stack já rodando; só editou `packages/*` localmente | `./start dev` (recompila e reinicia a API) ou manualmente abaixo                                                                                             |
+| API em loop / 502 persistente                       | `./stop dev`, depois `docker compose -f docker-compose.dev.yml down -v` e `./start dev` (apaga volumes anônimos do `dist`; o SQLite em `data/` é preservado) |
+
+Recompilar manualmente (stack dev já no ar):
+
+```bash
+docker compose -f docker-compose.dev.yml exec api sh -c \
+  'pnpm --filter @clandestino/shared-contracts build && pnpm --filter @clandestino/tournament-engine build'
+docker compose -f docker-compose.dev.yml restart api
+```
+
+Rebuild da **imagem** Docker (só quando mudar `Dockerfile.dev`, deps do lockfile ou setup de build):
+
+```bash
+./start dev    # já inclui docker compose up --build
 ```
 
 Observações:
 
-- Editou `packages/shared-contracts` ou `packages/tournament-engine`? Rebuild (`./start dev` refaz `--build`) — eles são consumidos via `./dist`.
 - Dev e prod compartilham o mesmo bind mount `./data` (não rodam ao mesmo tempo).
 - `./start prod --seed` é rejeitado (seed só em dev).
 - `./stop` sem argumento detecta automaticamente qual stack está ativa; sem `--volumes`, os dados SQLite são preservados.
@@ -202,6 +226,13 @@ Em terminais separados:
 ```bash
 pnpm --filter @clandestino/api dev    # http://localhost:3000
 pnpm --filter @clandestino/web dev    # http://localhost:5173
+```
+
+Após editar `packages/shared-contracts` ou `packages/tournament-engine`, recompile antes de testar a API:
+
+```bash
+pnpm --filter @clandestino/shared-contracts build
+pnpm --filter @clandestino/tournament-engine build
 ```
 
 - Health check da API: `GET http://localhost:3000/health` → `{"status":"ok"}`

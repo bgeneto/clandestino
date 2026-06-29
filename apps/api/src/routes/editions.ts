@@ -2,13 +2,14 @@ import type { TypeBoxTypeProvider } from '@fastify/type-provider-typebox';
 import {
   CreateEditionBodySchema,
   DEFAULT_EDITION_RULES,
+  DeleteEditionResponseSchema,
   EditionRegistrationsResponseSchema,
   EditionSchema,
   ErrorResponseSchema,
   RegisterPlayerBodySchema,
 } from '@clandestino/shared-contracts';
 import { Type } from '@sinclair/typebox';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import { schema } from '../db/index.js';
 import { ensureChampionshipPlayer } from '../lib/championship-roster.js';
@@ -280,6 +281,97 @@ export async function registerEditionRoutes(app: FastifyInstance): Promise<void>
         .orderBy(schema.editionRegistrations.registeredAt);
 
       return { registrations: registrations.map(mapRegistration) };
+    },
+  );
+
+  typed.delete(
+    '/editions/:id',
+    {
+      preHandler: app.requireOrganizer,
+      schema: {
+        params: Type.Object({ id: Type.String({ format: 'uuid' }) }),
+        response: {
+          200: DeleteEditionResponseSchema,
+          401: ErrorResponseSchema,
+          404: ErrorResponseSchema,
+          409: ErrorResponseSchema,
+        },
+      },
+    },
+    async (request) => {
+      const editionId = request.params.id;
+
+      const [edition] = await app.db
+        .select()
+        .from(schema.editions)
+        .where(eq(schema.editions.id, editionId))
+        .limit(1);
+
+      if (!edition) {
+        throw notFound('Edição não encontrada.');
+      }
+
+      const [championship] = await app.db
+        .select({ archivedAt: schema.championships.archivedAt })
+        .from(schema.championships)
+        .where(eq(schema.championships.id, edition.championshipId))
+        .limit(1);
+
+      if (!championship) {
+        throw notFound('Campeonato não encontrado.');
+      }
+
+      if (championship.archivedAt) {
+        throw conflict('Não é possível excluir edições de um campeonato arquivado.');
+      }
+
+      if (edition.status !== 'RASCUNHO' && edition.status !== 'INSCRICOES_ABERTAS') {
+        throw conflict('Não é possível excluir uma edição em andamento ou encerrada.');
+      }
+
+      const [registrationCountRow, matchCountRow] = await Promise.all([
+        app.db
+          .select({ count: sql<number>`count(*)` })
+          .from(schema.editionRegistrations)
+          .where(eq(schema.editionRegistrations.editionId, editionId)),
+        app.db
+          .select({ count: sql<number>`count(*)` })
+          .from(schema.matches)
+          .where(eq(schema.matches.editionId, editionId)),
+      ]);
+
+      const registrationCount = registrationCountRow[0]?.count ?? 0;
+      const matchCount = matchCountRow[0]?.count ?? 0;
+
+      if (registrationCount > 0) {
+        throw conflict('Não é possível excluir uma edição com jogadores inscritos.');
+      }
+
+      if (matchCount > 0) {
+        throw conflict('Não é possível excluir uma edição que já possui partidas.');
+      }
+
+      const deletedAt = new Date().toISOString();
+
+      await app.db.insert(schema.auditEvents).values({
+        championshipId: edition.championshipId,
+        eventType: 'EDITION_DELETED',
+        payload: {
+          editionId: edition.id,
+          name: edition.name,
+          date: edition.date,
+          status: edition.status,
+        },
+        createdBy: request.organizerEmail ?? 'organizer',
+      });
+
+      await app.db.delete(schema.editions).where(eq(schema.editions.id, editionId));
+
+      return {
+        id: editionId,
+        championshipId: edition.championshipId,
+        deletedAt,
+      };
     },
   );
 }

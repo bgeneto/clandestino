@@ -129,6 +129,33 @@ export const ChampionshipEditionsResponseSchema = Type.Object(
 
 export type ChampionshipEditionsResponse = Static<typeof ChampionshipEditionsResponseSchema>;
 
+export const OrganizerActiveEditionSchema = Type.Object(
+  {
+    id: UuidSchema,
+    championshipId: UuidSchema,
+    championshipName: Type.String({ minLength: 1, maxLength: 120 }),
+    name: Type.String({ minLength: 1, maxLength: 120 }),
+    date: Type.String({ format: 'date' }),
+    status: EditionStatusSchema,
+    contestedMatchCount: Type.Integer({ minimum: 0 }),
+    placementGroupCount: Type.Integer({ minimum: 0 }),
+    needsOrganizerAction: Type.Boolean(),
+    actionLabel: Type.Union([Type.String({ minLength: 1 }), Type.Null()]),
+  },
+  { $id: 'OrganizerActiveEdition' },
+);
+
+export type OrganizerActiveEdition = Static<typeof OrganizerActiveEditionSchema>;
+
+export const OrganizerActiveEditionsResponseSchema = Type.Object(
+  {
+    editions: Type.Array(OrganizerActiveEditionSchema),
+  },
+  { $id: 'OrganizerActiveEditionsResponse' },
+);
+
+export type OrganizerActiveEditionsResponse = Static<typeof OrganizerActiveEditionsResponseSchema>;
+
 export const DeleteChampionshipResponseSchema = Type.Object(
   {
     id: UuidSchema,

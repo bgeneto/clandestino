@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { ContestedMatch, Edition, Match } from '@clandestino/shared-contracts';
 import { MAX_SETS_SCORE } from '@clandestino/shared-contracts';
@@ -23,6 +23,7 @@ import {
 } from '../../hooks/use-edition-data.js';
 import { useEdition } from '../../hooks/use-edition.js';
 import { Alert } from '../../components/ui/Alert.js';
+import { ConfirmDialog } from '../../components/ui/ConfirmDialog.js';
 import { useEditionSse } from '../../hooks/use-edition-sse.js';
 import { ApiError } from '../../lib/api-client.js';
 import { getDrawReadinessWarning } from '../../lib/draw-utils.js';
@@ -32,6 +33,7 @@ import { validateScoreInput } from '../../lib/match-utils.js';
 import {
   cancelDraw,
   correctMatchResult,
+  deleteEdition,
   executeDraw,
   finalizeEdition,
   generateMatches,
@@ -40,6 +42,7 @@ import {
   unregisterPlayer,
 } from '../../lib/organizer-api.js';
 import { queryKeys } from '../../lib/query-keys.js';
+import { purgeEditionLocalState } from '../../lib/purge-edition-state.js';
 
 function getPlayerOneId(match: Match): string {
   return match.participants[0]?.playerId ?? '';
@@ -547,6 +550,7 @@ function PlacementSection({ edition }: { edition: Edition }) {
         queryClient.invalidateQueries({ queryKey: queryKeys.groups(edition.id) }),
         queryClient.invalidateQueries({ queryKey: queryKeys.matches(edition.id) }),
         queryClient.invalidateQueries({ queryKey: queryKeys.edition(edition.id) }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.organizerActiveEditions() }),
       ]);
     },
     onError: (error) => {
@@ -559,47 +563,25 @@ function PlacementSection({ edition }: { edition: Edition }) {
     },
   });
 
-  if (edition.status !== 'FASE_COLOCACAO') {
+  if (edition.status !== 'FASE_COLOCACAO' || placementGroups.length === 0) {
     return null;
   }
-
-  const hasPlacementGroups = placementGroups.length > 0;
 
   return (
     <section className="space-y-4 rounded-xl bg-card p-4 shadow-sm">
       <h3 className="text-sm font-bold uppercase tracking-wide text-subtle">Fase de colocação</h3>
-
-      {hasPlacementGroups ? (
-        <>
-          <p className="text-sm text-muted">
-            Revise os grupos gerados automaticamente e publique para liberar as partidas de
-            colocação.
-          </p>
-          <GroupsView groups={placementGroups} playerNames={playerNames} emptyVariant="placement" />
-          <button
-            type="button"
-            disabled={publishMutation.isPending}
-            onClick={() => void publishMutation.mutateAsync()}
-            className="w-full rounded-lg bg-header px-4 py-3 text-sm font-semibold text-header-foreground disabled:opacity-50"
-          >
-            {publishMutation.isPending ? 'Publicando…' : 'Publicar fase de colocação'}
-          </button>
-        </>
-      ) : (
-        <>
-          <p className="text-sm text-muted">
-            Fase de grupos concluída. Não há disputas de colocação — as posições finais já estão
-            definidas pela classificação dos grupos.
-          </p>
-          <a
-            href="#encerrar-edicao"
-            className="block w-full rounded-lg bg-brand px-4 py-3 text-center text-sm font-semibold text-white"
-          >
-            Encerrar edição
-          </a>
-        </>
-      )}
-
+      <p className="text-sm text-muted">
+        Revise os grupos gerados automaticamente e publique para liberar as partidas de colocação.
+      </p>
+      <GroupsView groups={placementGroups} playerNames={playerNames} emptyVariant="placement" />
+      <button
+        type="button"
+        disabled={publishMutation.isPending}
+        onClick={() => void publishMutation.mutateAsync()}
+        className="w-full rounded-lg bg-header px-4 py-3 text-sm font-semibold text-header-foreground disabled:opacity-50"
+      >
+        {publishMutation.isPending ? 'Publicando…' : 'Publicar fase de colocação'}
+      </button>
       {successFeedback ? <Alert variant="success">{successFeedback}</Alert> : null}
       {errorFeedback ? <Alert variant="danger">{errorFeedback}</Alert> : null}
     </section>
@@ -608,10 +590,15 @@ function PlacementSection({ edition }: { edition: Edition }) {
 
 function FinalizeSection({ edition }: { edition: Edition }) {
   const queryClient = useQueryClient();
+  const groupsQuery = useEditionGroups(edition.id);
   const participantsQuery = useEditionParticipants(edition.id);
   const finalPlacementsQuery = useFinalPlacements(edition.id, edition.status === 'ENCERRADA');
   const [successFeedback, setSuccessFeedback] = useState<string | null>(null);
   const [errorFeedback, setErrorFeedback] = useState<string | null>(null);
+
+  const hasPlacementGroups =
+    edition.status === 'FASE_COLOCACAO' &&
+    (groupsQuery.data?.groups ?? []).some((entry) => entry.group.phase === 'PLACEMENT_STAGE');
 
   const playerNames = useMemo(() => {
     const map = new Map<string, string>();
@@ -638,6 +625,7 @@ function FinalizeSection({ edition }: { edition: Edition }) {
         queryClient.invalidateQueries({
           queryKey: queryKeys.championshipEditions(edition.championshipId),
         }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.organizerActiveEditions() }),
       ]);
     },
     onError: (error) => {
@@ -683,11 +671,12 @@ function FinalizeSection({ edition }: { edition: Edition }) {
   }
 
   return (
-    <section id="encerrar-edicao" className="space-y-4 rounded-xl bg-card p-4 shadow-sm">
+    <section className="space-y-4 rounded-xl bg-card p-4 shadow-sm">
       <h3 className="text-sm font-bold uppercase tracking-wide text-subtle">Encerramento</h3>
       <p className="text-sm text-muted">
-        Encerre a edição para registrar a classificação final das partidas e atribuir pontos aos
-        jogadores.
+        {edition.status === 'FASE_COLOCACAO' && !hasPlacementGroups
+          ? 'Fase de grupos concluída. Não há disputas de colocação — as posições finais já estão definidas pela classificação dos grupos. Encerre a edição para registrar a classificação final e atribuir pontos aos jogadores.'
+          : 'Encerre a edição para registrar a classificação final das partidas e atribuir pontos aos jogadores.'}
       </p>
       <button
         type="button"
@@ -705,10 +694,37 @@ function FinalizeSection({ edition }: { edition: Edition }) {
 
 export function OrganizerEditionPage() {
   const { editionId } = useParams<{ editionId: string }>();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const editionQuery = useEdition(editionId);
+  const registrationsQuery = useEditionRegistrations(editionId);
   const groupsQuery = useEditionGroups(editionId);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   useEditionSse(editionId);
+
+  const deleteMutation = useMutation({
+    mutationFn: () => deleteEdition(editionId!),
+    onSuccess: async (result) => {
+      setDeleteError(null);
+      setIsDeleteDialogOpen(false);
+      await purgeEditionLocalState(editionId!);
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.championshipEditions(result.championshipId),
+        }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.organizerActiveEditions() }),
+      ]);
+      void navigate(`/organizador/campeonato/${result.championshipId}`);
+    },
+    onError: (error) => {
+      setDeleteError(
+        error instanceof ApiError ? error.message : 'Não foi possível excluir a edição.',
+      );
+      setIsDeleteDialogOpen(false);
+    },
+  });
 
   if (editionQuery.isLoading) {
     return <p className="text-sm text-subtle">Carregando edição…</p>;
@@ -724,9 +740,14 @@ export function OrganizerEditionPage() {
       ? (groupsQuery.data?.groups ?? []).filter((entry) => entry.group.phase === 'PLACEMENT_STAGE')
           .length
       : undefined;
+  const canDelete =
+    (edition.status === 'RASCUNHO' || edition.status === 'INSCRICOES_ABERTAS') &&
+    (registrationsQuery.data?.length ?? 0) === 0;
 
   return (
     <div className="space-y-4">
+      {deleteError ? <Alert variant="danger">{deleteError}</Alert> : null}
+
       <section className="rounded-xl bg-header p-4 text-header-foreground">
         <Link
           className="text-xs text-header-foreground/70 underline"
@@ -746,7 +767,33 @@ export function OrganizerEditionPage() {
             Configurar edição (check-in e sorteio)
           </Link>
         ) : null}
+        {canDelete ? (
+          <button
+            type="button"
+            onClick={() => setIsDeleteDialogOpen(true)}
+            className="mt-4 ml-0 inline-flex rounded-lg border border-rose-200 bg-rose-50 px-4 py-2 text-sm font-medium text-rose-700 transition hover:bg-rose-100 sm:ml-3 dark:border-rose-900 dark:bg-rose-950 dark:text-rose-300 dark:hover:bg-rose-900"
+          >
+            Excluir edição
+          </button>
+        ) : null}
       </section>
+
+      <ConfirmDialog
+        isOpen={isDeleteDialogOpen}
+        title="Excluir edição"
+        description={
+          <>
+            Tem certeza que deseja excluir <strong>{edition.name}</strong>? Esta ação não pode ser
+            desfeita — você poderá criar uma nova edição em seguida.
+          </>
+        }
+        confirmLabel="Excluir"
+        cancelLabel="Cancelar"
+        variant="danger"
+        isLoading={deleteMutation.isPending}
+        onConfirm={() => void deleteMutation.mutateAsync()}
+        onCancel={() => setIsDeleteDialogOpen(false)}
+      />
 
       <RegistrationsSection edition={edition} />
       <EditionTournamentOverview edition={edition} />

@@ -29,6 +29,8 @@ export {
   ChampionshipRosterResponseSchema,
   EditionSummarySchema,
   ChampionshipEditionsResponseSchema,
+  OrganizerActiveEditionSchema,
+  OrganizerActiveEditionsResponseSchema,
   DeleteChampionshipResponseSchema,
   ArchiveChampionshipResponseSchema,
   UnarchiveChampionshipResponseSchema,
@@ -45,6 +47,8 @@ export {
   type ChampionshipRosterResponse,
   type EditionSummary,
   type ChampionshipEditionsResponse,
+  type OrganizerActiveEdition,
+  type OrganizerActiveEditionsResponse,
   type DeleteChampionshipResponse,
   type ArchiveChampionshipResponse,
   type UnarchiveChampionshipResponse,
@@ -83,8 +87,10 @@ export {
   type EditionRegistrationsResponse,
   EditionParticipantSchema,
   EditionParticipantsResponseSchema,
+  DeleteEditionResponseSchema,
   type EditionParticipant,
   type EditionParticipantsResponse,
+  type DeleteEditionResponse,
 } from './edition.js';
 
 export {

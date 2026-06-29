@@ -1,6 +1,7 @@
 import { Link, useOutletContext } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useChampionships } from '../../hooks/use-organizer-data.js';
+import { ActiveEditionsCard } from '../../components/organizer/ActiveEditionsCard.js';
+import { useChampionships, useOrganizerActiveEditions } from '../../hooks/use-organizer-data.js';
 import { archiveChampionship, unarchiveChampionship } from '../../lib/organizer-api.js';
 import { queryKeys } from '../../lib/query-keys.js';
 import { ApiError } from '../../lib/api-client.js';
@@ -60,6 +61,7 @@ function ChampionshipCard({
 export function OrganizerDashboardPage() {
   const { organizerEmail } = useOutletContext<OrganizerOutletContext>();
   const championshipsQuery = useChampionships();
+  const activeEditionsQuery = useOrganizerActiveEditions();
 
   const championships = championshipsQuery.data ?? [];
   const activeChampionships = championships.filter((championship) => !championship.archivedAt);
@@ -72,6 +74,11 @@ export function OrganizerDashboardPage() {
         <h2 className="mt-1 text-xl font-semibold text-foreground">Painel de Administração</h2>
         <p className="mt-2 text-sm text-muted">{organizerEmail}</p>
       </div>
+
+      <ActiveEditionsCard
+        editions={activeEditionsQuery.data ?? []}
+        isLoading={activeEditionsQuery.isLoading}
+      />
 
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-semibold text-foreground">Todos os Campeonatos</h3>

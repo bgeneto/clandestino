@@ -10,6 +10,7 @@ import {
   fetchEditionQr,
   fetchEditionRegistrations,
   fetchFinalPlacements,
+  fetchOrganizerActiveEditions,
   fetchPlayers,
 } from '../lib/organizer-api.js';
 import { queryKeys } from '../lib/query-keys.js';
@@ -20,6 +21,15 @@ export function useChampionships(enabled = true) {
     queryFn: fetchChampionships,
     enabled,
     select: (response) => response.championships,
+  });
+}
+
+export function useOrganizerActiveEditions(enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.organizerActiveEditions(),
+    queryFn: fetchOrganizerActiveEditions,
+    enabled,
+    select: (response) => response.editions,
   });
 }
 

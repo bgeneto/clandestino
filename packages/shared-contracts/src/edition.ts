@@ -94,3 +94,14 @@ export const EditionParticipantsResponseSchema = Type.Object(
 );
 
 export type EditionParticipantsResponse = Static<typeof EditionParticipantsResponseSchema>;
+
+export const DeleteEditionResponseSchema = Type.Object(
+  {
+    id: UuidSchema,
+    championshipId: UuidSchema,
+    deletedAt: IsoDateTimeSchema,
+  },
+  { $id: 'DeleteEditionResponse' },
+);
+
+export type DeleteEditionResponse = Static<typeof DeleteEditionResponseSchema>;

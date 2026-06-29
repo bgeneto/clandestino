@@ -9,6 +9,7 @@ import type {
   CreateChampionshipBody,
   CreateEditionBody,
   DeleteChampionshipResponse,
+  DeleteEditionResponse,
   DrawSnapshotListResponse,
   Edition,
   EditionContestedMatchesResponse,
@@ -22,6 +23,7 @@ import type {
   ImportScoresResponse,
   OrganizerSessionResponse,
   OrganizerSessionStatus,
+  OrganizerActiveEditionsResponse,
   Player,
   PlayerListResponse,
   CreatePlayerBody,
@@ -66,6 +68,12 @@ export async function fetchOrganizerSession(): Promise<OrganizerSessionStatus> {
 
 export async function fetchChampionships(): Promise<ChampionshipListResponse> {
   return apiRequest<ChampionshipListResponse>('/championships');
+}
+
+export async function fetchOrganizerActiveEditions(): Promise<OrganizerActiveEditionsResponse> {
+  return apiRequest<OrganizerActiveEditionsResponse>('/organizer/active-editions', {
+    ...organizer,
+  });
 }
 
 export async function fetchChampionship(championshipId: string): Promise<Championship> {
@@ -152,6 +160,13 @@ export async function createEdition(body: CreateEditionBody): Promise<Edition> {
   return apiRequest<Edition>('/editions', {
     method: 'POST',
     body,
+    ...organizer,
+  });
+}
+
+export async function deleteEdition(editionId: string): Promise<DeleteEditionResponse> {
+  return apiRequest<DeleteEditionResponse>(`/editions/${editionId}`, {
+    method: 'DELETE',
     ...organizer,
   });
 }

@@ -49,6 +49,9 @@ services:
       - sh
       - -c
       - |
+        echo "[dev] Recompilando packages compartilhados (shared-contracts, tournament-engine)..."
+        pnpm --filter @clandestino/shared-contracts build
+        pnpm --filter @clandestino/tournament-engine build
         pnpm --filter @clandestino/api db:migrate
         if [ "$${SEED_ON_START}" = "true" ]; then
           echo "[dev] Populando dados de exemplo (seed)..."

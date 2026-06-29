@@ -15,6 +15,7 @@ import { registerEditionDrawRoutes } from './routes/edition-draw.js';
 import { registerEditionPlacementRoutes } from './routes/edition-placement.js';
 import { registerEditionReadRoutes } from './routes/edition-read.js';
 import { registerMatchRoutes } from './routes/matches.js';
+import { registerOrganizerDashboardRoutes } from './routes/organizer-dashboard.js';
 import { registerSsePlugin } from './plugins/sse.js';
 import { startAutoConfirmJob } from './jobs/auto-confirm.js';
 
@@ -101,6 +102,7 @@ export async function createApp(config: ApiConfig) {
   await registerEditionReadRoutes(app);
   await registerMatchRoutes(app);
   await registerEditionPlacementRoutes(app);
+  await registerOrganizerDashboardRoutes(app);
 
   const stopAutoConfirmJob = startAutoConfirmJob(app);
   app.addHook('onClose', async () => {

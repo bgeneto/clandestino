@@ -19,7 +19,4 @@ services:
     ports:
       - '3000:3000'
     volumes:
-      - clandestino-data:/app/data
-
-volumes:
-  clandestino-data:
+      - ./data:/app/data

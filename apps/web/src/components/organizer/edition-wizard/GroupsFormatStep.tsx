@@ -35,6 +35,7 @@ export function GroupsFormatStep({ draft, onChange, onContinue, onBack }: Groups
 
   const totalMatches = estimateRoundRobinMatches(groupSizes);
   const largestGroup = groupSizes.length > 0 ? Math.max(...groupSizes) : 0;
+  const largestGroupMatches = largestGroup > 0 ? estimateRoundRobinMatches([largestGroup]) : 0;
 
   const canContinue = groupSizes.length > 0;
 
@@ -86,7 +87,11 @@ export function GroupsFormatStep({ draft, onChange, onContinue, onBack }: Groups
           ))}
         </ul>
         <p className="mt-3 font-semibold text-muted">
-          Número de partidas na fase de grupos: {totalMatches}
+          Total de partidas na fase de grupos: {totalMatches}
+        </p>
+        <p className="mt-3 font-semibold text-muted">
+          Tempo estimado para a fase de grupos: {Math.floor((largestGroupMatches * 20) / 60)}h
+          {((largestGroupMatches * 20) % 60).toString().padStart(2, '0')}min
         </p>
         {largestGroup > WIZARD_WARN_GROUP_SIZE ? (
           <p className="mt-2 text-warning-foreground">

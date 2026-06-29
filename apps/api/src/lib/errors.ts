@@ -31,6 +31,27 @@ export function conflict(message: string, details?: unknown): ApiError {
   return new ApiError(409, message, details);
 }
 
+/** PostgreSQL (`23505`) and SQLite unique/primary-key constraint violations. */
+export function isUniqueViolation(error: unknown): boolean {
+  if (typeof error !== 'object' || error === null) {
+    return false;
+  }
+
+  if ('code' in error) {
+    const code = (error as { code?: string }).code;
+    if (
+      code === '23505' ||
+      code === 'SQLITE_CONSTRAINT_UNIQUE' ||
+      code === 'SQLITE_CONSTRAINT_PRIMARYKEY'
+    ) {
+      return true;
+    }
+  }
+
+  const message = (error as { message?: string }).message;
+  return typeof message === 'string' && message.includes('UNIQUE constraint failed');
+}
+
 export function unprocessableEntity(message: string, details?: unknown): ApiError {
   return new ApiError(422, message, details);
 }

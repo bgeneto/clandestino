@@ -52,7 +52,8 @@ function RegistrationsSection({ edition }: { edition: Edition }) {
   const registrationsQuery = useEditionRegistrations(edition.id);
   const participantsQuery = useEditionParticipants(edition.id);
   const [search, setSearch] = useState('');
-  const [feedback, setFeedback] = useState<string | null>(null);
+  const [successFeedback, setSuccessFeedback] = useState<string | null>(null);
+  const [errorFeedback, setErrorFeedback] = useState<string | null>(null);
 
   const registeredIds = useMemo(
     () => new Set((registrationsQuery.data ?? []).map((entry) => entry.playerId)),
@@ -84,14 +85,16 @@ function RegistrationsSection({ edition }: { edition: Edition }) {
   const registerMutation = useMutation({
     mutationFn: (playerId: string) => registerPlayer(edition.id, { playerId }),
     onSuccess: async () => {
-      setFeedback('Jogador inscrito.');
+      setSuccessFeedback('Jogador inscrito.');
+      setErrorFeedback(null);
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.registrations(edition.id) }),
         queryClient.invalidateQueries({ queryKey: queryKeys.participants(edition.id) }),
       ]);
     },
     onError: (error) => {
-      setFeedback(
+      setSuccessFeedback(null);
+      setErrorFeedback(
         error instanceof ApiError ? error.message : 'Não foi possível inscrever o jogador.',
       );
     },
@@ -161,7 +164,8 @@ function RegistrationsSection({ edition }: { edition: Edition }) {
         </ul>
       </div>
 
-      {feedback ? <p className="text-sm text-muted">{feedback}</p> : null}
+      {successFeedback ? <Alert variant="success">{successFeedback}</Alert> : null}
+      {errorFeedback ? <Alert variant="danger">{errorFeedback}</Alert> : null}
     </section>
   );
 }
@@ -180,7 +184,8 @@ function DrawSection({ edition }: { edition: Edition }) {
     edition.status === 'SORTEIO_PUBLICADO' || edition.status === 'EM_ANDAMENTO',
   );
   const matchesQuery = useEditionMatches(edition.id);
-  const [feedback, setFeedback] = useState<string | null>(null);
+  const [successFeedback, setSuccessFeedback] = useState<string | null>(null);
+  const [errorFeedback, setErrorFeedback] = useState<string | null>(null);
 
   const playerCount = registrationsQuery.data?.length ?? 0;
   const drawWarning = getDrawReadinessWarning(playerCount, edition.rules);
@@ -198,7 +203,8 @@ function DrawSection({ edition }: { edition: Edition }) {
   const drawMutation = useMutation({
     mutationFn: () => executeDraw(edition.id),
     onSuccess: async () => {
-      setFeedback('Sorteio executado com sucesso.');
+      setSuccessFeedback('Sorteio executado com sucesso.');
+      setErrorFeedback(null);
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.groups(edition.id) }),
         queryClient.invalidateQueries({ queryKey: queryKeys.participants(edition.id) }),
@@ -207,7 +213,8 @@ function DrawSection({ edition }: { edition: Edition }) {
       ]);
     },
     onError: (error) => {
-      setFeedback(
+      setSuccessFeedback(null);
+      setErrorFeedback(
         error instanceof ApiError ? error.message : 'Não foi possível executar o sorteio.',
       );
     },
@@ -216,7 +223,8 @@ function DrawSection({ edition }: { edition: Edition }) {
   const cancelMutation = useMutation({
     mutationFn: () => cancelDraw(edition.id),
     onSuccess: async () => {
-      setFeedback('Sorteio cancelado. Você pode executar novamente.');
+      setSuccessFeedback('Sorteio cancelado. Você pode executar novamente.');
+      setErrorFeedback(null);
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.groups(edition.id) }),
         queryClient.invalidateQueries({ queryKey: queryKeys.drawSnapshots(edition.id) }),
@@ -224,7 +232,8 @@ function DrawSection({ edition }: { edition: Edition }) {
       ]);
     },
     onError: (error) => {
-      setFeedback(
+      setSuccessFeedback(null);
+      setErrorFeedback(
         error instanceof ApiError ? error.message : 'Não foi possível cancelar o sorteio.',
       );
     },
@@ -233,14 +242,16 @@ function DrawSection({ edition }: { edition: Edition }) {
   const generateMutation = useMutation({
     mutationFn: () => generateMatches(edition.id),
     onSuccess: async () => {
-      setFeedback('Partidas geradas com sucesso.');
+      setSuccessFeedback('Partidas geradas com sucesso.');
+      setErrorFeedback(null);
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.matches(edition.id) }),
         queryClient.invalidateQueries({ queryKey: queryKeys.edition(edition.id) }),
       ]);
     },
     onError: (error) => {
-      setFeedback(
+      setSuccessFeedback(null);
+      setErrorFeedback(
         error instanceof ApiError ? error.message : 'Não foi possível gerar as partidas.',
       );
     },
@@ -257,11 +268,7 @@ function DrawSection({ edition }: { edition: Edition }) {
 
       {canDraw ? (
         <>
-          {drawWarning ? (
-            <p className="rounded-lg border border-warning-surface bg-warning-surface px-3 py-2 text-sm text-warning-foreground">
-              {drawWarning}
-            </p>
-          ) : null}
+          {drawWarning ? <Alert variant="warning">{drawWarning}</Alert> : null}
           <button
             type="button"
             disabled={drawMutation.isPending || drawWarning !== null}
@@ -315,7 +322,8 @@ function DrawSection({ edition }: { edition: Edition }) {
         </button>
       ) : null}
 
-      {feedback ? <p className="text-sm text-muted">{feedback}</p> : null}
+      {successFeedback ? <Alert variant="success">{successFeedback}</Alert> : null}
+      {errorFeedback ? <Alert variant="danger">{errorFeedback}</Alert> : null}
     </section>
   );
 }
@@ -397,7 +405,7 @@ function ContestCorrectionCard({
         />
       </div>
 
-      {!validation.valid ? <p className="mt-3 text-sm text-rose-700">{validation.reason}</p> : null}
+      {!validation.valid ? <Alert variant="danger">{validation.reason}</Alert> : null}
 
       <label className="mt-4 flex items-start gap-2 text-sm text-muted">
         <input
@@ -418,7 +426,7 @@ function ContestCorrectionCard({
         {correctMutation.isPending ? 'Salvando…' : 'Oficializar resultado corrigido'}
       </button>
 
-      {feedback ? <p className="mt-3 text-sm text-muted">{feedback}</p> : null}
+      {feedback ? <Alert variant="success">{feedback}</Alert> : null}
     </article>
   );
 }
@@ -461,7 +469,8 @@ function PlacementSection({ edition }: { edition: Edition }) {
   const queryClient = useQueryClient();
   const groupsQuery = useEditionGroups(edition.id);
   const participantsQuery = useEditionParticipants(edition.id);
-  const [feedback, setFeedback] = useState<string | null>(null);
+  const [successFeedback, setSuccessFeedback] = useState<string | null>(null);
+  const [errorFeedback, setErrorFeedback] = useState<string | null>(null);
 
   const placementGroups = useMemo(
     () =>
@@ -480,7 +489,8 @@ function PlacementSection({ edition }: { edition: Edition }) {
   const publishMutation = useMutation({
     mutationFn: () => publishPlacementStage(edition.id),
     onSuccess: async () => {
-      setFeedback('Fase de colocação publicada.');
+      setSuccessFeedback('Fase de colocação publicada.');
+      setErrorFeedback(null);
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.groups(edition.id) }),
         queryClient.invalidateQueries({ queryKey: queryKeys.matches(edition.id) }),
@@ -488,7 +498,8 @@ function PlacementSection({ edition }: { edition: Edition }) {
       ]);
     },
     onError: (error) => {
-      setFeedback(
+      setSuccessFeedback(null);
+      setErrorFeedback(
         error instanceof ApiError
           ? error.message
           : 'Não foi possível publicar a fase de colocação.',
@@ -513,7 +524,8 @@ function PlacementSection({ edition }: { edition: Edition }) {
       >
         {publishMutation.isPending ? 'Publicando…' : 'Publicar fase de colocação'}
       </button>
-      {feedback ? <p className="text-sm text-muted">{feedback}</p> : null}
+      {successFeedback ? <Alert variant="success">{successFeedback}</Alert> : null}
+      {errorFeedback ? <Alert variant="danger">{errorFeedback}</Alert> : null}
     </section>
   );
 }
@@ -522,7 +534,8 @@ function FinalizeSection({ edition }: { edition: Edition }) {
   const queryClient = useQueryClient();
   const participantsQuery = useEditionParticipants(edition.id);
   const finalPlacementsQuery = useFinalPlacements(edition.id, edition.status === 'ENCERRADA');
-  const [feedback, setFeedback] = useState<string | null>(null);
+  const [successFeedback, setSuccessFeedback] = useState<string | null>(null);
+  const [errorFeedback, setErrorFeedback] = useState<string | null>(null);
 
   const playerNames = useMemo(() => {
     const map = new Map<string, string>();
@@ -535,14 +548,16 @@ function FinalizeSection({ edition }: { edition: Edition }) {
   const finalizeMutation = useMutation({
     mutationFn: () => finalizeEdition(edition.id),
     onSuccess: async () => {
-      setFeedback('Edição encerrada com sucesso.');
+      setSuccessFeedback('Edição encerrada com sucesso.');
+      setErrorFeedback(null);
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.edition(edition.id) }),
         queryClient.invalidateQueries({ queryKey: queryKeys.finalPlacements(edition.id) }),
       ]);
     },
     onError: (error) => {
-      setFeedback(
+      setSuccessFeedback(null);
+      setErrorFeedback(
         error instanceof ApiError ? error.message : 'Não foi possível encerrar a edição.',
       );
     },
@@ -597,7 +612,8 @@ function FinalizeSection({ edition }: { edition: Edition }) {
       >
         {finalizeMutation.isPending ? 'Encerrando…' : 'Encerrar edição'}
       </button>
-      {feedback ? <p className="text-sm text-muted">{feedback}</p> : null}
+      {successFeedback ? <Alert variant="success">{successFeedback}</Alert> : null}
+      {errorFeedback ? <Alert variant="danger">{errorFeedback}</Alert> : null}
     </section>
   );
 }

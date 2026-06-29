@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useRef, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
 import type { ImportScoresCsvRow } from '@clandestino/shared-contracts';
@@ -12,6 +12,40 @@ import { importChampionshipScores } from '../../lib/organizer-api.js';
 import { useChampionship } from '../../hooks/use-organizer-data.js';
 import { Alert } from '../../components/ui/Alert.js';
 
+function parseCsvLine(line: string): string[] {
+  const fields: string[] = [];
+  let current = '';
+  let inQuotes = false;
+
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i];
+    if (inQuotes) {
+      if (char === '"') {
+        if (line[i + 1] === '"') {
+          current += '"';
+          i++;
+        } else {
+          inQuotes = false;
+        }
+      } else {
+        current += char;
+      }
+    } else {
+      if (char === '"') {
+        inQuotes = true;
+      } else if (char === ',') {
+        fields.push(current.trim());
+        current = '';
+      } else {
+        current += char;
+      }
+    }
+  }
+
+  fields.push(current.trim());
+  return fields;
+}
+
 function parseCsvPreview(content: string): { rows: ImportScoresCsvRow[]; errors: string[] } {
   const normalized = content.replace(/^\uFEFF/, '').trim();
   if (!normalized) {
@@ -24,7 +58,7 @@ function parseCsvPreview(content: string): { rows: ImportScoresCsvRow[]; errors:
   }
 
   const headerLine = lines[0] ?? '';
-  const headers = headerLine.split(',').map((header) => header.trim());
+  const headers = parseCsvLine(headerLine);
 
   let columnIndexes;
   try {
@@ -46,7 +80,7 @@ function parseCsvPreview(content: string): { rows: ImportScoresCsvRow[]; errors:
   for (let index = 1; index < lines.length; index++) {
     const lineNumber = index + 1;
     const line = lines[index] ?? '';
-    const parts = line.split(',').map((part) => part.trim());
+    const parts = parseCsvLine(line);
     const rawPlayerName = parts[columnIndexes.playerNameIndex] ?? '';
     const points = Number.parseInt(parts[columnIndexes.accumulatedPointsIndex] ?? '', 10);
 
@@ -75,11 +109,44 @@ function parseCsvPreview(content: string): { rows: ImportScoresCsvRow[]; errors:
 export function ImportCsvPage() {
   const { championshipId } = useParams<{ championshipId: string }>();
   const championshipQuery = useChampionship(championshipId);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [csvContent, setCsvContent] = useState('');
   const [confirmed, setConfirmed] = useState(false);
   const [acknowledged, setAcknowledged] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    if (!file.name.endsWith('.csv')) {
+      setError('Por favor, selecione um arquivo CSV.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const content = e.target?.result;
+      if (typeof content === 'string') {
+        setCsvContent(content);
+        setConfirmed(false);
+        setAcknowledged(false);
+        setFeedback(null);
+        setError(null);
+      }
+    };
+    reader.onerror = () => {
+      setError('Não foi possível ler o arquivo.');
+    };
+    reader.readAsText(file, 'UTF-8');
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
 
   const preview = useMemo(() => parseCsvPreview(csvContent), [csvContent]);
 
@@ -151,6 +218,22 @@ export function ImportCsvPage() {
         <div className="space-y-4 rounded-2xl border border-line bg-card p-6">
           <label className="block space-y-2 text-sm">
             <span className="text-muted">Conteúdo CSV</span>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="shrink-0 rounded-lg border border-line bg-card-muted px-3 py-2.5 text-sm text-foreground hover:bg-card-muted-hover focus:outline-none focus:ring-2 focus:ring-brand"
+              >
+                📁 Selecionar arquivo CSV
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".csv"
+                onChange={handleFileUpload}
+                className="hidden"
+              />
+            </div>
             <textarea
               value={csvContent}
               onChange={(event) => {

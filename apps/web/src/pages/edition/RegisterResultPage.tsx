@@ -13,6 +13,7 @@ import { useOnlineStatus } from '../../hooks/use-online-status.js';
 import { validateScoreInput } from '../../lib/match-utils.js';
 import { submitMatchResultOfflineAware } from '../../offline/submit-match-result.js';
 import { queryKeys } from '../../lib/query-keys.js';
+import { Alert } from '../../components/ui/Alert.js';
 import type { PlayerOutletContext } from './RequirePlayerSession.js';
 
 export function RegisterResultPage() {
@@ -113,7 +114,7 @@ export function RegisterResultPage() {
 
       <EditionHeader edition={edition} subtitle={groupName} />
       <section className="rounded-2xl bg-card p-5 shadow-sm">
-        <div className="flex items-center justify-around">
+        <div className="flex min-w-0 items-end justify-between gap-1 sm:justify-around sm:gap-2">
           <ScoreCounter
             label={session.playerName ?? 'Você'}
             value={reporterSets}
@@ -121,7 +122,12 @@ export function RegisterResultPage() {
             onIncrement={() => setReporterSets((value) => Math.min(MAX_SETS_SCORE, value + 1))}
             onDecrement={() => setReporterSets((value) => Math.max(0, value - 1))}
           />
-          <span className="mt-6 text-xl font-bold text-muted">×</span>
+          <span
+            className="mb-1.5 shrink-0 text-3xl font-bold text-muted sm:mb-2 sm:text-4xl"
+            aria-hidden
+          >
+            ×
+          </span>
           <ScoreCounter
             label={playerNames.get(opponentId ?? '') ?? 'Adversário'}
             value={opponentSets}
@@ -133,22 +139,14 @@ export function RegisterResultPage() {
       </section>
 
       {!online ? (
-        <p className="rounded-lg border border-warning-surface bg-warning-surface px-3 py-2 text-center text-xs text-warning-foreground">
-          📶 Sem conexão — resultado será enviado ao reconectar
-        </p>
+        <Alert variant="warning">📶 Sem conexão — resultado será enviado ao reconectar</Alert>
       ) : null}
 
       {!validation.valid && (reporterSets > 0 || opponentSets > 0) ? (
-        <p className="rounded-lg bg-rose-50 px-3 py-2 text-center text-sm text-rose-700">
-          {validation.reason}
-        </p>
+        <Alert variant="danger">{validation.reason}</Alert>
       ) : null}
 
-      {feedback ? (
-        <p className="rounded-lg bg-emerald-50 px-3 py-2 text-center text-sm text-emerald-800">
-          {feedback}
-        </p>
-      ) : null}
+      {feedback ? <Alert variant="success">{feedback}</Alert> : null}
 
       <button
         type="button"
@@ -156,7 +154,7 @@ export function RegisterResultPage() {
         onClick={() => submitMutation.mutate()}
         className="w-full rounded-xl bg-header px-4 py-3.5 text-base font-bold text-header-foreground disabled:opacity-40"
       >
-        Enviar resultado
+        🚀 Enviar resultado
       </button>
     </div>
   );

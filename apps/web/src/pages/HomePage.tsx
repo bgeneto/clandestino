@@ -7,10 +7,12 @@ export function HomePage() {
   return (
     <section className="space-y-6">
       <div className="rounded-2xl border border-line bg-card p-6">
-        <h2 className="text-xl font-semibold text-foreground">Clandestino</h2>
+        <h2 className="text-xl font-semibold text-foreground">🏓 Clandestino</h2>
         <p className="mt-2 text-sm leading-6 text-muted">
-          Campeonato de tênis de mesa Clandestino. Escaneie o QR code da edição ou acesse o link
-          público para acompanhar ao vivo.
+          Bem-vindo ao app oficial do campeonato <b>Clandestino</b> de tênis de mesa.
+          <br />
+          Escaneie o QR code da edição ou acesse o link público para ingressar ou acompanhar ao
+          vivo.
         </p>
       </div>
 

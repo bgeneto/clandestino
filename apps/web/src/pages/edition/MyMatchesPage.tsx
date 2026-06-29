@@ -100,6 +100,7 @@ export function MyMatchesPage() {
                 match={match}
                 playerId={session.playerId}
                 opponentName={playerNames.get(opponentId ?? '') ?? 'Adversário'}
+                playerName={session.playerName ?? 'Jogador'}
                 editionId={editionId}
                 onConfirm={(matchId) => confirmMutation.mutate(matchId)}
                 onContest={setContestMatchId}

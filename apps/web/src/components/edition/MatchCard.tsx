@@ -13,6 +13,7 @@ type MatchCardProps = {
   match: Match;
   playerId: string;
   opponentName: string;
+  playerName: string;
   phaseLabel?: string;
   editionId: string;
   onConfirm?: (matchId: string) => void;
@@ -76,6 +77,7 @@ export function MatchCard({
   match,
   playerId,
   opponentName,
+  playerName,
   phaseLabel,
   editionId,
   onConfirm,
@@ -97,7 +99,9 @@ export function MatchCard({
           {phaseLabel}
         </p>
       ) : null}
-      <p className="text-[15px] font-semibold text-foreground">vs. {opponentName}</p>
+      <p className="text-[15px] font-semibold text-foreground">
+        {playerName} vs {opponentName}
+      </p>
       <p className={`mt-1 text-xs ${statusClass(match.status, awaitingConfirmation)}`}>
         {statusLabel(match, playerId)}
       </p>
@@ -157,7 +161,7 @@ export function PublicMatchRow({
   return (
     <div className="border-b border-line px-4 py-3 last:border-b-0">
       <p className="text-sm font-medium text-foreground">
-        {playerOneName} vs. {playerTwoName}
+        {playerOneName} vs {playerTwoName}
       </p>
       <p className="mt-1 text-xs text-subtle">
         {groupName} · {MATCH_STATUS_LABELS[match.status]}

@@ -1,7 +1,7 @@
 import { DEFAULT_TOURNAMENT_RULES } from '@clandestino/shared-contracts';
 import { describe, expect, it } from 'vitest';
 import { parseImportScoresCsv } from './csv.js';
-import { validateScoringTable, validateTournamentRules } from './errors.js';
+import { isUniqueViolation, validateScoringTable, validateTournamentRules } from './errors.js';
 
 describe('parseImportScoresCsv', () => {
   it('parses valid CSV content', () => {
@@ -97,5 +97,30 @@ describe('validateScoringTable', () => {
         { position: 1, points: 180 },
       ]),
     ).toMatch(/posição 1/i);
+  });
+});
+
+describe('isUniqueViolation', () => {
+  it('detects PostgreSQL unique violations', () => {
+    expect(isUniqueViolation({ code: '23505' })).toBe(true);
+  });
+
+  it('detects SQLite unique violations', () => {
+    expect(isUniqueViolation({ code: 'SQLITE_CONSTRAINT_PRIMARYKEY' })).toBe(true);
+    expect(isUniqueViolation({ code: 'SQLITE_CONSTRAINT_UNIQUE' })).toBe(true);
+  });
+
+  it('detects SQLite message fallback', () => {
+    expect(
+      isUniqueViolation({
+        message:
+          'UNIQUE constraint failed: edition_registration.edition_id, edition_registration.player_id',
+      }),
+    ).toBe(true);
+  });
+
+  it('rejects unrelated errors', () => {
+    expect(isUniqueViolation({ code: 'SQLITE_CONSTRAINT_FOREIGNKEY' })).toBe(false);
+    expect(isUniqueViolation(new Error('other'))).toBe(false);
   });
 });

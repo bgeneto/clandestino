@@ -43,14 +43,14 @@ Eu não começaria com um aplicativo nativo para Android e iOS. Para esse cenár
 | Armazenamento local       | IndexedDB + Dexie                    |
 | API                       | Node.js + Fastify                    |
 | Validação                 | TypeBox + JSON Schema                |
-| Banco                     | PostgreSQL                           |
+| Banco                     | SQLite (`better-sqlite3`)            |
 | Acesso ao banco           | Drizzle ORM                          |
 | Atualização em tempo real | Eventos enviados pelo servidor — SSE |
 | Testes                    | Vitest + Playwright + `fast-check`   |
 | Implantação               | Docker Compose + Caddy no seu VPS    |
 | DNS e proteção            | Cloudflare                           |
 
-Essa combinação se encaixa bem com a infraestrutura que você já utiliza: **Node.js, PostgreSQL, Docker, Debian, Caddy e Cloudflare**.
+Essa combinação se encaixa bem com a infraestrutura que você já utiliza: **Node.js, SQLite, Docker, Debian, Caddy e Cloudflare**.
 
 ### Por que React com Vite, e não Next.js?
 
@@ -64,7 +64,7 @@ Next.js também funcionaria, mas acrescentaria complexidade desnecessária para 
 
 Para este projeto, eu manteria sua preferência por um **monólito modular em Node.js**. Fastify oferece boa organização por módulos, integração com TypeScript e validação de requisições e respostas por JSON Schema. Isso é especialmente útil para rejeitar resultados impossíveis antes que eles alcancem o banco. ([Fastify](https://fastify.dev/docs/latest/Reference/TypeScript/?utm_source=chatgpt.com))
 
-### Por que PostgreSQL?
+### Por que SQLite?
 
 O banco deve ser a fonte definitiva dos resultados. Restrições de chave primária, unicidade, referência e verificação podem impedir situações como:
 
@@ -74,9 +74,7 @@ O banco deve ser a fonte definitiva dos resultados. Restrições de chave primá
 - publicar duas classificações finais para a mesma edição;
 - apagar um jogador que já possui partidas registradas.
 
-O PostgreSQL oferece essas garantias diretamente no modelo relacional. ([PostgreSQL](https://www.postgresql.org/docs/current/ddl-constraints.html?utm_source=chatgpt.com))
-
-> **Nota (2026):** a API foi migrada para **SQLite** (`better-sqlite3` + Drizzle). A decisão original favorecia PostgreSQL; o MVP passou a usar arquivo local com as mesmas constraints Drizzle.
+O MVP usa **SQLite** com `better-sqlite3` e Drizzle: arquivo local, zero dependência de servidor de banco, adequado ao deploy em VPS com Docker Compose. As mesmas constraints do schema Drizzle (PK, unique, FK, check) valem no SQLite; a API traduz violações de unicidade em respostas HTTP 409.
 
 O Drizzle é uma boa escolha por manter o esquema próximo do SQL, preservar a tipagem no TypeScript e gerar migrações versionadas. ([Drizzle ORM](https://orm.drizzle.team/docs/get-started/sqlite-new?utm_source=chatgpt.com))
 
@@ -454,7 +452,7 @@ API REST Fastify
         ↓
 motor de torneios independente
         ↓
-PostgreSQL + Drizzle
+SQLite + Drizzle
         ↓
 Docker Compose + Caddy no VPS
 ```

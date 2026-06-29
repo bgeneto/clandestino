@@ -45,8 +45,8 @@ export function PlayerEntryPage() {
           <p className="font-semibold">Confirme que este é o seu nome</p>
           <p className="mt-2 text-2xl font-bold text-foreground">{pendingParticipant.playerName}</p>
           <p className="mt-2 text-warning-foreground/80">
-            Você está entrando na edição <strong>{edition.name}</strong>. Essa escolha fica salva
-            neste dispositivo.
+            Você está entrando na edição <strong>{edition.name}</strong>.<br />
+            (essa escolha fica salva neste dispositivo)
           </p>
         </section>
         <div className="flex gap-2">
@@ -63,7 +63,7 @@ export function PlayerEntryPage() {
             onClick={() => void handleConfirm()}
             className="flex-1 rounded-xl bg-header px-4 py-3 text-sm font-semibold text-header-foreground disabled:opacity-60"
           >
-            Confirmar e entrar
+            Confirmar e entrar →
           </button>
         </div>
       </div>

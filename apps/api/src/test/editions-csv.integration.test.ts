@@ -86,6 +86,69 @@ describe.skipIf(!hasTestDb)('jogadores, campeonatos e importação CSV (integra�
     expect(response.json<{ error: string }>().error).toContain('ao menos 2 caracteres');
   });
 
+  it('rejeita cadastro duplicado de jogador (409)', async () => {
+    await createPlayer('Ana Souza');
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/players',
+      headers: organizerHeaders(organizerToken),
+      payload: { name: 'ana souza' },
+    });
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json<{ error: string }>().error.toLowerCase()).toContain(
+      'já existe um jogador',
+    );
+  });
+
+  it('rejeita criação duplicada de campeonato (409)', async () => {
+    await createChampionship('Campeonato Duplicado');
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/championships',
+      headers: organizerHeaders(organizerToken),
+      payload: { name: 'Campeonato Duplicado' },
+    });
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json<{ error: string }>().error.toLowerCase()).toContain(
+      'já existe um campeonato',
+    );
+  });
+
+  it('rejeita inscrição duplicada na edição (409)', async () => {
+    const championshipId = await createChampionship('Campeonato Inscrição');
+    const editionResponse = await app.inject({
+      method: 'POST',
+      url: '/editions',
+      headers: organizerHeaders(organizerToken),
+      payload: { championshipId, date: '2026-08-01' },
+    });
+    expect(editionResponse.statusCode).toBe(201);
+    const editionId = editionResponse.json<{ id: string }>().id;
+    const playerId = await createPlayer('Inscrito');
+
+    const first = await app.inject({
+      method: 'POST',
+      url: `/editions/${editionId}/registrations`,
+      headers: organizerHeaders(organizerToken),
+      payload: { playerId },
+    });
+    expect(first.statusCode).toBe(201);
+
+    const second = await app.inject({
+      method: 'POST',
+      url: `/editions/${editionId}/registrations`,
+      headers: organizerHeaders(organizerToken),
+      payload: { playerId },
+    });
+
+    expect(second.statusCode).toBe(409);
+    expect(second.json<{ error: string }>().error).toContain('já inscrito');
+  });
+
   it('rejeita criação de edição com regras inválidas (400)', async () => {
     const championshipId = await createChampionship('Campeonato Regras');
     const response = await app.inject({

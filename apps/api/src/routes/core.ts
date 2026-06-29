@@ -18,7 +18,7 @@ import {
   VerifyOrganizerMagicLinkBodySchema,
 } from '@clandestino/shared-contracts';
 import { Type } from '@sinclair/typebox';
-import { and, asc, desc, eq, sql } from 'drizzle-orm';
+import { and, asc, desc, eq } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import { schema } from '../db/index.js';
 import {
@@ -27,9 +27,17 @@ import {
   isOrganizerEmailAllowed,
   normalizeEmail,
 } from '../lib/crypto.js';
-import { badRequest, conflict, forbidden, notFound, unauthorized } from '../lib/errors.js';
+import {
+  badRequest,
+  conflict,
+  forbidden,
+  isUniqueViolation,
+  notFound,
+  unauthorized,
+} from '../lib/errors.js';
 import { mapChampionship, mapEditionSummary, mapPlayer } from '../lib/mappers.js';
 import { parseImportScoresCsv } from '../lib/csv.js';
+import { findOrCreatePlayerByName } from '../lib/players.js';
 import { consumeMagicToken } from '../plugins/auth.js';
 
 export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
@@ -466,26 +474,13 @@ export async function registerChampionshipRoutes(app: FastifyInstance): Promise<
 
       await app.db.transaction(async (tx) => {
         for (const row of parsedRows) {
-          const playerName = row.playerName;
-          let [player] = await tx
-            .select({ id: schema.players.id, name: schema.players.name })
-            .from(schema.players)
-            .where(sql`upper(trim(${schema.players.name})) = ${playerName}`)
-            .limit(1);
+          const { player, created } = await findOrCreatePlayerByName(
+            tx,
+            row.playerName,
+            row.lineNumber,
+          );
 
-          if (!player) {
-            const [created] = await tx
-              .insert(schema.players)
-              .values({ name: playerName })
-              .returning({ id: schema.players.id, name: schema.players.name });
-
-            if (!created) {
-              throw badRequest(
-                `Linha ${row.lineNumber}: não foi possível cadastrar "${playerName}".`,
-              );
-            }
-
-            player = created;
+          if (created) {
             createdPlayersCount += 1;
           }
 
@@ -538,14 +533,5 @@ export async function registerChampionshipRoutes(app: FastifyInstance): Promise<
         scores: importedScores,
       };
     },
-  );
-}
-
-function isUniqueViolation(error: unknown): boolean {
-  return (
-    typeof error === 'object' &&
-    error !== null &&
-    'code' in error &&
-    (error as { code?: string }).code === '23505'
   );
 }

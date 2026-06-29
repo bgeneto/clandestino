@@ -1,3 +1,5 @@
+import type { ReactNode } from 'react';
+
 const icons = {
   danger: '🚫',
   warning: '⚠️',
@@ -17,16 +19,16 @@ export function Alert({
   children,
 }: {
   variant?: 'danger' | 'warning' | 'success' | 'info';
-  children: string;
+  children: ReactNode;
 }) {
   return (
     <div
-      className={`flex items-center gap-3 rounded-2xl border p-4 text-sm ${surfaceClasses[variant]}`}
+      className={`flex items-start gap-3 rounded-2xl border p-4 text-sm ${surfaceClasses[variant]}`}
     >
       <span aria-hidden="true" className="text-base">
         {icons[variant]}
       </span>
-      <p>{children}</p>
+      {typeof children === 'string' ? <p>{children}</p> : children}
     </div>
   );
 }

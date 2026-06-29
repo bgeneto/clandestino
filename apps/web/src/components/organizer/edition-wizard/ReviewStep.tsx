@@ -24,6 +24,9 @@ export function ReviewStep({
   onPublish,
 }: ReviewStepProps) {
   const totalMatches = estimateRoundRobinMatches(draft.groupSizes ?? []);
+  const groupSizes = draft.groupSizes ?? [];
+  const largestGroup = groupSizes.length > 0 ? Math.max(...groupSizes) : 0;
+  const largestGroupMatches = largestGroup > 0 ? estimateRoundRobinMatches([largestGroup]) : 0;
 
   return (
     <section className="space-y-4">
@@ -59,6 +62,13 @@ export function ReviewStep({
         <div className="flex justify-between gap-4">
           <dt className="text-subtle">Partidas da fase de grupos</dt>
           <dd className="text-foreground">{totalMatches}</dd>
+        </div>
+        <div className="flex justify-between gap-4">
+          <dt className="text-subtle">Tempo estimado das partidas</dt>
+          <dd className="text-foreground">
+            {Math.floor((largestGroupMatches * 20) / 60)}h
+            {((largestGroupMatches * 20) % 60).toString().padStart(2, '0')}min
+          </dd>
         </div>
       </dl>
 

@@ -51,7 +51,7 @@ export function ChampionshipPage() {
           className="rounded-2xl border border-line bg-card px-5 py-4 text-foreground transition hover:border-brand"
         >
           <p className="font-medium">Importar pontuação CSV</p>
-          <p className="mt-1 text-sm text-subtle">Atualizar ranking acumulado</p>
+          <p className="mt-1 text-sm text-subtle">Utilizar pontuação já existente</p>
         </Link>
       </div>
 
@@ -93,7 +93,15 @@ export function ChampionshipPage() {
         {editionsQuery.isLoading ? (
           <p className="mt-3 text-sm text-subtle">Carregando edições…</p>
         ) : editions.length === 0 ? (
-          <p className="mt-3 text-sm text-subtle">Nenhuma edição criada ainda.</p>
+          <div>
+            <p className="mt-3 text-sm text-subtle">Nenhuma edição criada ainda.</p>
+            <Link
+              to={`/organizador/campeonato/${championship.id}/edicao/nova`}
+              className="mt-3 inline-block rounded-lg border border-brand bg-brand/10 px-4 py-2 text-sm font-medium text-brand transition hover:bg-brand/20"
+            >
+              Nova edição
+            </Link>
+          </div>
         ) : (
           <ul className="mt-4 space-y-2">
             {editions.map((edition) => (

@@ -47,12 +47,12 @@ export function OrganizerVerifyPage() {
 
   if (!token) {
     return (
-      <section className="rounded-2xl border border-danger-surface bg-danger-surface p-6 text-sm text-danger-foreground">
+      <Alert variant="danger">
         Link inválido.{' '}
         <Link className="underline" to="/organizador">
           Solicitar novo link
         </Link>
-      </section>
+      </Alert>
     );
   }
 

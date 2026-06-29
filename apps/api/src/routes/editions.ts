@@ -12,8 +12,13 @@ import { eq } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import { schema } from '../db/index.js';
 import { nextEditionNameForChampionship } from '../lib/editions.js';
-import { badRequest, conflict, notFound } from '../lib/errors.js';
-import { validateEditionRules } from '../lib/errors.js';
+import {
+  badRequest,
+  conflict,
+  isUniqueViolation,
+  notFound,
+  validateEditionRules,
+} from '../lib/errors.js';
 import { mapEdition, mapRegistration } from '../lib/mappers.js';
 
 export async function registerEditionRoutes(app: FastifyInstance): Promise<void> {
@@ -213,14 +218,5 @@ export async function registerEditionRoutes(app: FastifyInstance): Promise<void>
       reply.code(201);
       return { registrations: registrations.map(mapRegistration) };
     },
-  );
-}
-
-function isUniqueViolation(error: unknown): boolean {
-  return (
-    typeof error === 'object' &&
-    error !== null &&
-    'code' in error &&
-    (error as { code?: string }).code === '23505'
   );
 }

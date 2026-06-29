@@ -76,6 +76,10 @@ Edition-level configuration for draw and match mechanics (group sizes, seeds, be
 
 The `@clandestino/tournament-engine` package implements pure functions that consume `EditionRules`; the package name is historical and refers to edition mechanics, not the championship entity.
 
+### Edition lifecycle edge case — single group
+
+When an edition has only one `GROUP_STAGE` group, completing all group matches sets status to `FASE_COLOCACAO` but creates zero `PLACEMENT_STAGE` groups (final positions come directly from group standings). The organizer finalizes the edition without publishing placement. The API rejects `POST /editions/:id/placement/publish` with 409 when there are no placement groups.
+
 ## API routes (organizer)
 
 | Route                                   | Purpose                                    |

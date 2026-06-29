@@ -5,6 +5,7 @@ import type { ContestedMatch, Edition, Match } from '@clandestino/shared-contrac
 import { MAX_SETS_SCORE } from '@clandestino/shared-contracts';
 import { GroupsView } from '../../components/edition/GroupsView.js';
 import { ScoreCounter } from '../../components/edition/ScoreCounter.js';
+import { EditionTournamentOverview } from '../../components/organizer/EditionTournamentOverview.js';
 import { DrawAuditPanel } from '../../components/organizer/DrawAuditPanel.js';
 import { EditionQrCode } from '../../components/organizer/EditionQrCode.js';
 import {
@@ -115,9 +116,16 @@ function RegistrationsSection({ edition }: { edition: Edition }) {
     return map;
   }, [participantsQuery.data]);
 
+  const participantCount = participantsQuery.data?.length ?? 0;
+
   return (
-    <section className="space-y-4 rounded-xl bg-card p-4 shadow-sm">
-      <h3 className="text-sm font-bold uppercase tracking-wide text-subtle">Inscrições</h3>
+    <details className="group rounded-xl bg-card p-4 shadow-sm">
+      <summary className="mb-4 flex cursor-pointer list-none items-center justify-between text-sm font-bold uppercase tracking-wide text-subtle [&::-webkit-details-marker]:hidden">
+        <span>Inscrições ({participantCount})</span>
+        <span aria-hidden className="text-[10px] transition-transform group-open:rotate-180">
+          ▼
+        </span>
+      </summary>
 
       {canRegister ? (
         <>
@@ -155,41 +163,36 @@ function RegistrationsSection({ edition }: { edition: Edition }) {
         </>
       ) : null}
 
-      <div>
-        <p className="mb-2 text-xs font-semibold uppercase text-subtle">
-          Inscritos ({registrationsQuery.data?.length ?? 0})
-        </p>
-        <ul className="space-y-2">
-          {(participantsQuery.data ?? []).map((participant) => {
-            const hasDrawSeeds = (participantsQuery.data ?? []).some((entry) => entry.isSeed);
-            const isSeed = hasDrawSeeds
-              ? participant.isSeed
-              : participant.rankPosition <= edition.rules.protectedSeedCount;
+      <ul className="space-y-2">
+        {(participantsQuery.data ?? []).map((participant) => {
+          const hasDrawSeeds = (participantsQuery.data ?? []).some((entry) => entry.isSeed);
+          const isSeed = hasDrawSeeds
+            ? participant.isSeed
+            : participant.rankPosition <= edition.rules.protectedSeedCount;
 
-            return (
-              <li
-                key={participant.playerId}
-                className="flex items-center justify-between rounded-lg bg-card-muted px-3 py-2 text-sm"
-              >
-                <span>{participantNames.get(participant.playerId) ?? participant.playerName}</span>
-                <div className="flex items-center gap-2 text-xs text-subtle">
-                  <span>{participant.rankPosition}º</span>
-                  <span>{participant.accumulatedPoints} pts</span>
-                  {isSeed ? (
-                    <span className="rounded-full bg-amber-300 px-2 py-0.5 font-bold text-foreground">
-                      SEED
-                    </span>
-                  ) : null}
-                </div>
-              </li>
-            );
-          })}
-        </ul>
-      </div>
+          return (
+            <li
+              key={participant.playerId}
+              className="flex items-center justify-between rounded-lg bg-card-muted px-3 py-2 text-sm"
+            >
+              <span>{participantNames.get(participant.playerId) ?? participant.playerName}</span>
+              <div className="flex items-center gap-2 text-xs text-subtle">
+                <span>{participant.rankPosition}º</span>
+                <span>{participant.accumulatedPoints} pts</span>
+                {isSeed ? (
+                  <span className="rounded-full bg-amber-300 px-2 py-0.5 font-bold text-foreground">
+                    SEED
+                  </span>
+                ) : null}
+              </div>
+            </li>
+          );
+        })}
+      </ul>
 
       {successFeedback ? <Alert variant="success">{successFeedback}</Alert> : null}
       {errorFeedback ? <Alert variant="danger">{errorFeedback}</Alert> : null}
-    </section>
+    </details>
   );
 }
 
@@ -210,10 +213,16 @@ function DrawSection({ edition }: { edition: Edition }) {
   const [successFeedback, setSuccessFeedback] = useState<string | null>(null);
   const [errorFeedback, setErrorFeedback] = useState<string | null>(null);
 
+  const groupStageGroups = useMemo(
+    () => (groupsQuery.data?.groups ?? []).filter((entry) => entry.group.phase === 'GROUP_STAGE'),
+    [groupsQuery.data],
+  );
+
   const playerCount = registrationsQuery.data?.length ?? 0;
   const drawWarning = getDrawReadinessWarning(playerCount, edition.rules);
   const hasDraw = (groupsQuery.data?.groups.length ?? 0) > 0;
   const hasMatches = (matchesQuery.data?.length ?? 0) > 0;
+  const isDrawCollapsed = edition.status === 'FASE_COLOCACAO' || edition.status === 'ENCERRADA';
 
   const playerNames = useMemo(() => {
     const map = new Map<string, string>();
@@ -286,10 +295,8 @@ function DrawSection({ edition }: { edition: Edition }) {
     isPlayerShuffleEnabled() && hasDraw && !hasMatches && edition.status === 'SORTEIO_PUBLICADO';
   const canGenerate = edition.status === 'SORTEIO_PUBLICADO' && hasDraw && !hasMatches;
 
-  return (
-    <section className="space-y-4 rounded-xl bg-card p-4 shadow-sm">
-      <h3 className="text-sm font-bold uppercase tracking-wide text-subtle">Sorteio e grupos</h3>
-
+  const sectionBody = (
+    <>
       {canDraw ? (
         <>
           {drawWarning ? <Alert variant="warning">{drawWarning}</Alert> : null}
@@ -306,7 +313,7 @@ function DrawSection({ edition }: { edition: Edition }) {
 
       {hasDraw ? (
         <>
-          <GroupsView groups={groupsQuery.data?.groups ?? []} playerNames={playerNames} />
+          <GroupsView groups={groupStageGroups} playerNames={playerNames} emptyVariant="draw" />
           {snapshotsQuery.data ? <DrawAuditPanel snapshots={snapshotsQuery.data} /> : null}
         </>
       ) : null}
@@ -348,6 +355,27 @@ function DrawSection({ edition }: { edition: Edition }) {
 
       {successFeedback ? <Alert variant="success">{successFeedback}</Alert> : null}
       {errorFeedback ? <Alert variant="danger">{errorFeedback}</Alert> : null}
+    </>
+  );
+
+  if (isDrawCollapsed) {
+    return (
+      <details className="group rounded-xl bg-card p-4 shadow-sm">
+        <summary className="mb-0 flex cursor-pointer list-none items-center justify-between text-sm font-bold uppercase tracking-wide text-subtle [&::-webkit-details-marker]:hidden">
+          <span>Grupos sorteados (fase de grupos)</span>
+          <span aria-hidden className="text-[10px] transition-transform group-open:rotate-180">
+            ▼
+          </span>
+        </summary>
+        <div className="mt-4 space-y-4">{sectionBody}</div>
+      </details>
+    );
+  }
+
+  return (
+    <section className="space-y-4 rounded-xl bg-card p-4 shadow-sm">
+      <h3 className="text-sm font-bold uppercase tracking-wide text-subtle">Grupos sorteados</h3>
+      {sectionBody}
     </section>
   );
 }
@@ -535,19 +563,43 @@ function PlacementSection({ edition }: { edition: Edition }) {
     return null;
   }
 
+  const hasPlacementGroups = placementGroups.length > 0;
+
   return (
     <section className="space-y-4 rounded-xl bg-card p-4 shadow-sm">
       <h3 className="text-sm font-bold uppercase tracking-wide text-subtle">Fase de colocação</h3>
-      <p className="text-sm text-muted">Revise os grupos gerados automaticamente e publique.</p>
-      <GroupsView groups={placementGroups} playerNames={playerNames} />
-      <button
-        type="button"
-        disabled={publishMutation.isPending || placementGroups.length === 0}
-        onClick={() => void publishMutation.mutateAsync()}
-        className="w-full rounded-lg bg-header px-4 py-3 text-sm font-semibold text-header-foreground disabled:opacity-50"
-      >
-        {publishMutation.isPending ? 'Publicando…' : 'Publicar fase de colocação'}
-      </button>
+
+      {hasPlacementGroups ? (
+        <>
+          <p className="text-sm text-muted">
+            Revise os grupos gerados automaticamente e publique para liberar as partidas de
+            colocação.
+          </p>
+          <GroupsView groups={placementGroups} playerNames={playerNames} emptyVariant="placement" />
+          <button
+            type="button"
+            disabled={publishMutation.isPending}
+            onClick={() => void publishMutation.mutateAsync()}
+            className="w-full rounded-lg bg-header px-4 py-3 text-sm font-semibold text-header-foreground disabled:opacity-50"
+          >
+            {publishMutation.isPending ? 'Publicando…' : 'Publicar fase de colocação'}
+          </button>
+        </>
+      ) : (
+        <>
+          <p className="text-sm text-muted">
+            Fase de grupos concluída. Não há disputas de colocação — as posições finais já estão
+            definidas pela classificação dos grupos.
+          </p>
+          <a
+            href="#encerrar-edicao"
+            className="block w-full rounded-lg bg-brand px-4 py-3 text-center text-sm font-semibold text-white"
+          >
+            Encerrar edição
+          </a>
+        </>
+      )}
+
       {successFeedback ? <Alert variant="success">{successFeedback}</Alert> : null}
       {errorFeedback ? <Alert variant="danger">{errorFeedback}</Alert> : null}
     </section>
@@ -631,7 +683,7 @@ function FinalizeSection({ edition }: { edition: Edition }) {
   }
 
   return (
-    <section className="space-y-4 rounded-xl bg-card p-4 shadow-sm">
+    <section id="encerrar-edicao" className="space-y-4 rounded-xl bg-card p-4 shadow-sm">
       <h3 className="text-sm font-bold uppercase tracking-wide text-subtle">Encerramento</h3>
       <p className="text-sm text-muted">
         Encerre a edição para registrar a classificação final das partidas e atribuir pontos aos
@@ -654,6 +706,7 @@ function FinalizeSection({ edition }: { edition: Edition }) {
 export function OrganizerEditionPage() {
   const { editionId } = useParams<{ editionId: string }>();
   const editionQuery = useEdition(editionId);
+  const groupsQuery = useEditionGroups(editionId);
 
   useEditionSse(editionId);
 
@@ -666,6 +719,11 @@ export function OrganizerEditionPage() {
   }
 
   const edition = editionQuery.data;
+  const placementGroupCount =
+    edition.status === 'FASE_COLOCACAO'
+      ? (groupsQuery.data?.groups ?? []).filter((entry) => entry.group.phase === 'PLACEMENT_STAGE')
+          .length
+      : undefined;
 
   return (
     <div className="space-y-4">
@@ -677,7 +735,9 @@ export function OrganizerEditionPage() {
           ← {edition.championshipId ? 'Voltar ao campeonato' : 'Painel do organizador'}
         </Link>
         <h2 className="mt-2 text-lg font-bold">{formatEditionTitle(edition)}</h2>
-        <p className="text-sm text-header-foreground/70">{formatEditionStatus(edition.status)}</p>
+        <p className="text-sm text-header-foreground/70">
+          {formatEditionStatus(edition.status, { placementGroupCount })}
+        </p>
         {edition.status === 'RASCUNHO' || edition.status === 'INSCRICOES_ABERTAS' ? (
           <Link
             to={`/organizador/edicao/${edition.id}/preparar`}
@@ -689,6 +749,7 @@ export function OrganizerEditionPage() {
       </section>
 
       <RegistrationsSection edition={edition} />
+      <EditionTournamentOverview edition={edition} />
       <DrawSection edition={edition} />
       <ContestsSection edition={edition} />
       <PlacementSection edition={edition} />

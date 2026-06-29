@@ -60,6 +60,10 @@ export async function registerEditionPlacementRoutes(app: FastifyInstance): Prom
         )
         .orderBy(asc(schema.groups.name));
 
+      if (placementGroups.length === 0) {
+        throw conflict('Não há grupos de colocação para publicar. Encerre a edição diretamente.');
+      }
+
       const [existingPlacementMatch] = await app.db
         .select({ id: schema.matches.id })
         .from(schema.matches)

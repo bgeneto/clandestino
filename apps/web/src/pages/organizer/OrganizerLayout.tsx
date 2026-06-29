@@ -55,11 +55,11 @@ export function OrganizerLayout() {
   return (
     <div className="flex min-h-screen flex-col">
       <Outlet context={context} />
-      <footer className="mt-auto py-4">
+      <footer className="mt-auto py-4 group/footer">
         <button
           type="button"
           onClick={() => void clearSession()}
-          className="w-full rounded-lg border border-line px-4 py-2 text-sm text-muted"
+          className="w-full rounded-lg border border-line px-4 py-2 text-sm text-muted transition-colors group-hover/footer:bg-card-muted hover:dark:bg-[#1e293b]"
         >
           Sair
         </button>

@@ -1,16 +1,34 @@
 import type { GroupWithPlayers } from '@clandestino/shared-contracts';
 
+export type GroupsViewEmptyVariant = 'draw' | 'placement' | 'generic';
+
+const EMPTY_MESSAGES: Record<GroupsViewEmptyVariant, string> = {
+  draw: 'Sorteio ainda não publicado.',
+  placement: 'Nenhum grupo de colocação.',
+  generic: 'Grupos ainda não publicados.',
+};
+
+export function getGroupsViewEmptyMessage(variant: GroupsViewEmptyVariant = 'generic'): string {
+  return EMPTY_MESSAGES[variant];
+}
+
 type GroupsViewProps = {
   groups: GroupWithPlayers[];
   playerNames: Map<string, string>;
   highlightPlayerId?: string;
+  emptyVariant?: GroupsViewEmptyVariant;
 };
 
-export function GroupsView({ groups, playerNames, highlightPlayerId }: GroupsViewProps) {
+export function GroupsView({
+  groups,
+  playerNames,
+  highlightPlayerId,
+  emptyVariant = 'generic',
+}: GroupsViewProps) {
   if (groups.length === 0) {
     return (
       <p className="rounded-xl bg-card p-6 text-center text-sm text-subtle">
-        Grupos ainda não publicados.
+        {getGroupsViewEmptyMessage(emptyVariant)}
       </p>
     );
   }

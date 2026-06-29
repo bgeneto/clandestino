@@ -232,6 +232,9 @@ describe.skipIf(!hasTestDb)('fluxo de partidas e autorização (integração HTT
     const edition = await org('GET', `/editions/${editionId}`);
     expect(edition.json<{ status: string }>().status).toBe('FASE_COLOCACAO');
 
+    const publish = await org('POST', `/editions/${editionId}/placement/publish`);
+    expect(publish.statusCode).toBe(409);
+
     // Encerramento atribui pontos conforme a tabela padrão da temporada.
     const finalize = await org('POST', `/editions/${editionId}/finalize`);
     expect(finalize.statusCode).toBe(200);

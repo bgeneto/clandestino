@@ -32,7 +32,18 @@ export function formatEditionTitle(edition: Edition): string {
   return `${edition.name} — ${formatEditionDate(edition.date)}`;
 }
 
-export function formatEditionStatus(status: EditionStatus): string {
+export type FormatEditionStatusOptions = {
+  placementGroupCount?: number;
+};
+
+export function formatEditionStatus(
+  status: EditionStatus,
+  options?: FormatEditionStatusOptions,
+): string {
+  if (status === 'FASE_COLOCACAO' && options?.placementGroupCount === 0) {
+    return 'Grupos encerrados — pronto para finalizar';
+  }
+
   return EDITION_STATUS_LABELS[status];
 }
 

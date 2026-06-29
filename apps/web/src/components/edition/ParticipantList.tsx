@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import type { EditionParticipant } from '@clandestino/shared-contracts';
+import { Alert } from '../ui/Alert.js';
 
 type ParticipantListProps = {
   participants: EditionParticipant[];
@@ -58,9 +59,7 @@ export function ParticipantList({ participants, onSelect }: ParticipantListProps
           Nenhum jogador encontrado com &quot;{query}&quot;. Fale com o organizador.
         </p>
       ) : (
-        <p className="rounded-xl border border-warning-surface bg-warning-surface px-4 py-3 text-sm text-warning-foreground">
-          Não encontrou seu nome? Fale com o organizador.
-        </p>
+        <Alert variant="info">Não encontrou seu nome? Fale com o organizador.</Alert>
       )}
     </div>
   );

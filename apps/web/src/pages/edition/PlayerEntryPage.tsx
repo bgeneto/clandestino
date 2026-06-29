@@ -40,7 +40,7 @@ export function PlayerEntryPage() {
   if (pendingParticipant) {
     return (
       <div className="space-y-4">
-        <EditionHeader edition={edition} subtitle="Confirme sua identidade" />
+        <EditionHeader edition={edition} subtitle="✅ Confirme sua identidade" />
         <section className="rounded-xl border border-warning-surface bg-warning-surface p-4 text-sm text-warning-foreground">
           <p className="font-semibold">Confirme que este é o seu nome</p>
           <p className="mt-2 text-2xl font-bold text-foreground">{pendingParticipant.playerName}</p>
@@ -74,14 +74,20 @@ export function PlayerEntryPage() {
     <div className="space-y-4">
       <EditionHeader
         edition={edition}
-        subtitle="Selecione seu nome abaixo para participar do evento."
+        subtitle="✅ SELECIONE seu nome abaixo para participar do evento."
       />
+
+      {!participantsQuery.isLoading && !participantsQuery.isError && (
+        <section className="rounded-xl border border-warning-surface bg-warning-surface px-4 py-3 text-sm text-warning-foreground">
+          Clique ou busque seu nome abaixo para <b>entrar</b> nesta edição do torneio.
+        </section>
+      )}
 
       {participantsQuery.isLoading ? (
         <p className="text-sm text-subtle">Carregando participantes…</p>
       ) : participantsQuery.isError ? (
         <section className="space-y-3 rounded-xl border border-warning-surface bg-warning-surface p-4 text-sm text-warning-foreground">
-          <p>Seu nome não está na lista. Fale com o organizador.</p>
+          <p>🤔 Seu nome não está na lista. Fale com o organizador.</p>
           <Link to={`/edicao/${editionId}`} className="font-semibold text-foreground underline">
             Ver torneio em modo público
           </Link>
@@ -96,7 +102,7 @@ export function PlayerEntryPage() {
             to={`/edicao/${editionId}`}
             className="block text-center text-sm text-subtle underline"
           >
-            Ver torneio sem entrar
+            👁️ Ver torneio sem entrar/jogar
           </Link>
         </>
       )}

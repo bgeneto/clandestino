@@ -25,6 +25,7 @@ import { Alert } from '../../components/ui/Alert.js';
 import { useEditionSse } from '../../hooks/use-edition-sse.js';
 import { ApiError } from '../../lib/api-client.js';
 import { getDrawReadinessWarning } from '../../lib/draw-utils.js';
+import { isPlayerShuffleEnabled } from '../../lib/feature-flags.js';
 import { formatEditionStatus, formatEditionTitle, formatMatchScore } from '../../lib/format.js';
 import { validateScoreInput } from '../../lib/match-utils.js';
 import {
@@ -35,6 +36,7 @@ import {
   generateMatches,
   publishPlacementStage,
   registerPlayer,
+  unregisterPlayer,
 } from '../../lib/organizer-api.js';
 import { queryKeys } from '../../lib/query-keys.js';
 
@@ -62,32 +64,28 @@ function RegistrationsSection({ edition }: { edition: Edition }) {
 
   const filteredPlayers = useMemo(() => {
     const normalized = search.trim().toLowerCase();
-    const players = rosterQuery.data ?? [];
+    const players = [...(rosterQuery.data ?? [])].sort((left, right) =>
+      left.playerName.localeCompare(right.playerName, 'pt-BR'),
+    );
+
     if (!normalized) {
-      return players.filter((player) => !registeredIds.has(player.playerId)).slice(0, 8);
+      return players;
     }
 
-    return players
-      .filter(
-        (player) =>
-          !registeredIds.has(player.playerId) &&
-          player.playerName.toLowerCase().includes(normalized),
-      )
-      .slice(0, 8);
-  }, [rosterQuery.data, registeredIds, search]);
+    return players.filter((player) => player.playerName.toLowerCase().includes(normalized));
+  }, [rosterQuery.data, search]);
 
-  const participantNames = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const participant of participantsQuery.data ?? []) {
-      map.set(participant.playerId, participant.playerName);
-    }
-    return map;
-  }, [participantsQuery.data]);
-
-  const registerMutation = useMutation({
-    mutationFn: (playerId: string) => registerPlayer(edition.id, { playerId }),
-    onSuccess: async () => {
-      setSuccessFeedback('Jogador inscrito.');
+  const toggleMutation = useMutation({
+    mutationFn: async (playerId: string) => {
+      if (registeredIds.has(playerId)) {
+        return unregisterPlayer(edition.id, playerId);
+      }
+      return registerPlayer(edition.id, { playerId });
+    },
+    onSuccess: async (_data, playerId) => {
+      setSuccessFeedback(
+        registeredIds.has(playerId) ? 'Jogador desinscrito.' : 'Jogador inscrito.',
+      );
       setErrorFeedback(null);
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.registrations(edition.id) }),
@@ -100,12 +98,22 @@ function RegistrationsSection({ edition }: { edition: Edition }) {
     onError: (error) => {
       setSuccessFeedback(null);
       setErrorFeedback(
-        error instanceof ApiError ? error.message : 'Não foi possível inscrever o jogador.',
+        error instanceof ApiError
+          ? error.message
+          : 'Não foi possível atualizar a inscrição do jogador.',
       );
     },
   });
 
   const canRegister = edition.status === 'RASCUNHO' || edition.status === 'INSCRICOES_ABERTAS';
+
+  const participantNames = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const participant of participantsQuery.data ?? []) {
+      map.set(participant.playerId, participant.playerName);
+    }
+    return map;
+  }, [participantsQuery.data]);
 
   return (
     <section className="space-y-4 rounded-xl bg-card p-4 shadow-sm">
@@ -120,19 +128,29 @@ function RegistrationsSection({ edition }: { edition: Edition }) {
             placeholder="Buscar jogador no cadastro…"
             className="w-full rounded-lg border border-line px-3 py-2 text-sm"
           />
-          <div className="space-y-2">
-            {filteredPlayers.map((player) => (
-              <button
-                key={player.playerId}
-                type="button"
-                disabled={registerMutation.isPending}
-                onClick={() => void registerMutation.mutateAsync(player.playerId)}
-                className="flex w-full items-center justify-between rounded-lg border border-line px-3 py-2 text-left text-sm hover:bg-card-muted"
-              >
-                <span>{player.playerName}</span>
-                <span className="text-xs text-brand">Inscrever</span>
-              </button>
-            ))}
+          <div className="scrollable-list max-h-64 space-y-2 overflow-y-auto pr-1">
+            {filteredPlayers.map((player) => {
+              const isRegistered = registeredIds.has(player.playerId);
+              return (
+                <button
+                  key={player.playerId}
+                  type="button"
+                  disabled={toggleMutation.isPending}
+                  onClick={() => void toggleMutation.mutateAsync(player.playerId)}
+                  className={[
+                    'flex w-full items-center justify-between rounded-lg border px-3 py-2 text-left text-sm transition',
+                    isRegistered
+                      ? 'border-brand bg-brand/10 hover:bg-brand/15'
+                      : 'border-line hover:bg-card-muted',
+                  ].join(' ')}
+                >
+                  <span>{player.playerName}</span>
+                  <span className={`text-xs ${isRegistered ? 'text-subtle' : 'text-brand'}`}>
+                    {isRegistered ? 'Inscrito' : 'Inscrever'}
+                  </span>
+                </button>
+              );
+            })}
           </div>
         </>
       ) : null}
@@ -264,7 +282,8 @@ function DrawSection({ edition }: { edition: Edition }) {
 
   const canDraw =
     !hasDraw && (edition.status === 'RASCUNHO' || edition.status === 'INSCRICOES_ABERTAS');
-  const canCancel = hasDraw && !hasMatches && edition.status === 'SORTEIO_PUBLICADO';
+  const canCancel =
+    isPlayerShuffleEnabled() && hasDraw && !hasMatches && edition.status === 'SORTEIO_PUBLICADO';
   const canGenerate = edition.status === 'SORTEIO_PUBLICADO' && hasDraw && !hasMatches;
 
   return (

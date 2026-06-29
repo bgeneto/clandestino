@@ -8,7 +8,7 @@ import {
   RegisterPlayerBodySchema,
 } from '@clandestino/shared-contracts';
 import { Type } from '@sinclair/typebox';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import { schema } from '../db/index.js';
 import { ensureChampionshipPlayer } from '../lib/championship-roster.js';
@@ -219,6 +219,62 @@ export async function registerEditionRoutes(app: FastifyInstance): Promise<void>
         .orderBy(schema.editionRegistrations.registeredAt);
 
       reply.code(201);
+      return { registrations: registrations.map(mapRegistration) };
+    },
+  );
+
+  typed.delete(
+    '/editions/:id/registrations/:playerId',
+    {
+      preHandler: app.requireOrganizer,
+      schema: {
+        params: Type.Object({
+          id: Type.String({ format: 'uuid' }),
+          playerId: Type.String({ format: 'uuid' }),
+        }),
+        response: {
+          200: EditionRegistrationsResponseSchema,
+          401: ErrorResponseSchema,
+          404: ErrorResponseSchema,
+          409: ErrorResponseSchema,
+        },
+      },
+    },
+    async (request) => {
+      const [edition] = await app.db
+        .select()
+        .from(schema.editions)
+        .where(eq(schema.editions.id, request.params.id))
+        .limit(1);
+
+      if (!edition) {
+        throw notFound('Edição não encontrada.');
+      }
+
+      if (edition.status !== 'RASCUNHO' && edition.status !== 'INSCRICOES_ABERTAS') {
+        throw conflict('Inscrições não estão abertas para esta edição.');
+      }
+
+      const deleted = await app.db
+        .delete(schema.editionRegistrations)
+        .where(
+          and(
+            eq(schema.editionRegistrations.editionId, request.params.id),
+            eq(schema.editionRegistrations.playerId, request.params.playerId),
+          ),
+        )
+        .returning({ playerId: schema.editionRegistrations.playerId });
+
+      if (deleted.length === 0) {
+        throw notFound('Jogador não inscrito nesta edição.');
+      }
+
+      const registrations = await app.db
+        .select()
+        .from(schema.editionRegistrations)
+        .where(eq(schema.editionRegistrations.editionId, request.params.id))
+        .orderBy(schema.editionRegistrations.registeredAt);
+
       return { registrations: registrations.map(mapRegistration) };
     },
   );

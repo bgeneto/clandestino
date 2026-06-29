@@ -165,6 +165,42 @@ describe.skipIf(!hasTestDb)('jogadores, campeonatos e importação CSV (integra�
     expect(second.json<{ error: string }>().error).toContain('já inscrito');
   });
 
+  it('permite desinscrever jogador enquanto inscrições estão abertas', async () => {
+    const championshipId = await createChampionship('Campeonato Desinscrição');
+    const editionResponse = await app.inject({
+      method: 'POST',
+      url: '/editions',
+      headers: organizerHeaders(organizerToken),
+      payload: { championshipId, date: '2026-08-01' },
+    });
+    expect(editionResponse.statusCode).toBe(201);
+    const editionId = editionResponse.json<{ id: string }>().id;
+    const playerId = await createPlayer('Desinscrever');
+
+    const register = await app.inject({
+      method: 'POST',
+      url: `/editions/${editionId}/registrations`,
+      headers: organizerHeaders(organizerToken),
+      payload: { playerId },
+    });
+    expect(register.statusCode).toBe(201);
+
+    const unregister = await app.inject({
+      method: 'DELETE',
+      url: `/editions/${editionId}/registrations/${playerId}`,
+      headers: organizerHeaders(organizerToken),
+    });
+    expect(unregister.statusCode).toBe(200);
+    expect(unregister.json<{ registrations: unknown[] }>().registrations).toHaveLength(0);
+
+    const list = await app.inject({
+      method: 'GET',
+      url: `/editions/${editionId}/registrations`,
+    });
+    expect(list.statusCode).toBe(200);
+    expect(list.json<{ registrations: unknown[] }>().registrations).toHaveLength(0);
+  });
+
   it('lista elenco do campeonato sem jogadores de outros campeonatos', async () => {
     const championshipA = await createChampionship('Campeonato A');
     const championshipB = await createChampionship('Campeonato B');

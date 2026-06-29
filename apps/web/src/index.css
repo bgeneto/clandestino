@@ -102,3 +102,22 @@ body {
     cursor: not-allowed;
   }
 }
+
+.scrollable-list {
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: var(--subtle) transparent;
+}
+
+.scrollable-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.scrollable-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollable-list::-webkit-scrollbar-thumb {
+  background-color: var(--subtle);
+  border-radius: 4px;
+}

@@ -143,6 +143,19 @@ export async function registerPlayer(
   });
 }
 
+export async function unregisterPlayer(
+  editionId: string,
+  playerId: string,
+): Promise<EditionRegistrationsResponse> {
+  return apiRequest<EditionRegistrationsResponse>(
+    `/editions/${editionId}/registrations/${playerId}`,
+    {
+      method: 'DELETE',
+      ...organizer,
+    },
+  );
+}
+
 export async function executeDraw(
   editionId: string,
   body: ExecuteDrawBody = {},

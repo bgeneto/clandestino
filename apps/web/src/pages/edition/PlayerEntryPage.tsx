@@ -72,7 +72,10 @@ export function PlayerEntryPage() {
 
   return (
     <div className="space-y-4">
-      <EditionHeader edition={edition} subtitle="Selecione seu nome para entrar" />
+      <EditionHeader
+        edition={edition}
+        subtitle="Selecione seu nome abaixo para participar do evento."
+      />
 
       {participantsQuery.isLoading ? (
         <p className="text-sm text-subtle">Carregando participantes…</p>

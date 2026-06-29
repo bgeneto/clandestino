@@ -15,7 +15,7 @@ export function EditionHeader({ edition, subtitle, badge, live = false }: Editio
       <div className="flex items-start justify-between gap-3">
         <div>
           <h1 className="text-lg font-bold">
-            🏓 {edition.name}
+            🏓 EVENTO: {edition.name}
             {live ? (
               <span className="ml-2 inline-flex rounded-full bg-rose-500 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide">
                 Ao vivo

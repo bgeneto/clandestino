@@ -1,6 +1,7 @@
 import type {
   Edition,
   EditionGroupsResponse,
+  EditionParticipant,
   EditionStandingsResponse,
   Match,
   SubmitMatchResultBody,
@@ -70,6 +71,13 @@ export type CachedStanding = {
   cachedAt: string;
 };
 
+export type CachedParticipants = {
+  id: string;
+  editionId: string;
+  participants: EditionParticipant[];
+  cachedAt: string;
+};
+
 export type QueryCacheRow = {
   key: string;
   value: string;
@@ -117,6 +125,7 @@ export class ClandestinoDatabase extends Dexie {
   groups!: EntityTable<CachedGroups, 'id'>;
   matches!: EntityTable<CachedMatch, 'id'>;
   standing!: EntityTable<CachedStanding, 'id'>;
+  participants!: EntityTable<CachedParticipants, 'id'>;
   outbox!: EntityTable<OutboxEntry, 'id'>;
   queryCache!: EntityTable<QueryCacheRow, 'key'>;
   editionWizardDraft!: EntityTable<EditionWizardDraft, 'id'>;
@@ -140,6 +149,10 @@ export class ClandestinoDatabase extends Dexie {
 
     this.version(3).stores({
       editionWizardDraft: 'id, championshipId, editionId, syncStatus, updatedAt',
+    });
+
+    this.version(4).stores({
+      participants: 'id, editionId',
     });
   }
 }

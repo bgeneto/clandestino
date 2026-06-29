@@ -19,11 +19,11 @@ function parseSsePayload(raw: string): SseEvent | null {
   }
 }
 
-export function useEditionSse(editionId: string | undefined): void {
+export function useEditionSse(editionId: string | undefined, enabled = false): void {
   const queryClient = useQueryClient();
 
   useEffect(() => {
-    if (!editionId || !navigator.onLine) {
+    if (!enabled || !editionId || !navigator.onLine) {
       return;
     }
 
@@ -63,5 +63,5 @@ export function useEditionSse(editionId: string | undefined): void {
     return () => {
       source.close();
     };
-  }, [editionId, queryClient]);
+  }, [editionId, enabled, queryClient]);
 }

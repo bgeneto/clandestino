@@ -1,6 +1,7 @@
 import type {
   Edition,
   EditionGroupsResponse,
+  EditionParticipantsResponse,
   EditionStandingsResponse,
   Match,
 } from '@clandestino/shared-contracts';
@@ -83,4 +84,27 @@ export async function getCachedStandings(
   }
 
   return rows[0]?.standings;
+}
+
+export async function cacheParticipants(
+  editionId: string,
+  response: EditionParticipantsResponse,
+): Promise<void> {
+  await db.participants.put({
+    id: editionId,
+    editionId,
+    participants: response.participants,
+    cachedAt: new Date().toISOString(),
+  });
+}
+
+export async function getCachedParticipants(
+  editionId: string,
+): Promise<EditionParticipantsResponse | undefined> {
+  const row = await db.participants.get(editionId);
+  if (!row) {
+    return undefined;
+  }
+
+  return { participants: row.participants };
 }

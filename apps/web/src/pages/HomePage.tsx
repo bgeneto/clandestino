@@ -1,11 +1,38 @@
-import { Link } from 'react-router-dom';
+import { useEffect } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
+import { Alert } from '../components/ui/Alert.js';
+import { useEdition } from '../hooks/use-edition.js';
 import { usePlayerSession } from '../hooks/use-player-session.js';
+import { isEditionGone } from '../lib/api-errors.js';
+import { purgeEditionLocalState } from '../lib/purge-edition-state.js';
 
 export function HomePage() {
+  const queryClient = useQueryClient();
+  const [searchParams] = useSearchParams();
+  const editionNotFound = searchParams.get('edicao') === 'nao-encontrada';
   const { session, isLoggedIn, clearSession } = usePlayerSession();
+  const editionCheck = useEdition(isLoggedIn ? session?.editionId : undefined);
+
+  const sessionEditionGone =
+    editionCheck.isError && session?.editionId !== undefined && isEditionGone(editionCheck.error);
+
+  useEffect(() => {
+    if (!sessionEditionGone || !session?.editionId) {
+      return;
+    }
+
+    void purgeEditionLocalState(session.editionId, queryClient);
+  }, [sessionEditionGone, session?.editionId, queryClient]);
+
+  const showSession = isLoggedIn && session && !sessionEditionGone;
 
   return (
     <section className="space-y-6">
+      {editionNotFound ? (
+        <Alert variant="warning">Esta edição não existe mais ou foi removida.</Alert>
+      ) : null}
+
       <div className="rounded-2xl border border-line bg-card p-6">
         <h2 className="text-xl font-semibold text-foreground">🏓 Clandestino</h2>
         <p className="mt-2 text-sm leading-6 text-muted">
@@ -16,7 +43,7 @@ export function HomePage() {
         </p>
       </div>
 
-      {isLoggedIn && session ? (
+      {showSession ? (
         <div className="rounded-2xl border border-line bg-card p-6 text-sm">
           <p>
             <span className="text-subtle">Sessão ativa:</span>{' '}

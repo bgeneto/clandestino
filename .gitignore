@@ -38,6 +38,7 @@ data/
 .VSCodeCounter/
 .idea/
 .kilo/
+.clinerules/
 
 # OS
 .DS_Store

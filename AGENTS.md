@@ -95,6 +95,7 @@ React + Vite + PWA (`apps/web/`):
 - TanStack Query para dados remotos; invalidação via SSE (`use-edition-sse`)
 - Dexie/IndexedDB para cache da edição ativa e fila offline (`outbox`)
 - Sessão do jogador: `player_id` + `edition_id` no IndexedDB (sem JWT no MVP)
+- GET de edição com **404** = edição removida: não servir cache IndexedDB; chamar `purgeEditionLocalState` e limpar sessão do jogador
 - Em dev (host): `VITE_API_URL=/api` + proxy Vite → `localhost:3000`
 - Em dev (Caddy): `VITE_API_URL=/api` + proxy Caddy → `clandestino.test/api/*`
 - Em produção: build estático (`pnpm build`) servido por reverse proxy

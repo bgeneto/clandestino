@@ -9,14 +9,17 @@ import type {
   PlayerMatchesResponse,
 } from '@clandestino/shared-contracts';
 import { apiRequest } from './api-client.js';
+import { shouldUseOfflineCache } from './api-errors.js';
 import {
   cacheEdition,
   cacheGroups,
   cacheMatches,
+  cacheParticipants,
   cacheStandings,
   getCachedEdition,
   getCachedGroups,
   getCachedMatches,
+  getCachedParticipants,
   getCachedStandings,
 } from './edition-cache.js';
 
@@ -30,6 +33,10 @@ async function withOfflineFallback<T>(
     await writer(value);
     return value;
   } catch (error) {
+    if (!shouldUseOfflineCache(error)) {
+      throw error;
+    }
+
     const cached = await readCache();
     if (cached !== undefined) {
       return cached;
@@ -91,7 +98,11 @@ export async function fetchPlayerMatches(editionId: string): Promise<PlayerMatch
 export async function fetchEditionParticipants(
   editionId: string,
 ): Promise<EditionParticipantsResponse> {
-  return apiRequest<EditionParticipantsResponse>(`/editions/${editionId}/participants`);
+  return withOfflineFallback(
+    () => apiRequest<EditionParticipantsResponse>(`/editions/${editionId}/participants`),
+    () => getCachedParticipants(editionId),
+    (response) => cacheParticipants(editionId, response),
+  );
 }
 
 export async function confirmMatch(matchId: string): Promise<MatchResultResponse> {
@@ -116,9 +127,11 @@ export {
   cacheEdition,
   cacheGroups,
   cacheMatches,
+  cacheParticipants,
   cacheStandings,
   getCachedEdition,
   getCachedGroups,
   getCachedMatches,
+  getCachedParticipants,
   getCachedStandings,
 } from './edition-cache.js';

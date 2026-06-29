@@ -577,6 +577,15 @@ function FinalizeSection({ edition }: { edition: Edition }) {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.edition(edition.id) }),
         queryClient.invalidateQueries({ queryKey: queryKeys.finalPlacements(edition.id) }),
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.championshipRanking(edition.championshipId),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.championshipRoster(edition.championshipId),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.championshipEditions(edition.championshipId),
+        }),
       ]);
     },
     onError: (error) => {

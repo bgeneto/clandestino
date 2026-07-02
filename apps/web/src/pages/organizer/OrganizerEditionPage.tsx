@@ -25,7 +25,6 @@ import { useEdition } from '../../hooks/use-edition.js';
 import { Alert } from '../../components/ui/Alert.js';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog.js';
 import { useEditionSse } from '../../hooks/use-edition-sse.js';
-import { ApiError } from '../../lib/api-client.js';
 import { getDrawReadinessWarning } from '../../lib/draw-utils.js';
 import { isPlayerShuffleEnabled } from '../../lib/feature-flags.js';
 import { formatEditionStatus, formatEditionTitle, formatMatchScore } from '../../lib/format.js';
@@ -43,6 +42,8 @@ import {
 } from '../../lib/organizer-api.js';
 import { queryKeys } from '../../lib/query-keys.js';
 import { purgeEditionLocalState } from '../../lib/purge-edition-state.js';
+import { notifyApiError } from '../../notifications/notify-api-error.js';
+import { useNotification } from '../../notifications/notification-context.js';
 
 function getPlayerOneId(match: Match): string {
   return match.participants[0]?.playerId ?? '';
@@ -54,12 +55,11 @@ function getPlayerTwoId(match: Match): string {
 
 function RegistrationsSection({ edition }: { edition: Edition }) {
   const queryClient = useQueryClient();
+  const notify = useNotification();
   const rosterQuery = useChampionshipRoster(edition.championshipId);
   const registrationsQuery = useEditionRegistrations(edition.id);
   const participantsQuery = useEditionParticipants(edition.id);
   const [search, setSearch] = useState('');
-  const [successFeedback, setSuccessFeedback] = useState<string | null>(null);
-  const [errorFeedback, setErrorFeedback] = useState<string | null>(null);
 
   const registeredIds = useMemo(
     () => new Set((registrationsQuery.data ?? []).map((entry) => entry.playerId)),
@@ -87,10 +87,7 @@ function RegistrationsSection({ edition }: { edition: Edition }) {
       return registerPlayer(edition.id, { playerId });
     },
     onSuccess: async (_data, playerId) => {
-      setSuccessFeedback(
-        registeredIds.has(playerId) ? 'Jogador desinscrito.' : 'Jogador inscrito.',
-      );
-      setErrorFeedback(null);
+      notify.success(registeredIds.has(playerId) ? 'Jogador desinscrito.' : 'Jogador inscrito.');
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.registrations(edition.id) }),
         queryClient.invalidateQueries({ queryKey: queryKeys.participants(edition.id) }),
@@ -100,12 +97,7 @@ function RegistrationsSection({ edition }: { edition: Edition }) {
       ]);
     },
     onError: (error) => {
-      setSuccessFeedback(null);
-      setErrorFeedback(
-        error instanceof ApiError
-          ? error.message
-          : 'Não foi possível atualizar a inscrição do jogador.',
-      );
+      notifyApiError(notify, error, 'Não foi possível atualizar a inscrição do jogador.');
     },
   });
 
@@ -183,7 +175,7 @@ function RegistrationsSection({ edition }: { edition: Edition }) {
                 <span>{participant.rankPosition}º</span>
                 <span>{participant.accumulatedPoints} pts</span>
                 {isSeed ? (
-                  <span className="rounded-full bg-amber-300 px-2 py-0.5 font-bold text-foreground">
+                  <span className="rounded-full bg-amber-300 px-2 py-0.5 font-bold text-amber-950 dark:bg-amber-400">
                     SEED
                   </span>
                 ) : null}
@@ -192,15 +184,13 @@ function RegistrationsSection({ edition }: { edition: Edition }) {
           );
         })}
       </ul>
-
-      {successFeedback ? <Alert variant="success">{successFeedback}</Alert> : null}
-      {errorFeedback ? <Alert variant="danger">{errorFeedback}</Alert> : null}
     </details>
   );
 }
 
 function DrawSection({ edition }: { edition: Edition }) {
   const queryClient = useQueryClient();
+  const notify = useNotification();
   const registrationsQuery = useEditionRegistrations(edition.id);
   const groupsQuery = useEditionGroups(edition.id);
   const participantsQuery = useEditionParticipants(edition.id);
@@ -213,8 +203,6 @@ function DrawSection({ edition }: { edition: Edition }) {
     edition.status === 'SORTEIO_PUBLICADO' || edition.status === 'EM_ANDAMENTO',
   );
   const matchesQuery = useEditionMatches(edition.id);
-  const [successFeedback, setSuccessFeedback] = useState<string | null>(null);
-  const [errorFeedback, setErrorFeedback] = useState<string | null>(null);
 
   const groupStageGroups = useMemo(
     () => (groupsQuery.data?.groups ?? []).filter((entry) => entry.group.phase === 'GROUP_STAGE'),
@@ -238,8 +226,7 @@ function DrawSection({ edition }: { edition: Edition }) {
   const drawMutation = useMutation({
     mutationFn: () => executeDraw(edition.id),
     onSuccess: async () => {
-      setSuccessFeedback('Sorteio executado com sucesso.');
-      setErrorFeedback(null);
+      notify.success('Sorteio executado com sucesso.');
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.groups(edition.id) }),
         queryClient.invalidateQueries({ queryKey: queryKeys.participants(edition.id) }),
@@ -248,18 +235,14 @@ function DrawSection({ edition }: { edition: Edition }) {
       ]);
     },
     onError: (error) => {
-      setSuccessFeedback(null);
-      setErrorFeedback(
-        error instanceof ApiError ? error.message : 'Não foi possível executar o sorteio.',
-      );
+      notifyApiError(notify, error, 'Não foi possível executar o sorteio.');
     },
   });
 
   const cancelMutation = useMutation({
     mutationFn: () => cancelDraw(edition.id),
     onSuccess: async () => {
-      setSuccessFeedback('Sorteio cancelado. Você pode executar novamente.');
-      setErrorFeedback(null);
+      notify.success('Sorteio cancelado. Você pode executar novamente.');
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.groups(edition.id) }),
         queryClient.invalidateQueries({ queryKey: queryKeys.drawSnapshots(edition.id) }),
@@ -267,28 +250,21 @@ function DrawSection({ edition }: { edition: Edition }) {
       ]);
     },
     onError: (error) => {
-      setSuccessFeedback(null);
-      setErrorFeedback(
-        error instanceof ApiError ? error.message : 'Não foi possível cancelar o sorteio.',
-      );
+      notifyApiError(notify, error, 'Não foi possível cancelar o sorteio.');
     },
   });
 
   const generateMutation = useMutation({
     mutationFn: () => generateMatches(edition.id),
     onSuccess: async () => {
-      setSuccessFeedback('Partidas geradas com sucesso.');
-      setErrorFeedback(null);
+      notify.success('Partidas geradas com sucesso.');
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.matches(edition.id) }),
         queryClient.invalidateQueries({ queryKey: queryKeys.edition(edition.id) }),
       ]);
     },
     onError: (error) => {
-      setSuccessFeedback(null);
-      setErrorFeedback(
-        error instanceof ApiError ? error.message : 'Não foi possível gerar as partidas.',
-      );
+      notifyApiError(notify, error, 'Não foi possível gerar as partidas.');
     },
   });
 
@@ -355,9 +331,6 @@ function DrawSection({ edition }: { edition: Edition }) {
           {cancelMutation.isPending ? 'Cancelando…' : 'Cancelar sorteio e refazer'}
         </button>
       ) : null}
-
-      {successFeedback ? <Alert variant="success">{successFeedback}</Alert> : null}
-      {errorFeedback ? <Alert variant="danger">{errorFeedback}</Alert> : null}
     </>
   );
 
@@ -393,6 +366,7 @@ function ContestCorrectionCard({
   editionId: string;
 }) {
   const queryClient = useQueryClient();
+  const notify = useNotification();
   const match = contest.match;
   const playerOneId = getPlayerOneId(match);
   const playerTwoId = getPlayerTwoId(match);
@@ -403,7 +377,6 @@ function ContestCorrectionCard({
     match.participants.find((entry) => entry.playerId === playerTwoId)?.setsWon ?? 0,
   );
   const [confirmedOfficial, setConfirmedOfficial] = useState(false);
-  const [feedback, setFeedback] = useState<string | null>(null);
 
   const validation = validateScoreInput(playerOneSets, playerTwoSets);
 
@@ -414,7 +387,7 @@ function ContestCorrectionCard({
         setsWonByPlayerTwo: playerTwoSets,
       }),
     onSuccess: async () => {
-      setFeedback('Resultado corrigido e oficializado. A classificação foi atualizada.');
+      notify.success('Resultado corrigido e oficializado. A classificação foi atualizada.');
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.contestedMatches(editionId) }),
         queryClient.invalidateQueries({ queryKey: queryKeys.matches(editionId) }),
@@ -422,9 +395,7 @@ function ContestCorrectionCard({
       ]);
     },
     onError: (error) => {
-      setFeedback(
-        error instanceof ApiError ? error.message : 'Não foi possível corrigir o placar.',
-      );
+      notifyApiError(notify, error, 'Não foi possível corrigir o placar.');
     },
   });
 
@@ -480,8 +451,6 @@ function ContestCorrectionCard({
       >
         {correctMutation.isPending ? 'Salvando…' : 'Oficializar resultado corrigido'}
       </button>
-
-      {feedback ? <Alert variant="success">{feedback}</Alert> : null}
     </article>
   );
 }
@@ -522,10 +491,9 @@ function ContestsSection({ edition }: { edition: Edition }) {
 
 function PlacementSection({ edition }: { edition: Edition }) {
   const queryClient = useQueryClient();
+  const notify = useNotification();
   const groupsQuery = useEditionGroups(edition.id);
   const participantsQuery = useEditionParticipants(edition.id);
-  const [successFeedback, setSuccessFeedback] = useState<string | null>(null);
-  const [errorFeedback, setErrorFeedback] = useState<string | null>(null);
 
   const placementGroups = useMemo(
     () =>
@@ -544,8 +512,7 @@ function PlacementSection({ edition }: { edition: Edition }) {
   const publishMutation = useMutation({
     mutationFn: () => publishPlacementStage(edition.id),
     onSuccess: async () => {
-      setSuccessFeedback('Fase de colocação publicada.');
-      setErrorFeedback(null);
+      notify.success('Fase de colocação publicada.');
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.groups(edition.id) }),
         queryClient.invalidateQueries({ queryKey: queryKeys.matches(edition.id) }),
@@ -554,12 +521,7 @@ function PlacementSection({ edition }: { edition: Edition }) {
       ]);
     },
     onError: (error) => {
-      setSuccessFeedback(null);
-      setErrorFeedback(
-        error instanceof ApiError
-          ? error.message
-          : 'Não foi possível publicar a fase de colocação.',
-      );
+      notifyApiError(notify, error, 'Não foi possível publicar a fase de colocação.');
     },
   });
 
@@ -582,19 +544,16 @@ function PlacementSection({ edition }: { edition: Edition }) {
       >
         {publishMutation.isPending ? 'Publicando…' : 'Publicar fase de colocação'}
       </button>
-      {successFeedback ? <Alert variant="success">{successFeedback}</Alert> : null}
-      {errorFeedback ? <Alert variant="danger">{errorFeedback}</Alert> : null}
     </section>
   );
 }
 
 function FinalizeSection({ edition }: { edition: Edition }) {
   const queryClient = useQueryClient();
+  const notify = useNotification();
   const groupsQuery = useEditionGroups(edition.id);
   const participantsQuery = useEditionParticipants(edition.id);
   const finalPlacementsQuery = useFinalPlacements(edition.id, edition.status === 'ENCERRADA');
-  const [successFeedback, setSuccessFeedback] = useState<string | null>(null);
-  const [errorFeedback, setErrorFeedback] = useState<string | null>(null);
 
   const hasPlacementGroups =
     edition.status === 'FASE_COLOCACAO' &&
@@ -611,8 +570,7 @@ function FinalizeSection({ edition }: { edition: Edition }) {
   const finalizeMutation = useMutation({
     mutationFn: () => finalizeEdition(edition.id),
     onSuccess: async () => {
-      setSuccessFeedback('Edição encerrada com sucesso.');
-      setErrorFeedback(null);
+      notify.success('Edição encerrada com sucesso.');
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.edition(edition.id) }),
         queryClient.invalidateQueries({ queryKey: queryKeys.finalPlacements(edition.id) }),
@@ -629,10 +587,7 @@ function FinalizeSection({ edition }: { edition: Edition }) {
       ]);
     },
     onError: (error) => {
-      setSuccessFeedback(null);
-      setErrorFeedback(
-        error instanceof ApiError ? error.message : 'Não foi possível encerrar a edição.',
-      );
+      notifyApiError(notify, error, 'Não foi possível encerrar a edição.');
     },
   });
 
@@ -686,8 +641,6 @@ function FinalizeSection({ edition }: { edition: Edition }) {
       >
         {finalizeMutation.isPending ? 'Encerrando…' : 'Encerrar edição'}
       </button>
-      {successFeedback ? <Alert variant="success">{successFeedback}</Alert> : null}
-      {errorFeedback ? <Alert variant="danger">{errorFeedback}</Alert> : null}
     </section>
   );
 }
@@ -696,18 +649,17 @@ export function OrganizerEditionPage() {
   const { editionId } = useParams<{ editionId: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const notify = useNotification();
   const editionQuery = useEdition(editionId);
   const registrationsQuery = useEditionRegistrations(editionId);
   const groupsQuery = useEditionGroups(editionId);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   useEditionSse(editionId);
 
   const deleteMutation = useMutation({
     mutationFn: () => deleteEdition(editionId!),
     onSuccess: async (result) => {
-      setDeleteError(null);
       setIsDeleteDialogOpen(false);
       await purgeEditionLocalState(editionId!);
       await Promise.all([
@@ -719,9 +671,7 @@ export function OrganizerEditionPage() {
       void navigate(`/organizador/campeonato/${result.championshipId}`);
     },
     onError: (error) => {
-      setDeleteError(
-        error instanceof ApiError ? error.message : 'Não foi possível excluir a edição.',
-      );
+      notifyApiError(notify, error, 'Não foi possível excluir a edição.');
       setIsDeleteDialogOpen(false);
     },
   });
@@ -746,8 +696,6 @@ export function OrganizerEditionPage() {
 
   return (
     <div className="space-y-4">
-      {deleteError ? <Alert variant="danger">{deleteError}</Alert> : null}
-
       <section className="rounded-xl bg-header p-4 text-header-foreground">
         <Link
           className="text-xs text-header-foreground/70 underline"

@@ -4,6 +4,7 @@ import { useMutation } from '@tanstack/react-query';
 import { ApiError } from '../../lib/api-client.js';
 import { requestOrganizerMagicLink } from '../../lib/organizer-api.js';
 import { useOrganizerSession } from '../../hooks/use-organizer-session.js';
+import { useNotification } from '../../notifications/notification-context.js';
 import { Alert } from '../../components/ui/Alert.js';
 
 export function OrganizerLoginPage() {
@@ -11,9 +12,9 @@ export function OrganizerLoginPage() {
   const sessionExpired = searchParams.get('sessao') === 'expirada';
   const { isLoggedIn, clearSession } = useOrganizerSession();
   const [email, setEmail] = useState('');
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [devLink, setDevLink] = useState<string | null>(null);
+  const notify = useNotification();
 
   useEffect(() => {
     if (sessionExpired) {
@@ -24,12 +25,11 @@ export function OrganizerLoginPage() {
   const requestMutation = useMutation({
     mutationFn: () => requestOrganizerMagicLink({ email: email.trim() }),
     onSuccess: (response) => {
-      setSuccessMessage(response.message);
+      notify.success(response.message);
       setDevLink(response.magicLink ?? null);
     },
     onError: (error) => {
       setDevLink(null);
-      setSuccessMessage(null);
       if (error instanceof ApiError) {
         setErrorMessage(error.message);
         return;
@@ -62,7 +62,6 @@ export function OrganizerLoginPage() {
         className="space-y-4 rounded-2xl border border-line bg-card p-6"
         onSubmit={(event) => {
           event.preventDefault();
-          setSuccessMessage(null);
           setErrorMessage(null);
           setDevLink(null);
           void requestMutation.mutateAsync();
@@ -89,7 +88,6 @@ export function OrganizerLoginPage() {
         </button>
       </form>
 
-      {successMessage ? <Alert variant="success">{successMessage}</Alert> : null}
       {errorMessage ? <Alert variant="danger">{errorMessage}</Alert> : null}
 
       {devLink ? (

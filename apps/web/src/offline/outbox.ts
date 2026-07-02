@@ -1,5 +1,6 @@
 import type { SubmitMatchResultBody } from '@clandestino/shared-contracts';
 import { db, type OutboxEntry } from '../db/clandestino-db.js';
+import { createClientId } from '../lib/create-client-id.js';
 
 export async function listPendingOutboxEntries(): Promise<OutboxEntry[]> {
   return db.outbox.where('status').equals('AGUARDANDO_SINCRONIZACAO').sortBy('createdAt');
@@ -14,7 +15,7 @@ export async function enqueueSubmitMatchResult(
   payload: SubmitMatchResultBody,
 ): Promise<OutboxEntry> {
   const entry: OutboxEntry = {
-    id: crypto.randomUUID(),
+    id: createClientId('outbox'),
     kind: 'SUBMIT_MATCH_RESULT',
     matchId,
     payload,

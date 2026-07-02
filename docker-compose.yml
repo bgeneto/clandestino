@@ -14,6 +14,9 @@ services:
       NODE_ENV: production
       PUBLIC_APP_URL: http://localhost:5173
       ORGANIZER_ALLOWED_EMAILS: ${ORGANIZER_ALLOWED_EMAILS:-organizador@gmail.com}
+      EMAIL_FROM: ${EMAIL_FROM:-admin@sistema.pro.br}
+      EMAIL_FROM_NAME: ${EMAIL_FROM_NAME:-Clandestino - Tênis de Mesa}
+      RESEND_API_KEY: ${RESEND_API_KEY:?RESEND_API_KEY é obrigatória em produção}
       # Defina como "true" apenas em ambiente local para popular dados de exemplo.
       SEED_ON_START: 'false'
     ports:

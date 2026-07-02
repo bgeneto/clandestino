@@ -8,6 +8,7 @@ import {
   hasTestDb,
   loginOrganizer,
   migrateTestDb,
+  getCreatedEditionId,
   organizerHeaders,
   truncateAll,
 } from './integration-setup.js';
@@ -53,7 +54,7 @@ describe.skipIf(!hasTestDb)('edições vigentes do organizador (integração HTT
       rules: DEFAULT_TOURNAMENT_RULES,
     });
     expect(response.statusCode).toBe(201);
-    return response.json<{ id: string }>().id;
+    return getCreatedEditionId(response.json());
   }
 
   it('lista edições não encerradas de campeonatos ativos com ação sugerida', async () => {

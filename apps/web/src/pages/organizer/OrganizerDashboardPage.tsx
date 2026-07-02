@@ -80,11 +80,16 @@ export function OrganizerDashboardPage() {
         isLoading={activeEditionsQuery.isLoading}
       />
 
-      <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-foreground">Todos os Campeonatos</h3>
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <h3 className="text-lg font-semibold text-foreground">Todos os Campeonatos</h3>
+          <p className="mt-1 text-sm text-subtle">
+            Clique em um campeonato abaixo para ver o ranking, edições e outras informações.
+          </p>
+        </div>
         <Link
           to="/organizador/campeonato/novo"
-          className="rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white"
+          className="shrink-0 rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white"
         >
           🞤 Novo campeonato
         </Link>

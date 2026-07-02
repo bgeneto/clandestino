@@ -31,6 +31,10 @@ export function conflict(message: string, details?: unknown): ApiError {
   return new ApiError(409, message, details);
 }
 
+export function serviceUnavailable(message: string): ApiError {
+  return new ApiError(503, message);
+}
+
 /** PostgreSQL (`23505`) and SQLite unique/primary-key constraint violations. */
 export function isUniqueViolation(error: unknown): boolean {
   if (typeof error !== 'object' || error === null) {

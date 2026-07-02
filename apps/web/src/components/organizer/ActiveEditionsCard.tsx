@@ -52,7 +52,7 @@ export function ActiveEditionsCard({ editions, isLoading = false }: ActiveEditio
 
               <div className="flex shrink-0 flex-col items-end gap-1 text-right">
                 {edition.actionLabel ? (
-                  <span className="rounded-full bg-amber-300 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-foreground">
+                  <span className="rounded-full bg-amber-300 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-950 dark:bg-amber-400">
                     {edition.actionLabel}
                   </span>
                 ) : null}

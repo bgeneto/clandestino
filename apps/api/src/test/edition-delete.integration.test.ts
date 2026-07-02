@@ -7,6 +7,7 @@ import {
   hasTestDb,
   loginOrganizer,
   migrateTestDb,
+  getCreatedEditionId,
   organizerHeaders,
   truncateAll,
 } from './integration-setup.js';
@@ -64,7 +65,7 @@ describe.skipIf(!hasTestDb)('exclusão de edição (integração HTTP)', () => {
       autoConfirmMinutes: 15,
     });
     expect(response.statusCode).toBe(201);
-    return response.json<{ id: string }>().id;
+    return getCreatedEditionId(response.json());
   }
 
   async function createPlayer(name: string): Promise<string> {

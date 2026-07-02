@@ -9,6 +9,7 @@ import {
   hasTestDb,
   loginOrganizer,
   migrateTestDb,
+  getCreatedEditionId,
   organizerHeaders,
   playerHeaders,
   truncateAll,
@@ -79,7 +80,7 @@ describe.skipIf(!hasTestDb)('fluxo de partidas e autorização (integração HTT
       autoConfirmMinutes: 15,
     });
     expect(edition.statusCode).toBe(201);
-    const editionId = edition.json<{ id: string }>().id;
+    const editionId = getCreatedEditionId(edition.json());
 
     for (const playerId of playerIds) {
       const reg = await org('POST', `/editions/${editionId}/registrations`, { playerId });
@@ -151,13 +152,15 @@ describe.skipIf(!hasTestDb)('fluxo de partidas e autorização (integração HTT
     const otherChampionshipId = (
       await org('POST', '/championships', { name: `Campeonato Outro ${Date.now()}` })
     ).json<{ id: string }>().id;
-    const otherEditionId = (
-      await org('POST', '/editions', {
-        championshipId: otherChampionshipId,
-        date: '2026-07-11',
-        rules: FLOW_RULES,
-      })
-    ).json<{ id: string }>().id;
+    const otherEditionId = getCreatedEditionId(
+      (
+        await org('POST', '/editions', {
+          championshipId: otherChampionshipId,
+          date: '2026-07-11',
+          rules: FLOW_RULES,
+        })
+      ).json(),
+    );
     await org('POST', `/editions/${otherEditionId}/registrations`, { playerId: reporter });
 
     const response = await app.inject({

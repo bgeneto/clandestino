@@ -1,5 +1,11 @@
 import 'dotenv/config';
 
+export type EmailConfig = {
+  fromEmail: string;
+  fromName: string;
+  apiKey: string;
+};
+
 export type ApiConfig = {
   host: string;
   port: number;
@@ -10,6 +16,8 @@ export type ApiConfig = {
   publicAppUrl: string;
   exposeMagicLinks: boolean;
   isProduction: boolean;
+  email: EmailConfig | null;
+  sendOrganizerMagicLinkEmail: boolean;
   csvImportMaxBytes: number;
   authRateLimitMax: number;
   authRateLimitWindowMinutes: number;
@@ -32,6 +40,24 @@ function parseAllowedEmails(raw: string | undefined): string[] {
 function parsePositiveInt(raw: string | undefined, fallback: number): number {
   const parsed = Number.parseInt(raw ?? '', 10);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function parseEmailConfig(env: NodeJS.ProcessEnv): EmailConfig | null {
+  const apiKey = env.RESEND_API_KEY?.trim();
+  const fromEmail = env.EMAIL_FROM?.trim();
+  const fromName = env.EMAIL_FROM_NAME?.trim();
+
+  if (!apiKey && !fromEmail && !fromName) {
+    return null;
+  }
+
+  if (!apiKey || !fromEmail || !fromName) {
+    throw new Error(
+      'Configuração de e-mail incompleta: defina RESEND_API_KEY, EMAIL_FROM e EMAIL_FROM_NAME juntos.',
+    );
+  }
+
+  return { apiKey, fromEmail, fromName };
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): ApiConfig {
@@ -57,6 +83,14 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ApiConfig {
     );
   }
 
+  const email = parseEmailConfig(env);
+
+  if (isProduction && !email) {
+    throw new Error('RESEND_API_KEY, EMAIL_FROM e EMAIL_FROM_NAME são obrigatórios em produção.');
+  }
+
+  const sendOrganizerMagicLinkEmail = isProduction || (email !== null && !exposeMagicLinks);
+
   return {
     host: env.API_HOST ?? '0.0.0.0',
     port: parsePositiveInt(env.API_PORT, 3000),
@@ -67,6 +101,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ApiConfig {
     publicAppUrl: env.PUBLIC_APP_URL ?? 'http://localhost:5173',
     exposeMagicLinks,
     isProduction,
+    email,
+    sendOrganizerMagicLinkEmail,
     // Limite de tamanho do corpo aceito na importação CSV (padrão 1 MiB).
     csvImportMaxBytes: parsePositiveInt(env.CSV_IMPORT_MAX_BYTES, 1_048_576),
     // Limite de requisições nas rotas de magic link (anti-abuso / anti-spam).

@@ -1,6 +1,24 @@
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
+
+const webRoot = fileURLToPath(new URL('.', import.meta.url));
+const monorepoRoot = path.resolve(webRoot, '../..');
+
+// Resolve workspace packages from source in dev/build so the PWA does not depend
+// on a separately rebuilt dist/ (avoids stale Docker anonymous volumes).
+const workspaceAliases = {
+  '@clandestino/shared-contracts': path.resolve(
+    monorepoRoot,
+    'packages/shared-contracts/src/index.ts',
+  ),
+  '@clandestino/tournament-engine': path.resolve(
+    monorepoRoot,
+    'packages/tournament-engine/src/index.ts',
+  ),
+};
 
 // Permite rodar atrás de um reverse proxy (ex.: Caddy em clandestino.test).
 // Sem env definida, o comportamento de dev local (localhost:5173) é mantido.
@@ -15,6 +33,9 @@ const hmrClientPort = process.env.VITE_HMR_CLIENT_PORT
   : undefined;
 
 export default defineConfig({
+  resolve: {
+    alias: workspaceAliases,
+  },
   plugins: [
     react(),
     VitePWA({

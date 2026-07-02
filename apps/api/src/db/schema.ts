@@ -14,9 +14,16 @@ import {
   DEFAULT_SCORING_TABLE,
   DEFAULT_TOURNAMENT_RULES,
   type EditionRules,
+  type MatchOutcome,
   type MatchStatus,
+  type PlacementFormat,
   type ScoringTable,
 } from '@clandestino/shared-contracts';
+
+const MATCH_OUTCOMES = ['PLAYED', 'WALKOVER'] as const;
+const BRACKET_ROUNDS = ['SEMIFINAL', 'FINAL', 'THIRD_PLACE'] as const;
+const PLACEMENT_FORMATS = ['round-robin', 'knockout', 'bracket-4'] as const;
+const WITHDRAWN_PHASES = ['GROUP_STAGE', 'PLACEMENT_STAGE'] as const;
 
 const MATCH_STATUSES = [
   'AGENDADA',
@@ -111,6 +118,8 @@ export const editionRegistrations = sqliteTable(
     registeredAt: integer('registered_at', { mode: 'timestamp_ms' })
       .notNull()
       .$defaultFn(() => new Date()),
+    withdrawnAt: integer('withdrawn_at', { mode: 'timestamp_ms' }),
+    withdrawnDuringPhase: text('withdrawn_during_phase', { enum: WITHDRAWN_PHASES }),
   },
   (table) => [
     primaryKey({
@@ -161,6 +170,10 @@ export const groups = sqliteTable(
       .references(() => editions.id, { onDelete: 'cascade', onUpdate: 'cascade' }),
     name: text('name').notNull(),
     phase: text('phase').notNull(),
+    placementFormat: text('placement_format', { enum: PLACEMENT_FORMATS }).$type<PlacementFormat>(),
+    bracketSeed: text('bracket_seed'),
+    positionFrom: integer('position_from'),
+    positionTo: integer('position_to'),
   },
   (table) => [
     uniqueIndex('group_edition_phase_name_unique').on(table.editionId, table.phase, table.name),
@@ -213,6 +226,15 @@ export const matches = sqliteTable(
       .$type<MatchStatus>()
       .notNull()
       .default('AGENDADA'),
+    outcome: text('outcome', { enum: MATCH_OUTCOMES })
+      .$type<MatchOutcome>()
+      .notNull()
+      .default('PLAYED'),
+    bracketRound: text('bracket_round', { enum: BRACKET_ROUNDS }),
+    walkoverAbsentPlayerId: text('walkover_absent_player_id').references(() => players.id, {
+      onDelete: 'restrict',
+      onUpdate: 'cascade',
+    }),
     createdAt,
     updatedAt: integer('updated_at', { mode: 'timestamp_ms' })
       .notNull()

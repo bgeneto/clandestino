@@ -14,6 +14,7 @@ import { validateScoreInput } from '../../lib/match-utils.js';
 import { submitMatchResultOfflineAware } from '../../offline/submit-match-result.js';
 import { queryKeys } from '../../lib/query-keys.js';
 import { Alert } from '../../components/ui/Alert.js';
+import { useNotification } from '../../notifications/notification-context.js';
 import type { PlayerOutletContext } from './RequirePlayerSession.js';
 
 export function RegisterResultPage() {
@@ -22,6 +23,7 @@ export function RegisterResultPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const online = useOnlineStatus();
+  const notify = useNotification();
   const matchesQuery = usePlayerMatches(editionId, true);
   const groupsQuery = useEditionGroups(editionId);
   const participantsQuery = useEditionParticipants(editionId);
@@ -55,7 +57,6 @@ export function RegisterResultPage() {
 
   const [reporterSets, setReporterSets] = useState(0);
   const [opponentSets, setOpponentSets] = useState(0);
-  const [feedback, setFeedback] = useState<string | null>(null);
 
   const validation = useMemo(() => {
     if (!match) {
@@ -80,9 +81,9 @@ export function RegisterResultPage() {
       await queryClient.invalidateQueries({ queryKey: queryKeys.matches(editionId, 'me') });
 
       if (outcome.mode === 'queued') {
-        setFeedback('Resultado salvo na fila — será enviado ao reconectar.');
+        notify.success('Resultado salvo na fila — será enviado ao reconectar.');
       } else {
-        setFeedback('Resultado enviado! Aguardando confirmação do adversário.');
+        notify.success('Resultado enviado! Aguardando confirmação do adversário.');
       }
 
       window.setTimeout(() => {
@@ -145,8 +146,6 @@ export function RegisterResultPage() {
       {!validation.valid && (reporterSets > 0 || opponentSets > 0) ? (
         <Alert variant="danger">{validation.reason}</Alert>
       ) : null}
-
-      {feedback ? <Alert variant="success">{feedback}</Alert> : null}
 
       <button
         type="button"

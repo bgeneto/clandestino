@@ -1,12 +1,9 @@
 import type { EditionWizardDraft, WizardDraftPlayer } from '../db/clandestino-db.js';
 import { db } from '../db/clandestino-db.js';
+import { createClientId } from '../lib/create-client-id.js';
 
 function createDraftId(): string {
-  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
-    return crypto.randomUUID();
-  }
-
-  return `draft-${Date.now()}`;
+  return createClientId('draft');
 }
 
 export async function createEditionWizardDraft(

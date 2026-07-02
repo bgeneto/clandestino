@@ -3,6 +3,7 @@ import rateLimit from '@fastify/rate-limit';
 import type { TypeBoxTypeProvider } from '@fastify/type-provider-typebox';
 import type { ApiConfig } from './config.js';
 import { ApiError } from './lib/errors.js';
+import { createEmailSender, type EmailSender } from './lib/email.js';
 import { registerAuthHooks } from './plugins/auth.js';
 import { registerConfigPlugin, registerDbPlugin } from './plugins/context.js';
 import {
@@ -19,7 +20,7 @@ import { registerOrganizerDashboardRoutes } from './routes/organizer-dashboard.j
 import { registerSsePlugin } from './plugins/sse.js';
 import { startAutoConfirmJob } from './jobs/auto-confirm.js';
 
-export async function createApp(config: ApiConfig) {
+export async function createApp(config: ApiConfig, options?: { emailSender?: EmailSender }) {
   const app = Fastify({
     logger: true,
   }).withTypeProvider<TypeBoxTypeProvider>();
@@ -32,7 +33,8 @@ export async function createApp(config: ApiConfig) {
     done(null, body);
   });
 
-  await registerConfigPlugin(app, config);
+  const emailSender = options?.emailSender ?? createEmailSender(config);
+  await registerConfigPlugin(app, config, emailSender);
 
   // Rate limiting desativado por padrão (global: false); habilitado por rota
   // (ver rotas de magic link) para evitar abuso/spam sem afetar SSE e leitura.

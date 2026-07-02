@@ -8,6 +8,7 @@ import {
   hasTestDb,
   loginOrganizer,
   migrateTestDb,
+  getCreatedEditionId,
   organizerHeaders,
   truncateAll,
 } from './integration-setup.js';
@@ -143,7 +144,7 @@ describe.skipIf(!hasTestDb)('jogadores, campeonatos e importação CSV (integra�
       payload: { championshipId, date: '2026-08-01' },
     });
     expect(editionResponse.statusCode).toBe(201);
-    const editionId = editionResponse.json<{ id: string }>().id;
+    const editionId = getCreatedEditionId(editionResponse.json());
     const playerId = await createPlayer('Inscrito');
 
     const first = await app.inject({
@@ -174,7 +175,7 @@ describe.skipIf(!hasTestDb)('jogadores, campeonatos e importação CSV (integra�
       payload: { championshipId, date: '2026-08-01' },
     });
     expect(editionResponse.statusCode).toBe(201);
-    const editionId = editionResponse.json<{ id: string }>().id;
+    const editionId = getCreatedEditionId(editionResponse.json());
     const playerId = await createPlayer('Desinscrever');
 
     const register = await app.inject({
@@ -246,7 +247,7 @@ describe.skipIf(!hasTestDb)('jogadores, campeonatos e importação CSV (integra�
       payload: { championshipId, date: '2026-08-01' },
     });
     expect(editionResponse.statusCode).toBe(201);
-    const editionId = editionResponse.json<{ id: string }>().id;
+    const editionId = getCreatedEditionId(editionResponse.json());
     const playerId = await createPlayer('NOVO NO CAMPEONATO');
 
     const register = await app.inject({
@@ -301,7 +302,9 @@ describe.skipIf(!hasTestDb)('jogadores, campeonatos e importação CSV (integra�
       payload: { championshipId, date: '2026-07-04' },
     });
     expect(first.statusCode).toBe(201);
-    expect(first.json<{ name: string }>().name).toBe('Clandestino #1');
+    expect(first.json<{ editions: Array<{ name: string }> }>().editions[0]?.name).toBe(
+      'Clandestino #1',
+    );
 
     const second = await app.inject({
       method: 'POST',
@@ -310,7 +313,9 @@ describe.skipIf(!hasTestDb)('jogadores, campeonatos e importação CSV (integra�
       payload: { championshipId, date: '2026-08-01' },
     });
     expect(second.statusCode).toBe(201);
-    expect(second.json<{ name: string }>().name).toBe('Clandestino #2');
+    expect(second.json<{ editions: Array<{ name: string }> }>().editions[0]?.name).toBe(
+      'Clandestino #2',
+    );
 
     const otherFirst = await app.inject({
       method: 'POST',
@@ -319,7 +324,9 @@ describe.skipIf(!hasTestDb)('jogadores, campeonatos e importação CSV (integra�
       payload: { championshipId: otherChampionshipId, date: '2026-07-04' },
     });
     expect(otherFirst.statusCode).toBe(201);
-    expect(otherFirst.json<{ name: string }>().name).toBe('Clandestino #1');
+    expect(otherFirst.json<{ editions: Array<{ name: string }> }>().editions[0]?.name).toBe(
+      'Clandestino #1',
+    );
   });
 
   it('importa CSV com sucesso e registra audit_event', async () => {

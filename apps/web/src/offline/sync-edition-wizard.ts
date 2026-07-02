@@ -67,11 +67,15 @@ export async function syncEditionWizardDraft(draft: EditionWizardDraft): Promise
     }
 
     if (!editionId) {
-      const edition = await createEdition({
+      const created = await createEdition({
         championshipId: syncingDraft.championshipId,
         date: syncingDraft.date,
         autoConfirmMinutes: syncingDraft.autoConfirmMinutes,
       });
+      const edition = created.editions[0];
+      if (!edition) {
+        throw new Error('Não foi possível criar a edição.');
+      }
       editionId = edition.id;
     }
 

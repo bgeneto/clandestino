@@ -7,11 +7,12 @@ import {
   resolveImportScoresCsvColumns,
   validatePlayerName,
 } from '@clandestino/shared-contracts';
-import { ApiError } from '../../lib/api-client.js';
 import { importChampionshipScores } from '../../lib/organizer-api.js';
 import { queryKeys } from '../../lib/query-keys.js';
 import { useChampionship } from '../../hooks/use-organizer-data.js';
 import { Alert } from '../../components/ui/Alert.js';
+import { notifyApiError } from '../../notifications/notify-api-error.js';
+import { useNotification } from '../../notifications/notification-context.js';
 
 function parseCsvLine(line: string): string[] {
   const fields: string[] = [];
@@ -121,10 +122,10 @@ export function ImportCsvPage() {
   const { championshipId } = useParams<{ championshipId: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const notify = useNotification();
   const championshipQuery = useChampionship(championshipId);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [csvContent, setCsvContent] = useState('');
-  const [acknowledged, setAcknowledged] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -143,7 +144,6 @@ export function ImportCsvPage() {
       const content = e.target?.result;
       if (typeof content === 'string') {
         setCsvContent(content);
-        setAcknowledged(false);
         setError(null);
       }
     };
@@ -162,6 +162,7 @@ export function ImportCsvPage() {
   const importMutation = useMutation({
     mutationFn: () => importChampionshipScores(championshipId!, csvContent),
     onSuccess: async () => {
+      notify.success('Pontuações importadas com sucesso.');
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.championshipRanking(championshipId!) }),
         queryClient.invalidateQueries({ queryKey: queryKeys.championshipRoster(championshipId!) }),
@@ -170,12 +171,7 @@ export function ImportCsvPage() {
       void navigate(`/organizador/campeonato/${championshipId}`);
     },
     onError: (mutationError) => {
-      if (mutationError instanceof ApiError) {
-        setError(mutationError.message);
-        return;
-      }
-
-      setError('Não foi possível importar o CSV.');
+      notifyApiError(notify, mutationError, 'Não foi possível importar o CSV.');
     },
   });
 
@@ -245,7 +241,6 @@ export function ImportCsvPage() {
               value={csvContent}
               onChange={(event) => {
                 setCsvContent(event.target.value);
-                setAcknowledged(false);
                 setError(null);
               }}
               rows={8}
@@ -285,26 +280,10 @@ export function ImportCsvPage() {
 
           {error ? <Alert variant="danger">{error}</Alert> : null}
 
-          <label className="flex items-start gap-2 text-sm text-muted">
-            <input
-              type="checkbox"
-              checked={acknowledged}
-              onChange={(event) => setAcknowledged(event.target.checked)}
-              className="mt-1 rounded border-line bg-card-muted"
-            />
-            <span>
-              Entendo que jogadores ausentes serão cadastrados e pontuações já existentes não serão
-              sobrescritas.
-            </span>
-          </label>
-
           <button
             type="button"
             disabled={
-              importMutation.isPending ||
-              preview.rows.length === 0 ||
-              preview.errors.length > 0 ||
-              !acknowledged
+              importMutation.isPending || preview.rows.length === 0 || preview.errors.length > 0
             }
             onClick={() => void importMutation.mutateAsync()}
             className="w-full rounded-lg bg-brand px-4 py-2.5 font-medium text-white disabled:opacity-60"

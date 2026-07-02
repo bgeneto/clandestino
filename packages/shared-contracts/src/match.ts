@@ -1,5 +1,6 @@
 import { type Static, Type } from '@sinclair/typebox';
 import { IsoDateTimeSchema, UuidSchema } from './common.js';
+import { BracketRoundSchema, MatchOutcomeSchema } from './placement.js';
 
 /** Maximum sets a player can win in a single match. */
 export const MAX_SETS_SCORE = 7;
@@ -35,6 +36,9 @@ export const MatchSchema = Type.Object(
     groupId: UuidSchema,
     status: MatchStatusSchema,
     participants: Type.Array(MatchParticipantSchema, { minItems: 2, maxItems: 2 }),
+    outcome: MatchOutcomeSchema,
+    bracketRound: Type.Optional(BracketRoundSchema),
+    walkoverAbsentPlayerId: Type.Optional(UuidSchema),
     resultSubmittedByPlayerId: Type.Optional(UuidSchema),
     createdAt: IsoDateTimeSchema,
     updatedAt: IsoDateTimeSchema,
@@ -46,8 +50,10 @@ export type Match = Static<typeof MatchSchema>;
 
 export const SubmitMatchResultBodySchema = Type.Object(
   {
-    setsWonByReporter: Type.Integer({ minimum: 0, maximum: MAX_SETS_SCORE }),
-    setsWonByOpponent: Type.Integer({ minimum: 0, maximum: MAX_SETS_SCORE }),
+    outcome: Type.Optional(MatchOutcomeSchema),
+    absentPlayerId: Type.Optional(UuidSchema),
+    setsWonByReporter: Type.Optional(Type.Integer({ minimum: 0, maximum: MAX_SETS_SCORE })),
+    setsWonByOpponent: Type.Optional(Type.Integer({ minimum: 0, maximum: MAX_SETS_SCORE })),
   },
   { $id: 'SubmitMatchResultBody' },
 );
@@ -92,8 +98,10 @@ export type ContestMatchBody = Static<typeof ContestMatchBodySchema>;
 
 export const CorrectMatchResultBodySchema = Type.Object(
   {
-    setsWonByPlayerOne: Type.Integer({ minimum: 0, maximum: MAX_SETS_SCORE }),
-    setsWonByPlayerTwo: Type.Integer({ minimum: 0, maximum: MAX_SETS_SCORE }),
+    outcome: Type.Optional(MatchOutcomeSchema),
+    absentPlayerId: Type.Optional(UuidSchema),
+    setsWonByPlayerOne: Type.Optional(Type.Integer({ minimum: 0, maximum: MAX_SETS_SCORE })),
+    setsWonByPlayerTwo: Type.Optional(Type.Integer({ minimum: 0, maximum: MAX_SETS_SCORE })),
   },
   { $id: 'CorrectMatchResultBody' },
 );

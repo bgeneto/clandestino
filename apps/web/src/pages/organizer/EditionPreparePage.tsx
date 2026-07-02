@@ -25,21 +25,19 @@ import { WizardStepNav } from '../../components/organizer/edition-wizard/WizardS
 import { formatEditionDate } from '../../lib/format.js';
 import { Alert } from '../../components/ui/Alert.js';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog.js';
-import { ApiError } from '../../lib/api-client.js';
 import { deleteEdition } from '../../lib/organizer-api.js';
 import { queryKeys } from '../../lib/query-keys.js';
 import { purgeEditionLocalState } from '../../lib/purge-edition-state.js';
+import { createClientId } from '../../lib/create-client-id.js';
+import { notifyApiError } from '../../notifications/notify-api-error.js';
+import { useNotification } from '../../notifications/notification-context.js';
 
 function createLocalPlayerId(name: string): string {
   return `local-${name.trim().toLowerCase().replace(/\s+/g, '-')}-${Date.now()}`;
 }
 
 function createRandomSeed(): string {
-  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
-    return crypto.randomUUID();
-  }
-
-  return `seed-${Date.now()}`;
+  return createClientId('seed');
 }
 
 function sameStringArray(left: readonly string[], right: readonly string[]): boolean {
@@ -123,16 +121,12 @@ export function EditionPreparePage() {
   }>();
   const isOnline = useOnlineStatus();
   const queryClient = useQueryClient();
+  const notify = useNotification();
   const editionQuery = useEdition(editionId);
   const registrationsQuery = useEditionRegistrations(editionId);
   const [draft, setDraft] = useState<EditionWizardDraft | null>(null);
   const [loading, setLoading] = useState(true);
-  const [feedback, setFeedback] = useState<string | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [deleteError, setDeleteError] = useState<string | null>(null);
-  const [resultStatus, setResultStatus] = useState<
-    'synced' | 'conflict' | 'error' | 'info' | 'success' | null
-  >(null);
   const [isPublishing, setIsPublishing] = useState(false);
   const rosterChampionshipId =
     draft?.championshipId ?? championshipId ?? editionQuery.data?.championshipId;
@@ -141,7 +135,6 @@ export function EditionPreparePage() {
   const deleteMutation = useMutation({
     mutationFn: () => deleteEdition(draft!.editionId!),
     onSuccess: async (result) => {
-      setDeleteError(null);
       setIsDeleteDialogOpen(false);
       if (draft?.id) {
         await deleteEditionWizardDraft(draft.id);
@@ -156,9 +149,7 @@ export function EditionPreparePage() {
       void navigate(`/organizador/campeonato/${result.championshipId}`);
     },
     onError: (error) => {
-      setDeleteError(
-        error instanceof ApiError ? error.message : 'Não foi possível excluir a edição.',
-      );
+      notifyApiError(notify, error, 'Não foi possível excluir a edição.');
       setIsDeleteDialogOpen(false);
     },
   });
@@ -273,8 +264,6 @@ export function EditionPreparePage() {
 
   return (
     <section className="space-y-6">
-      {deleteError ? <Alert variant="danger">{deleteError}</Alert> : null}
-
       <div className="rounded-2xl border border-line bg-card p-6">
         <Link className="text-sm text-subtle underline" to={backLink}>
           ← Voltar
@@ -388,19 +377,10 @@ export function EditionPreparePage() {
           draft={draft}
           isOnline={isOnline}
           isPublishing={isPublishing}
-          feedback={feedback}
-          feedbackVariant={
-            resultStatus === 'error'
-              ? 'danger'
-              : resultStatus === 'conflict' || resultStatus === 'info'
-                ? 'warning'
-                : 'success'
-          }
           onBack={() => void goToStep(5)}
           onPublish={async () => {
             if (!canPublishDraft(draft)) {
-              setFeedback('Complete todos os passos antes de publicar.');
-              setResultStatus('info');
+              notify.warning('Complete todos os passos antes de publicar.');
               return;
             }
 
@@ -409,14 +389,11 @@ export function EditionPreparePage() {
                 ...draft,
                 syncStatus: 'PRONTO_PARA_SINCRONIZAR',
               });
-              setFeedback('Sorteio salvo localmente. Sincronize quando houver conexão.');
-              setResultStatus('success');
+              notify.success('Sorteio salvo localmente. Sincronize quando houver conexão.');
               return;
             }
 
             setIsPublishing(true);
-            setFeedback(null);
-            setResultStatus(null);
             const result = await syncEditionWizardDraft(draft);
             setIsPublishing(false);
 
@@ -425,8 +402,12 @@ export function EditionPreparePage() {
               return;
             }
 
-            setFeedback(result.message);
-            setResultStatus(result.status);
+            if (result.status === 'conflict') {
+              notify.warning(result.message);
+              return;
+            }
+
+            notify.danger(result.message);
           }}
         />
       ) : null}

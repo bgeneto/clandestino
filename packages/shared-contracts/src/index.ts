@@ -73,15 +73,31 @@ export {
 export { formatEditionName } from './edition-naming.js';
 
 export {
+  EditionRecurrenceSchema,
+  MAX_RECURRING_EDITION_DATES,
+  RECURRENCE_BULK_LIMIT,
+  endOfYearIso,
+  generateRecurringEditionDates,
+  computeEditionNameByDate,
+  previewBulkEditionNames,
+  countSkippedRecurrenceDates,
+  compareEditionDates,
+  type EditionRecurrence,
+  type EditionDateSortable,
+} from './edition-recurrence.js';
+
+export {
   EditionStatusSchema,
   EditionSchema,
   CreateEditionBodySchema,
+  CreateEditionsResponseSchema,
   EditionRegistrationSchema,
   RegisterPlayerBodySchema,
   EditionRegistrationsResponseSchema,
   type EditionStatus,
   type Edition,
   type CreateEditionBody,
+  type CreateEditionsResponse,
   type EditionRegistration,
   type RegisterPlayerBody,
   type EditionRegistrationsResponse,
@@ -103,6 +119,19 @@ export {
   type GroupWithPlayers,
   type EditionGroupsResponse,
 } from './group.js';
+
+export {
+  MatchOutcomeSchema,
+  BracketRoundSchema,
+  PlacementFormatSchema,
+  WithdrawPlayerBodySchema,
+  WithdrawPlayerResponseSchema,
+  type MatchOutcome,
+  type BracketRound,
+  type PlacementFormat,
+  type WithdrawPlayerBody,
+  type WithdrawPlayerResponse,
+} from './placement.js';
 
 export {
   MAX_SETS_SCORE,

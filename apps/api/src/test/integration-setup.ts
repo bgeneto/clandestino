@@ -5,6 +5,7 @@ import { migrate } from 'drizzle-orm/better-sqlite3/migrator';
 import type { FastifyInstance } from 'fastify';
 import { createApp } from '../app.js';
 import { loadConfig } from '../config.js';
+import { createNoopEmailSender, type EmailSender } from '../lib/email.js';
 import { resolveSqlitePath } from '../db/index.js';
 
 /**
@@ -100,6 +101,7 @@ export async function closeTestDb(): Promise<void> {
 /** Cria uma instância isolada da API apontando para o banco de testes. */
 export async function createTestApp(
   envOverrides: Record<string, string> = {},
+  options?: { emailSender?: EmailSender },
 ): Promise<FastifyInstance> {
   const config = loadConfig({
     ...process.env,
@@ -110,7 +112,9 @@ export async function createTestApp(
     AUTH_RATE_LIMIT_MAX: '1000',
     ...envOverrides,
   });
-  const app = await createApp(config);
+  const app = await createApp(config, {
+    emailSender: options?.emailSender ?? createNoopEmailSender(),
+  });
   await app.ready();
   return app;
 }
@@ -151,4 +155,13 @@ export function organizerHeaders(sessionToken: string): Record<string, string> {
 
 export function playerHeaders(playerId: string, editionId: string): Record<string, string> {
   return { 'x-player-id': playerId, 'x-edition-id': editionId };
+}
+
+export function getCreatedEditionId(body: { editions: Array<{ id: string }> }): string {
+  const edition = body.editions[0];
+  if (!edition) {
+    throw new Error('Resposta de criação de edição sem editions[0].');
+  }
+
+  return edition.id;
 }

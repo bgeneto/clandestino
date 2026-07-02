@@ -39,6 +39,7 @@ import {
   forbidden,
   isUniqueViolation,
   notFound,
+  serviceUnavailable,
   unauthorized,
 } from '../lib/errors.js';
 import { mapChampionship, mapEditionSummary, mapPlayer } from '../lib/mappers.js';
@@ -68,6 +69,7 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
           400: ErrorResponseSchema,
           403: ErrorResponseSchema,
           429: ErrorResponseSchema,
+          503: ErrorResponseSchema,
         },
       },
     },
@@ -79,16 +81,45 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
       }
 
       const token = generateSecureToken();
+      const tokenHash = hashToken(token);
       const expiresAt = new Date(Date.now() + app.config.organizerMagicLinkTtlMinutes * 60_000);
 
       await app.db.insert(schema.organizerMagicTokens).values({
         email,
-        tokenHash: hashToken(token),
+        tokenHash,
         expiresAt,
       });
 
       const verifyUrl = `${app.config.publicAppUrl}/organizador/entrar?token=${encodeURIComponent(token)}`;
-      request.log.info({ email, verifyUrl }, 'Magic link gerado para organizador');
+
+      if (app.config.sendOrganizerMagicLinkEmail) {
+        try {
+          await app.emailSender.sendOrganizerMagicLink({
+            to: email,
+            verifyUrl,
+            expiresInMinutes: app.config.organizerMagicLinkTtlMinutes,
+          });
+          request.log.info(
+            { email, expiresInMinutes: app.config.organizerMagicLinkTtlMinutes },
+            'Magic link enviado por e-mail para organizador',
+          );
+        } catch (error) {
+          await app.db
+            .delete(schema.organizerMagicTokens)
+            .where(eq(schema.organizerMagicTokens.tokenHash, tokenHash));
+          request.log.error({ email, err: error }, 'Falha ao enviar magic link por e-mail');
+          throw serviceUnavailable(
+            'Não foi possível enviar o e-mail agora. Tente novamente em alguns minutos.',
+          );
+        }
+      } else if (app.config.exposeMagicLinks) {
+        request.log.info({ email, verifyUrl }, 'Magic link gerado para organizador');
+      } else {
+        request.log.info(
+          { email, expiresInMinutes: app.config.organizerMagicLinkTtlMinutes },
+          'Magic link gerado para organizador',
+        );
+      }
 
       return {
         message:

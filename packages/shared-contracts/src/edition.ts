@@ -1,6 +1,7 @@
 import { type Static, Type } from '@sinclair/typebox';
 import { IsoDateSchema, IsoDateTimeSchema, UuidSchema } from './common.js';
 import { EditionRulesSchema } from './edition-rules.js';
+import { EditionRecurrenceSchema } from './edition-recurrence.js';
 
 export const EditionStatusSchema = Type.Union(
   [
@@ -36,6 +37,7 @@ export const CreateEditionBodySchema = Type.Object(
   {
     championshipId: UuidSchema,
     date: IsoDateSchema,
+    recurrence: Type.Optional(EditionRecurrenceSchema),
     rules: Type.Optional(EditionRulesSchema),
     autoConfirmMinutes: Type.Optional(Type.Integer({ minimum: 1 })),
   },
@@ -43,6 +45,18 @@ export const CreateEditionBodySchema = Type.Object(
 );
 
 export type CreateEditionBody = Static<typeof CreateEditionBodySchema>;
+
+export const CreateEditionsResponseSchema = Type.Object(
+  {
+    editions: Type.Array(EditionSchema),
+    skippedDates: Type.Array(IsoDateSchema),
+    createdCount: Type.Integer({ minimum: 0 }),
+    skippedCount: Type.Integer({ minimum: 0 }),
+  },
+  { $id: 'CreateEditionsResponse' },
+);
+
+export type CreateEditionsResponse = Static<typeof CreateEditionsResponseSchema>;
 
 export const EditionRegistrationSchema = Type.Object(
   {
@@ -80,6 +94,10 @@ export const EditionParticipantSchema = Type.Object(
     rankPosition: Type.Integer({ minimum: 1 }),
     accumulatedPoints: Type.Integer({ minimum: 0 }),
     isSeed: Type.Boolean(),
+    withdrawnAt: Type.Optional(IsoDateTimeSchema),
+    withdrawnDuringPhase: Type.Optional(
+      Type.Union([Type.Literal('GROUP_STAGE'), Type.Literal('PLACEMENT_STAGE')]),
+    ),
   },
   { $id: 'EditionParticipant' },
 );

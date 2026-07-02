@@ -45,7 +45,7 @@ Portuguese UI label: **Campeonato**.
 
 A single dated tournament event inside a championship (e.g. "Clandestino #1", 2026-07-04).
 
-Edition names are assigned automatically by the server as `Clandestino #N`, where `N` is the next sequential number within that championship (starting at 1). Organizers cannot set or change the name.
+Edition names are assigned automatically by the server as `Clandestino #N`, where `N` reflects chronological order by `date` (tie-break: `createdAt`) within that championship (starting at 1). Names are renumbered after every create or delete that changes the date set. Organizers cannot set or change the name.
 
 Owns:
 

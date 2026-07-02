@@ -63,7 +63,7 @@ O comportamento da API depende de `NODE_ENV` e das variáveis abaixo. Use esta t
 | Aspecto                     | Desenvolvimento (host)                            | Desenvolvimento (Caddy)                     | Produção                                            |
 | --------------------------- | ------------------------------------------------- | ------------------------------------------- | --------------------------------------------------- |
 | `NODE_ENV`                  | ausente, `development` ou `test`                  | `development` (no `docker-compose.dev.yml`) | `production`                                        |
-| Magic link na resposta JSON | **Sim** (padrão) — facilita testes sem e-mail     | **Sim**                                     | **Nunca** — mesmo com `EXPOSE_MAGIC_LINKS=true`     |
+| Magic link na resposta JSON | **Sim** (padrão) — facilita testes sem e-mail     | **Sim**                                     | **Nunca** — enviado por e-mail via Resend           |
 | Subir tudo                  | `pnpm dev` em terminais separados                 | `./start dev`                               | `./start prod` + build do PWA                       |
 | URL do app                  | `http://localhost:5173`                           | `http://clandestino.test` (hosts + Caddy)   | URL pública HTTPS                                   |
 | API                         | `pnpm dev` no host (hot reload)                   | container `api` (hot reload via volume)     | Imagem Docker (`docker compose up api`)             |
@@ -266,7 +266,7 @@ Edite `docker-compose.yml` (ou use um arquivo `.env` na raiz lido pelo Compose) 
 | `DATABASE_URL`             | `file:/app/data/clandestino.db` (bind mount `./data`)        |
 | `SEED_ON_START`            | `false` (padrão) — **não** popular dados fictícios           |
 
-Em produção, magic links **não** aparecem na resposta HTTP — é necessário enviar o link por e-mail (integração futura) ou consultar os logs do servidor.
+Em produção, magic links **não** aparecem na resposta HTTP — o link é enviado por e-mail via Resend (`RESEND_API_KEY`, `EMAIL_FROM`, `EMAIL_FROM_NAME`).
 
 ### 2. Build e subir a stack
 
@@ -363,6 +363,9 @@ pnpm --filter @clandestino/api test
 | `ORGANIZER_MAGIC_LINK_TTL_MINUTES` | `15`                    | Validade do magic link                                          |
 | `ORGANIZER_SESSION_TTL_HOURS`      | `168`                   | Validade da sessão do organizador                               |
 | `EXPOSE_MAGIC_LINKS`               | exposto em dev          | Força exposição em dev; **ignorado** em produção                |
+| `EMAIL_FROM`                       | —                       | Remetente Resend; **obrigatório** em produção                   |
+| `EMAIL_FROM_NAME`                  | —                       | Nome do remetente; **obrigatório** em produção                  |
+| `RESEND_API_KEY`                   | —                       | Chave da API Resend; **obrigatória** em produção                |
 | `AUTH_RATE_LIMIT_MAX`              | `10`                    | Máx. requisições nas rotas de magic link                        |
 | `AUTH_RATE_LIMIT_WINDOW_MINUTES`   | `15`                    | Janela do rate limit                                            |
 | `CSV_IMPORT_MAX_BYTES`             | `1048576`               | Limite do corpo na importação CSV                               |

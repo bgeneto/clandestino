@@ -1,11 +1,17 @@
 import { useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { formatEditionName } from '@clandestino/shared-contracts';
-import { useMutation } from '@tanstack/react-query';
-import { ApiError } from '../../lib/api-client.js';
+import { computeEditionNameByDate, type EditionRecurrence } from '@clandestino/shared-contracts';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import {
+  EditionRecurrenceField,
+  useEditionRecurrencePreview,
+} from '../../components/organizer/EditionRecurrenceField.js';
 import { createEdition } from '../../lib/organizer-api.js';
 import { useChampionship, useChampionshipEditions } from '../../hooks/use-organizer-data.js';
 import { createEditionWizardDraft } from '../../offline/edition-wizard-draft.js';
+import { notifyApiError } from '../../notifications/notify-api-error.js';
+import { useNotification } from '../../notifications/notification-context.js';
+import { queryKeys } from '../../lib/query-keys.js';
 import { Alert } from '../../components/ui/Alert.js';
 
 function todayIsoDate(): string {
@@ -18,45 +24,90 @@ function todayIsoDate(): string {
 
 export function CreateEditionPage() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const notify = useNotification();
   const { championshipId } = useParams<{ championshipId: string }>();
   const championshipQuery = useChampionship(championshipId);
   const editionsQuery = useChampionshipEditions(championshipId);
   const [date, setDate] = useState(todayIsoDate);
+  const [recurrence, setRecurrence] = useState<EditionRecurrence>('none');
   const [autoConfirmMinutes, setAutoConfirmMinutes] = useState(15);
-  const [error, setError] = useState<string | null>(null);
+
+  const existingEditions = editionsQuery.data ?? [];
+  const isRecurring = recurrence !== 'none';
+  const isOffline = !navigator.onLine;
+  const recurrencePreview = useEditionRecurrencePreview(recurrence, date, existingEditions);
+  const hasNothingToCreate = isRecurring && (recurrencePreview?.createCount ?? 0) === 0;
 
   const predictedName = useMemo(() => {
-    const editionCount = editionsQuery.data?.length ?? 0;
-    return formatEditionName(editionCount + 1);
-  }, [editionsQuery.data]);
+    if (isRecurring) {
+      return null;
+    }
+
+    return computeEditionNameByDate(
+      existingEditions.map((edition) => ({
+        date: edition.date,
+        createdAt: edition.createdAt,
+      })),
+      date,
+    );
+  }, [date, existingEditions, isRecurring]);
 
   const createMutation = useMutation({
     mutationFn: async () => {
-      if (!navigator.onLine) {
+      if (isOffline) {
+        if (isRecurring) {
+          throw new Error('Recorrência indisponível sem conexão.');
+        }
+
         const draft = await createEditionWizardDraft({
           championshipId: championshipId!,
-          predictedEditionName: predictedName,
+          predictedEditionName: predictedName!,
           date,
           autoConfirmMinutes,
         });
         return { mode: 'offline' as const, draftId: draft.id };
       }
 
-      const edition = await createEdition({
+      const result = await createEdition({
         championshipId: championshipId!,
         date,
+        recurrence,
         autoConfirmMinutes,
       });
-      await createEditionWizardDraft({
-        championshipId: championshipId!,
-        editionId: edition.id,
-        predictedEditionName: edition.name,
-        date,
-        autoConfirmMinutes,
-      });
-      return { mode: 'online' as const, editionId: edition.id };
+
+      if (result.createdCount === 0) {
+        throw new Error('Nenhuma edição foi criada.');
+      }
+
+      if (!isRecurring) {
+        const edition = result.editions[0];
+        if (!edition) {
+          throw new Error('Não foi possível criar a edição.');
+        }
+
+        await createEditionWizardDraft({
+          championshipId: championshipId!,
+          editionId: edition.id,
+          predictedEditionName: edition.name,
+          date,
+          autoConfirmMinutes,
+        });
+
+        return { mode: 'online-single' as const, editionId: edition.id };
+      }
+
+      return {
+        mode: 'online-bulk' as const,
+        createdCount: result.createdCount,
+        skippedCount: result.skippedCount,
+      };
     },
-    onSuccess: (result) => {
+    onSuccess: async (result) => {
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.championshipEditions(championshipId!),
+      });
+
       if (result.mode === 'offline') {
         void navigate(
           `/organizador/campeonato/${championshipId}/edicao/rascunho/${result.draftId}/preparar`,
@@ -64,21 +115,33 @@ export function CreateEditionPage() {
         return;
       }
 
-      void navigate(`/organizador/edicao/${result.editionId}/preparar`);
-    },
-    onError: (mutationError) => {
-      if (mutationError instanceof ApiError) {
-        setError(mutationError.message);
+      if (result.mode === 'online-single') {
+        void navigate(`/organizador/edicao/${result.editionId}/preparar`);
         return;
       }
 
-      setError('Não foi possível criar a edição.');
+      void navigate(`/organizador/campeonato/${championshipId}`);
+      notify.success(`${result.createdCount} edições criadas.`, {
+        description:
+          result.skippedCount > 0
+            ? `${result.skippedCount} datas ignoradas por já existirem.`
+            : undefined,
+      });
+    },
+    onError: (mutationError) => {
+      notifyApiError(notify, mutationError, 'Não foi possível criar a edição.');
     },
   });
 
   if (!championshipId) {
     return <Alert variant="danger">Campeonato não informado.</Alert>;
   }
+
+  const submitLabel = createMutation.isPending
+    ? 'Criando…'
+    : isRecurring
+      ? 'Criar edições recorrentes'
+      : 'Continuar para check-in →';
 
   return (
     <section className="space-y-6">
@@ -110,18 +173,19 @@ export function CreateEditionPage() {
           className="space-y-4 rounded-2xl border border-line bg-card p-6"
           onSubmit={(event) => {
             event.preventDefault();
-            setError(null);
             void createMutation.mutateAsync();
           }}
         >
-          <label className="block space-y-2 text-sm">
-            <span className="text-muted">Nome da Edição</span>
-            <input
-              readOnly
-              value={predictedName}
-              className="w-full cursor-default rounded-lg border border-line bg-card-muted px-3 py-2.5 text-foreground"
-            />
-          </label>
+          {predictedName ? (
+            <label className="block space-y-2 text-sm">
+              <span className="text-muted">Nome da Edição</span>
+              <input
+                readOnly
+                value={predictedName}
+                className="w-full cursor-default rounded-lg border border-line bg-card-muted px-3 py-2.5 text-foreground"
+              />
+            </label>
+          ) : null}
 
           <label className="block space-y-2 text-sm">
             <span className="text-muted">Data do Evento</span>
@@ -133,6 +197,14 @@ export function CreateEditionPage() {
               className="w-full rounded-lg border border-line bg-card-muted px-3 py-2.5 text-foreground"
             />
           </label>
+
+          <EditionRecurrenceField
+            recurrence={recurrence}
+            startDate={date}
+            existingEditions={existingEditions}
+            disabled={isOffline}
+            onChange={setRecurrence}
+          />
 
           <label className="block space-y-2 text-sm">
             <span className="text-muted">Auto-confirmação (minutos)</span>
@@ -152,21 +224,20 @@ export function CreateEditionPage() {
             </span>
           </label>
 
-          {!navigator.onLine ? (
+          {isOffline ? (
             <p className="rounded-lg border border-warning-surface bg-warning-surface px-3 py-2 text-sm text-warning-foreground">
               Sem conexão: a edição será preparada localmente e sincronizada quando a internet
               voltar.
+              {isRecurring ? ' A recorrência exige conexão.' : ''}
             </p>
           ) : null}
 
-          {error ? <Alert variant="danger">{error}</Alert> : null}
-
           <button
             type="submit"
-            disabled={createMutation.isPending}
+            disabled={createMutation.isPending || (isOffline && isRecurring) || hasNothingToCreate}
             className="w-full rounded-lg bg-brand px-4 py-2.5 font-medium text-white disabled:opacity-60"
           >
-            {createMutation.isPending ? 'Criando…' : 'Continuar para check-in →'}
+            {submitLabel}
           </button>
         </form>
       )}

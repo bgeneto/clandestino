@@ -46,7 +46,7 @@ export function ParticipantList({ participants, onSelect }: ParticipantListProps
               </p>
             </div>
             {participant.isSeed ? (
-              <span className="rounded-full bg-amber-300 px-2 py-0.5 text-[10px] font-bold text-foreground">
+              <span className="rounded-full bg-amber-300 px-2 py-0.5 text-[10px] font-bold text-amber-950 dark:bg-amber-400">
                 SEED
               </span>
             ) : null}

@@ -1,19 +1,26 @@
 import type { TypeBoxTypeProvider } from '@fastify/type-provider-typebox';
 import {
+  countSkippedRecurrenceDates,
   CreateEditionBodySchema,
+  CreateEditionsResponseSchema,
   DEFAULT_EDITION_RULES,
   DeleteEditionResponseSchema,
   EditionRegistrationsResponseSchema,
   EditionSchema,
   ErrorResponseSchema,
+  generateRecurringEditionDates,
   RegisterPlayerBodySchema,
 } from '@clandestino/shared-contracts';
 import { Type } from '@sinclair/typebox';
-import { and, eq, sql } from 'drizzle-orm';
+import { and, asc, eq, inArray, sql } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import { schema } from '../db/index.js';
 import { ensureChampionshipPlayer } from '../lib/championship-roster.js';
-import { nextEditionNameForChampionship } from '../lib/editions.js';
+import {
+  fetchExistingEditionDates,
+  pendingEditionName,
+  renumberEditionNamesForChampionship,
+} from '../lib/editions.js';
 import {
   badRequest,
   conflict,
@@ -33,7 +40,7 @@ export async function registerEditionRoutes(app: FastifyInstance): Promise<void>
       schema: {
         body: CreateEditionBodySchema,
         response: {
-          201: EditionSchema,
+          201: CreateEditionsResponseSchema,
           400: ErrorResponseSchema,
           401: ErrorResponseSchema,
           404: ErrorResponseSchema,
@@ -62,37 +69,56 @@ export async function registerEditionRoutes(app: FastifyInstance): Promise<void>
         throw badRequest(`Regras da edição inválidas: ${rulesError}`);
       }
 
-      const name = await nextEditionNameForChampionship(app.db, request.body.championshipId);
+      const recurrence = request.body.recurrence ?? 'none';
+      let generatedDates: string[];
 
       try {
-        const [edition] = await app.db
-          .insert(schema.editions)
-          .values({
-            championshipId: request.body.championshipId,
-            name,
-            date: request.body.date,
-            rules,
-            autoConfirmMinutes: request.body.autoConfirmMinutes ?? 15,
-          })
-          .returning();
+        generatedDates = generateRecurringEditionDates(request.body.date, recurrence);
+      } catch (error) {
+        throw badRequest(
+          error instanceof Error ? error.message : 'Recorrência de edições inválida.',
+        );
+      }
 
-        if (!edition) {
-          throw badRequest('Não foi possível criar a edição.');
-        }
+      if (generatedDates.length === 0) {
+        throw badRequest(
+          recurrence === 'monthly'
+            ? 'A data inicial é posterior ao fim do ano selecionado.'
+            : 'Não foi possível gerar edições para esta recorrência.',
+        );
+      }
 
-        await app.db.insert(schema.auditEvents).values({
-          editionId: edition.id,
-          eventType: 'EDITION_CREATED',
-          payload: {
-            name: edition.name,
-            date: edition.date,
-            championshipId: edition.championshipId,
-          },
-          createdBy: request.organizerEmail ?? 'organizer',
+      const existingDates = await fetchExistingEditionDates(app.db, request.body.championshipId);
+      const { datesToCreate, skippedDates } = countSkippedRecurrenceDates(
+        generatedDates,
+        existingDates,
+      );
+
+      if (datesToCreate.length === 0) {
+        throw conflict('Todas as datas já possuem edição neste campeonato.');
+      }
+
+      const autoConfirmMinutes = request.body.autoConfirmMinutes ?? 15;
+      const createdEditionIds: string[] = [];
+
+      try {
+        await app.db.transaction(async (tx) => {
+          for (const date of datesToCreate) {
+            const editionId = crypto.randomUUID();
+            createdEditionIds.push(editionId);
+
+            await tx.insert(schema.editions).values({
+              id: editionId,
+              championshipId: request.body.championshipId,
+              name: pendingEditionName(editionId),
+              date,
+              rules,
+              autoConfirmMinutes,
+            });
+          }
+
+          await renumberEditionNamesForChampionship(tx, request.body.championshipId);
         });
-
-        reply.code(201);
-        return mapEdition(edition);
       } catch (error) {
         if (isUniqueViolation(error)) {
           throw conflict('Já existe uma edição com este nome neste campeonato.');
@@ -100,6 +126,35 @@ export async function registerEditionRoutes(app: FastifyInstance): Promise<void>
 
         throw error;
       }
+
+      const createdEditions = await app.db
+        .select()
+        .from(schema.editions)
+        .where(inArray(schema.editions.id, createdEditionIds))
+        .orderBy(asc(schema.editions.date), asc(schema.editions.createdAt));
+
+      for (const edition of createdEditions) {
+        await app.db.insert(schema.auditEvents).values({
+          editionId: edition.id,
+          eventType: 'EDITION_CREATED',
+          payload: {
+            name: edition.name,
+            date: edition.date,
+            championshipId: edition.championshipId,
+            recurrence,
+            bulk: createdEditions.length > 1,
+          },
+          createdBy: request.organizerEmail ?? 'organizer',
+        });
+      }
+
+      reply.code(201);
+      return {
+        editions: createdEditions.map(mapEdition),
+        skippedDates,
+        createdCount: createdEditions.length,
+        skippedCount: skippedDates.length,
+      };
     },
   );
 
@@ -365,7 +420,10 @@ export async function registerEditionRoutes(app: FastifyInstance): Promise<void>
         createdBy: request.organizerEmail ?? 'organizer',
       });
 
-      await app.db.delete(schema.editions).where(eq(schema.editions.id, editionId));
+      await app.db.transaction(async (tx) => {
+        await tx.delete(schema.editions).where(eq(schema.editions.id, editionId));
+        await renumberEditionNamesForChampionship(tx, edition.championshipId);
+      });
 
       return {
         id: editionId,

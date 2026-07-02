@@ -9,13 +9,14 @@ import {
 import { formatEditionDate, formatEditionStatus } from '../../lib/format.js';
 import { Alert } from '../../components/ui/Alert.js';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog.js';
-import { ApiError } from '../../lib/api-client.js';
 import {
   archiveChampionship,
   deleteChampionship,
   unarchiveChampionship,
 } from '../../lib/organizer-api.js';
 import { queryKeys } from '../../lib/query-keys.js';
+import { notifyApiError } from '../../notifications/notify-api-error.js';
+import { useNotification } from '../../notifications/notification-context.js';
 
 const archiveButtonBaseClasses =
   'inline-flex items-center gap-2 rounded-lg border px-4 py-1.5 text-sm font-medium transition';
@@ -24,26 +25,22 @@ export function ChampionshipPage() {
   const { championshipId } = useParams<{ championshipId: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const notify = useNotification();
   const championshipQuery = useChampionship(championshipId);
   const editionsQuery = useChampionshipEditions(championshipId);
   const rankingQuery = useChampionshipRanking(championshipId);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isArchiveDialogOpen, setIsArchiveDialogOpen] = useState(false);
-  const [deleteError, setDeleteError] = useState<string | null>(null);
-  const [archiveError, setArchiveError] = useState<string | null>(null);
 
   const deleteMutation = useMutation({
     mutationFn: () => deleteChampionship(championshipId!),
     onSuccess: async () => {
-      setDeleteError(null);
       setIsDeleteDialogOpen(false);
       await queryClient.invalidateQueries({ queryKey: queryKeys.championships() });
       void navigate('/organizador/painel');
     },
     onError: (error) => {
-      setDeleteError(
-        error instanceof ApiError ? error.message : 'Não foi possível excluir o campeonato.',
-      );
+      notifyApiError(notify, error, 'Não foi possível excluir o campeonato.');
       setIsDeleteDialogOpen(false);
     },
   });
@@ -57,7 +54,6 @@ export function ChampionshipPage() {
       return archiveChampionship(championshipId!);
     },
     onSuccess: async () => {
-      setArchiveError(null);
       setIsArchiveDialogOpen(false);
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.championships() }),
@@ -66,9 +62,7 @@ export function ChampionshipPage() {
       void navigate('/organizador/painel');
     },
     onError: (error) => {
-      setArchiveError(
-        error instanceof ApiError ? error.message : 'Não foi possível atualizar o campeonato.',
-      );
+      notifyApiError(notify, error, 'Não foi possível atualizar o campeonato.');
       setIsArchiveDialogOpen(false);
     },
   });
@@ -167,9 +161,6 @@ export function ChampionshipPage() {
         onConfirm={() => void archiveMutation.mutateAsync()}
         onCancel={() => setIsArchiveDialogOpen(false)}
       />
-
-      {deleteError ? <Alert variant="danger">{deleteError}</Alert> : null}
-      {archiveError ? <Alert variant="danger">{archiveError}</Alert> : null}
 
       {championship.archivedAt ? (
         <Alert variant="warning">

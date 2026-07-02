@@ -116,7 +116,12 @@ describe.skipIf(!hasTestDb)('autenticação do organizador (integração HTTP)',
   });
 
   it('NÃO expõe magic link quando NODE_ENV=production', async () => {
-    const prodApp = await createTestApp({ NODE_ENV: 'production' });
+    const prodApp = await createTestApp({
+      NODE_ENV: 'production',
+      RESEND_API_KEY: 're_test',
+      EMAIL_FROM: 'admin@sistema.pro.br',
+      EMAIL_FROM_NAME: 'Clandestino - Tênis de Mesa',
+    });
     try {
       const requested = await prodApp.inject({
         method: 'POST',

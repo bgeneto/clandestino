@@ -77,7 +77,7 @@ export async function registerEditionDrawRoutes(app: FastifyInstance): Promise<v
 
       if (registrations.length < edition.rules.minimumGroupSize) {
         throw badRequest(
-          `São necessários ao menos ${edition.rules.minimumGroupSize} jogadores inscritos para o sorteio.`,
+          `São necessários ao menos ${edition.rules.minimumGroupSize} jogadores inscritos para o sorteio. Clique em configurar edição para fazer o check-in dos jogadores.`,
         );
       }
 

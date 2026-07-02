@@ -8,6 +8,7 @@ import type {
   CorrectMatchResultBody,
   CreateChampionshipBody,
   CreateEditionBody,
+  CreateEditionsResponse,
   DeleteChampionshipResponse,
   DeleteEditionResponse,
   DrawSnapshotListResponse,
@@ -156,8 +157,8 @@ export async function createPlayer(body: CreatePlayerBody): Promise<Player> {
   });
 }
 
-export async function createEdition(body: CreateEditionBody): Promise<Edition> {
-  return apiRequest<Edition>('/editions', {
+export async function createEdition(body: CreateEditionBody): Promise<CreateEditionsResponse> {
+  return apiRequest<CreateEditionsResponse>('/editions', {
     method: 'POST',
     body,
     ...organizer,

@@ -1,5 +1,6 @@
 import { type Static, Type } from '@sinclair/typebox';
 import { UuidSchema } from './common.js';
+import { PlacementFormatSchema } from './placement.js';
 
 export const GroupSchema = Type.Object(
   {
@@ -7,6 +8,10 @@ export const GroupSchema = Type.Object(
     editionId: UuidSchema,
     name: Type.String({ minLength: 1, maxLength: 32 }),
     phase: Type.String({ minLength: 1, maxLength: 64 }),
+    placementFormat: Type.Optional(PlacementFormatSchema),
+    bracketSeed: Type.Optional(Type.String({ minLength: 1, maxLength: 64 })),
+    positionFrom: Type.Optional(Type.Integer({ minimum: 1 })),
+    positionTo: Type.Optional(Type.Integer({ minimum: 1 })),
   },
   { $id: 'Group' },
 );

@@ -58,7 +58,7 @@ export function CheckInStep({
       <div>
         <h3 className="text-lg font-semibold text-foreground">Check-in dos participantes</h3>
         <p className="mt-1 text-sm text-muted">
-          <b>SELECIONE</b> apenas os jogadores que estão presentes nesta edição.
+          <b>SELECIONE</b> apenas os jogadores que estão presentes e participarão desta edição.
         </p>
       </div>
 

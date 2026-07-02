@@ -263,7 +263,10 @@ pnpm typecheck
 | Item                       | Valor / regra                                                             |
 | -------------------------- | ------------------------------------------------------------------------- |
 | `NODE_ENV`                 | **`production`** (já no serviço `api` do Compose)                         |
-| Magic link                 | **nunca** na resposta HTTP — `EXPOSE_MAGIC_LINKS=true` é ignorado         |
+| Magic link                 | **nunca** na resposta HTTP — enviado por e-mail via Resend                |
+| `RESEND_API_KEY`           | **obrigatória** em produção                                               |
+| `EMAIL_FROM`               | remetente verificado no Resend (ex. `admin@sistema.pro.br`)               |
+| `EMAIL_FROM_NAME`          | nome exibido no e-mail (ex. `Clandestino - Tênis de Mesa`)                |
 | `PUBLIC_APP_URL`           | URL pública HTTPS do PWA (magic links válidos)                            |
 | `ORGANIZER_ALLOWED_EMAILS` | e-mails reais do organizador                                              |
 | `SEED_ON_START`            | **`false`** — não rodar seed em produção                                  |

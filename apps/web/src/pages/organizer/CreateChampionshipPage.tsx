@@ -2,14 +2,14 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
 import { DEFAULT_EDITION_RULES, DEFAULT_SCORING_TABLE } from '@clandestino/shared-contracts';
-import { ApiError } from '../../lib/api-client.js';
 import { createChampionship } from '../../lib/organizer-api.js';
-import { Alert } from '../../components/ui/Alert.js';
+import { notifyApiError } from '../../notifications/notify-api-error.js';
+import { useNotification } from '../../notifications/notification-context.js';
 
 export function CreateChampionshipPage() {
   const navigate = useNavigate();
+  const notify = useNotification();
   const [name, setName] = useState('');
-  const [error, setError] = useState<string | null>(null);
 
   const createMutation = useMutation({
     mutationFn: () =>
@@ -22,12 +22,7 @@ export function CreateChampionshipPage() {
       void navigate(`/organizador/campeonato/${championship.id}`);
     },
     onError: (mutationError) => {
-      if (mutationError instanceof ApiError) {
-        setError(mutationError.message);
-        return;
-      }
-
-      setError('Não foi possível criar o campeonato.');
+      notifyApiError(notify, mutationError, 'Não foi possível criar o campeonato.');
     },
   });
 
@@ -49,7 +44,6 @@ export function CreateChampionshipPage() {
         className="space-y-4 rounded-2xl border border-line bg-card p-6"
         onSubmit={(event) => {
           event.preventDefault();
-          setError(null);
           void createMutation.mutateAsync();
         }}
       >
@@ -68,8 +62,6 @@ export function CreateChampionshipPage() {
           A tabela de pontuação padrão (1º a 20º) e regras padrão de edição serão aplicadas. Você
           pode ajustar depois no hub do campeonato.
         </p>
-
-        {error ? <Alert variant="danger">{error}</Alert> : null}
 
         <button
           type="submit"

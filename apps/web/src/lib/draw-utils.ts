@@ -6,7 +6,7 @@ export function getDrawReadinessWarning(
   rules: TournamentRules,
 ): string | null {
   if (playerCount < rules.minimumGroupSize) {
-    return `São necessários ao menos ${rules.minimumGroupSize} jogadores inscritos para o sorteio.`;
+    return `São necessários ao menos ${rules.minimumGroupSize} jogadores inscritos para o sorteio. Clique em configurar edição para fazer o check-in dos jogadores.`;
   }
 
   try {

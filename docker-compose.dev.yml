@@ -74,7 +74,14 @@ services:
       VITE_HMR_CLIENT_PORT: '80'
       VITE_SHOW_PLAYER_SHUFFLE: ${VITE_SHOW_PLAYER_SHUFFLE:-false}
     volumes: *dev-volumes
-    command: pnpm --filter @clandestino/web dev
+    command:
+      - sh
+      - -c
+      - |
+        echo "[dev] Recompilando packages compartilhados (shared-contracts, tournament-engine)..."
+        pnpm --filter @clandestino/shared-contracts build
+        pnpm --filter @clandestino/tournament-engine build
+        exec pnpm --filter @clandestino/web dev
 
   caddy:
     image: caddy:2-alpine

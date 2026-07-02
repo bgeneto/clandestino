@@ -8,21 +8,11 @@ type ReviewStepProps = {
   draft: EditionWizardDraft;
   isOnline: boolean;
   isPublishing: boolean;
-  feedback: string | null;
-  feedbackVariant?: 'danger' | 'warning' | 'success' | 'info';
   onBack: () => void;
   onPublish: () => void;
 };
 
-export function ReviewStep({
-  draft,
-  isOnline,
-  isPublishing,
-  feedback,
-  feedbackVariant = 'info',
-  onBack,
-  onPublish,
-}: ReviewStepProps) {
+export function ReviewStep({ draft, isOnline, isPublishing, onBack, onPublish }: ReviewStepProps) {
   const totalMatches = estimateRoundRobinMatches(draft.groupSizes ?? []);
   const groupSizes = draft.groupSizes ?? [];
   const largestGroup = groupSizes.length > 0 ? Math.max(...groupSizes) : 0;
@@ -78,8 +68,6 @@ export function ReviewStep({
         </Alert>
       ) : null}
 
-      {feedback ? <Alert variant={feedbackVariant}>{feedback}</Alert> : null}
-
       <div className="flex gap-3">
         <button
           type="button"
@@ -92,23 +80,16 @@ export function ReviewStep({
           type="button"
           disabled={isPublishing}
           onClick={onPublish}
-          className="flex-1 rounded-lg bg-brand px-4 py-2.5 text-sm font-medium text-white disabled:opacity-50"
+          className="flex-1 rounded-lg bg-brand px-4 py-2.5 text-sm font-medium text-white disabled:opacity-60"
         >
-          {isPublishing
-            ? 'Publicando…'
-            : isOnline
-              ? 'Publicar sorteio e gerar partidas'
-              : 'Salvar para sincronizar'}
+          {isPublishing ? 'Publicando…' : isOnline ? 'Publicar sorteio' : 'Salvar para sincronizar'}
         </button>
       </div>
 
-      {draft.editionId ? (
-        <Link
-          to={`/organizador/edicao/${draft.editionId}`}
-          className="block text-center text-sm text-subtle underline"
-        >
-          ↑ Ir para painel da edição
-        </Link>
+      {isOnline ? (
+        <p className="text-center text-xs text-subtle">
+          Após publicar, você será levado à página da edição.
+        </p>
       ) : null}
     </section>
   );

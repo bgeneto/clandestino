@@ -113,6 +113,7 @@ export type EditionWizardDraft = {
   seedPlayerIds?: string[];
   drawRandomSeed?: string;
   drawPreview?: WizardDrawPreviewGroup[];
+  drawInputFingerprint?: string;
   syncStatus: WizardDraftSyncStatus;
   syncError?: string;
   updatedAt: string;

@@ -1,16 +1,27 @@
 import type { EditionWizardDraft } from '../../../db/clandestino-db.js';
+import { isDrawPreviewStale } from '../../../lib/draw-input-fingerprint.js';
 import { isPlayerShuffleEnabled } from '../../../lib/feature-flags.js';
+import { Alert } from '../../ui/Alert.js';
 
 type DrawPreviewStepProps = {
   draft: EditionWizardDraft;
   onBack: () => void;
   onContinue: () => void;
   onRedraw?: () => void;
+  onRecalculate?: () => void;
 };
 
-export function DrawPreviewStep({ draft, onBack, onContinue, onRedraw }: DrawPreviewStepProps) {
+export function DrawPreviewStep({
+  draft,
+  onBack,
+  onContinue,
+  onRedraw,
+  onRecalculate,
+}: DrawPreviewStepProps) {
   const showShuffleButton = isPlayerShuffleEnabled() && onRedraw !== undefined;
   const preview = draft.drawPreview ?? [];
+  const isStale = isDrawPreviewStale(draft);
+  const canContinue = preview.length > 0 && !isStale;
 
   return (
     <section className="space-y-4">
@@ -20,6 +31,13 @@ export function DrawPreviewStep({ draft, onBack, onContinue, onRedraw }: DrawPre
           Revise a distribuição dos jogadores antes de publicar o sorteio dos grupos.
         </p>
       </div>
+
+      {isStale ? (
+        <Alert variant="warning">
+          A configuração mudou desde o último sorteio. Volte ao passo anterior ou recalcule os
+          grupos antes de continuar.
+        </Alert>
+      ) : null}
 
       <div className="space-y-3">
         {preview.map((group) => (
@@ -39,7 +57,17 @@ export function DrawPreviewStep({ draft, onBack, onContinue, onRedraw }: DrawPre
         ))}
       </div>
 
-      {showShuffleButton ? (
+      {isStale && onRecalculate ? (
+        <button
+          type="button"
+          onClick={onRecalculate}
+          className="w-full rounded-lg border border-line px-4 py-2.5 text-sm font-medium text-foreground"
+        >
+          Recalcular sorteio
+        </button>
+      ) : null}
+
+      {showShuffleButton && !isStale ? (
         <button
           type="button"
           onClick={onRedraw}
@@ -59,7 +87,7 @@ export function DrawPreviewStep({ draft, onBack, onContinue, onRedraw }: DrawPre
         </button>
         <button
           type="button"
-          disabled={preview.length === 0}
+          disabled={!canContinue}
           onClick={onContinue}
           className="flex-1 rounded-lg bg-brand px-4 py-2.5 text-sm font-medium text-white disabled:opacity-50"
         >

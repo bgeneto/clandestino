@@ -548,7 +548,7 @@ export async function withdrawPlayerFromEdition(
     .limit(1);
 
   if (!registration) {
-    throw notFound('Jogador não está inscrito nesta edição.');
+    throw notFound('Jogador não inscrito nesta edição.');
   }
 
   if (registration.withdrawnAt) {

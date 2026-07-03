@@ -1,11 +1,16 @@
-import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import type { QueryClient } from '@tanstack/react-query';
 import type { EditionWizardDraft } from '../db/clandestino-db.js';
 import { ApiError } from '../lib/api-client.js';
 import {
+  CHECK_IN_SYNC_DEBOUNCE_MS,
   draftMissingServerRegistrations,
+  flushCheckInSync,
   isLocalOnlyPlayerId,
   mergeDraftWithServerRegistrations,
+  reconcileCheckInWithServer,
+  resetCheckInSyncStateForTests,
+  scheduleWizardCheckInSync,
   syncWizardCheckInToggle,
 } from './sync-wizard-check-in.js';
 
@@ -34,9 +39,38 @@ const queryClient = {
   invalidateQueries: vi.fn().mockResolvedValue(undefined),
 } as unknown as QueryClient;
 
+function syncContext(
+  overrides: {
+    getDraft?: () => Promise<EditionWizardDraft | undefined>;
+    persistDraft?: (draft: EditionWizardDraft) => Promise<EditionWizardDraft>;
+  } = {},
+) {
+  let currentDraft: EditionWizardDraft = { ...baseDraft };
+  return {
+    draftId: baseDraft.id,
+    editionId: baseDraft.editionId!,
+    championshipId: baseDraft.championshipId,
+    queryClient,
+    getDraft: overrides.getDraft ?? (async () => currentDraft),
+    persistDraft:
+      overrides.persistDraft ??
+      (async (draft: EditionWizardDraft) => {
+        currentDraft = draft;
+        return draft;
+      }),
+  };
+}
+
 describe('sync-wizard-check-in', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    resetCheckInSyncStateForTests();
+    vi.stubGlobal('navigator', { onLine: true });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    resetCheckInSyncStateForTests();
   });
 
   it('detects local-only player ids', () => {
@@ -77,6 +111,25 @@ describe('sync-wizard-check-in', () => {
 
     expect(merged.checkedInPlayers).toHaveLength(2);
     expect(merged.checkedInPlayers[1]?.playerName).toBe('Bruno');
+  });
+
+  it('skips merge for player ids marked as pending sync', () => {
+    const merged = mergeDraftWithServerRegistrations(
+      baseDraft,
+      [
+        {
+          editionId: baseDraft.editionId!,
+          playerId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+          registeredAt: '2026-01-02T00:00:00.000Z',
+        },
+      ],
+      new Map([
+        ['bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', { playerName: 'Bruno', accumulatedPoints: 5 }],
+      ]),
+      new Set(['bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb']),
+    );
+
+    expect(merged.checkedInPlayers).toHaveLength(0);
   });
 
   it('reports when draft is missing server registrations', () => {
@@ -168,5 +221,134 @@ describe('sync-wizard-check-in', () => {
       baseDraft.editionId,
       'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
     );
+  });
+
+  it('ignores unregister 404 when player is already absent', async () => {
+    vi.mocked(unregisterPlayer).mockRejectedValue(
+      new ApiError('Jogador não inscrito nesta edição.', 404),
+    );
+
+    const player = {
+      playerId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+      playerName: 'Ana',
+      accumulatedPoints: 0,
+    };
+
+    await expect(
+      syncWizardCheckInToggle({
+        draft: baseDraft,
+        player,
+        checkingIn: false,
+        queryClient,
+      }),
+    ).resolves.toEqual(baseDraft);
+  });
+
+  it('reconcile registers and unregisters only the diff', async () => {
+    vi.mocked(registerPlayer).mockResolvedValue({ registrations: [] });
+    vi.mocked(unregisterPlayer).mockResolvedValue({ registrations: [] });
+
+    let currentDraft: EditionWizardDraft = {
+      ...baseDraft,
+      checkedInPlayers: [
+        {
+          playerId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+          playerName: 'Bruno',
+          accumulatedPoints: 5,
+        },
+      ],
+    };
+
+    const context = syncContext({
+      getDraft: async () => currentDraft,
+      persistDraft: async (draft) => {
+        currentDraft = draft;
+        return draft;
+      },
+    });
+
+    await reconcileCheckInWithServer(context);
+
+    expect(registerPlayer).toHaveBeenCalledWith(baseDraft.editionId, {
+      playerId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+    });
+    expect(unregisterPlayer).not.toHaveBeenCalled();
+
+    currentDraft = {
+      ...currentDraft,
+      checkedInPlayers: [],
+    };
+
+    await reconcileCheckInWithServer(context);
+
+    expect(unregisterPlayer).toHaveBeenCalledWith(
+      baseDraft.editionId,
+      'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+    );
+    expect(registerPlayer).toHaveBeenCalledTimes(1);
+  });
+
+  it('debounces rapid toggles into a single reconcile', async () => {
+    vi.useFakeTimers();
+    vi.mocked(registerPlayer).mockResolvedValue({ registrations: [] });
+    vi.mocked(unregisterPlayer).mockResolvedValue({ registrations: [] });
+
+    let currentDraft: EditionWizardDraft = baseDraft;
+    const context = syncContext({
+      getDraft: async () => currentDraft,
+      persistDraft: async (draft) => {
+        currentDraft = draft;
+        return draft;
+      },
+    });
+
+    currentDraft = {
+      ...baseDraft,
+      checkedInPlayers: [
+        {
+          playerId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+          playerName: 'Ana',
+          accumulatedPoints: 0,
+        },
+      ],
+    };
+    scheduleWizardCheckInSync(context);
+
+    currentDraft = { ...baseDraft, checkedInPlayers: [] };
+    scheduleWizardCheckInSync(context);
+
+    await vi.advanceTimersByTimeAsync(CHECK_IN_SYNC_DEBOUNCE_MS);
+
+    expect(registerPlayer).not.toHaveBeenCalled();
+    expect(unregisterPlayer).not.toHaveBeenCalled();
+  });
+
+  it('flush runs reconcile immediately without waiting for debounce', async () => {
+    vi.useFakeTimers();
+    vi.mocked(registerPlayer).mockResolvedValue({ registrations: [] });
+
+    let currentDraft: EditionWizardDraft = {
+      ...baseDraft,
+      checkedInPlayers: [
+        {
+          playerId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+          playerName: 'Ana',
+          accumulatedPoints: 0,
+        },
+      ],
+    };
+
+    const context = syncContext({
+      getDraft: async () => currentDraft,
+      persistDraft: async (draft) => {
+        currentDraft = draft;
+        return draft;
+      },
+    });
+
+    scheduleWizardCheckInSync(context);
+    await flushCheckInSync(context);
+
+    expect(registerPlayer).toHaveBeenCalledTimes(1);
   });
 });

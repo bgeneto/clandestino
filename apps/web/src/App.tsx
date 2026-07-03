@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { AppShell } from './components/AppShell.js';
 import { HomePage } from './pages/HomePage.js';
+import { PublicChampionshipPage } from './pages/PublicChampionshipPage.js';
 import { EditionLayout } from './pages/edition/EditionLayout.js';
 import { MyGroupPage } from './pages/edition/MyGroupPage.js';
 import { MyMatchesPage } from './pages/edition/MyMatchesPage.js';
@@ -25,6 +26,7 @@ export function App() {
     <AppShell>
       <Routes>
         <Route path="/" element={<HomePage />} />
+        <Route path="/campeonato/:championshipId" element={<PublicChampionshipPage />} />
         <Route path="/edicao/:editionId" element={<EditionLayout />}>
           <Route index element={<PublicEditionPage />} />
           <Route path="entrar" element={<PlayerEntryPage />} />

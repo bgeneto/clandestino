@@ -9,6 +9,7 @@ import {
 import { formatEditionDate, formatEditionStatus } from '../../lib/format.js';
 import { Alert } from '../../components/ui/Alert.js';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog.js';
+import { ChampionshipRankingTable } from '../../components/public/ChampionshipRankingTable.js';
 import {
   archiveChampionship,
   deleteChampionship,
@@ -190,31 +191,12 @@ export function ChampionshipPage() {
         <h3 className="text-lg font-semibold text-foreground">Ranking atual</h3>
         {rankingQuery.isLoading ? (
           <p className="mt-3 text-sm text-subtle">Carregando ranking…</p>
-        ) : ranking.length === 0 ? (
-          <p className="mt-3 text-sm text-subtle">
-            Nenhuma pontuação importada ainda. Use a importação CSV ou encerre edições para acumular
-            pontos.
-          </p>
         ) : (
-          <div className="mt-4 overflow-hidden rounded-lg border border-line">
-            <table className="w-full text-left text-sm">
-              <thead className="bg-card-muted text-subtle">
-                <tr>
-                  <th className="px-3 py-2">#</th>
-                  <th className="px-3 py-2">Jogador</th>
-                  <th className="px-3 py-2">Pontos</th>
-                </tr>
-              </thead>
-              <tbody>
-                {ranking.map((entry) => (
-                  <tr key={entry.playerId} className="border-t border-line">
-                    <td className="px-3 py-2 text-subtle">{entry.rank}</td>
-                    <td className="px-3 py-2 text-foreground">{entry.playerName}</td>
-                    <td className="px-3 py-2 text-muted">{entry.accumulatedPoints}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="mt-4">
+            <ChampionshipRankingTable
+              ranking={ranking}
+              emptyMessage="Nenhuma pontuação importada ainda. Use a importação CSV ou encerre edições para acumular pontos."
+            />
           </div>
         )}
       </div>

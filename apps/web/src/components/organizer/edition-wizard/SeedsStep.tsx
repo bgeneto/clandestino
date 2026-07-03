@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import type { EditionWizardDraft } from '../../../db/clandestino-db.js';
+import { canonicalSeedOrder } from '../../../lib/draw-input-fingerprint.js';
 import { selectDefaultSeeds } from '@clandestino/tournament-engine';
 
 type SeedsStepProps = {
@@ -9,21 +10,31 @@ type SeedsStepProps = {
   onBack: () => void;
 };
 
+function resolveSelectedSeedIds(draft: EditionWizardDraft, groupCount: number): Set<string> {
+  return new Set(
+    draft.seedPlayerIds ??
+      selectDefaultSeeds(
+        draft.checkedInPlayers.map((player) => ({
+          playerId: player.playerId,
+          playerName: player.playerName,
+          accumulatedPoints: player.accumulatedPoints,
+        })),
+        groupCount,
+      ),
+  );
+}
+
+function toCanonicalSeedIds(
+  seedPlayerIds: readonly string[],
+  checkedInPlayers: EditionWizardDraft['checkedInPlayers'],
+): string[] {
+  return canonicalSeedOrder(seedPlayerIds, checkedInPlayers);
+}
+
 export function SeedsStep({ draft, onChange, onContinue, onBack }: SeedsStepProps) {
   const groupCount = draft.groupCount ?? 1;
   const selectedSeedIds = useMemo(
-    () =>
-      new Set(
-        draft.seedPlayerIds ??
-          selectDefaultSeeds(
-            draft.checkedInPlayers.map((player) => ({
-              playerId: player.playerId,
-              playerName: player.playerName,
-              accumulatedPoints: player.accumulatedPoints,
-            })),
-            groupCount,
-          ),
-      ),
+    () => resolveSelectedSeedIds(draft, groupCount),
     [draft.checkedInPlayers, draft.seedPlayerIds, groupCount],
   );
 
@@ -46,7 +57,7 @@ export function SeedsStep({ draft, onChange, onContinue, onBack }: SeedsStepProp
       next.add(playerId);
     }
 
-    onChange([...next]);
+    onChange(toCanonicalSeedIds([...next], draft.checkedInPlayers));
   }
 
   return (
@@ -109,7 +120,7 @@ export function SeedsStep({ draft, onChange, onContinue, onBack }: SeedsStepProp
           type="button"
           disabled={!canContinue}
           onClick={() => {
-            onContinue([...selectedSeedIds]);
+            onContinue(toCanonicalSeedIds([...selectedSeedIds], draft.checkedInPlayers));
           }}
           className="flex-1 rounded-lg bg-brand px-4 py-2.5 text-sm font-medium text-white disabled:opacity-50"
         >

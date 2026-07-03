@@ -1,7 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { executeExplicitDraw } from '@clandestino/tournament-engine';
 import { useChampionshipRoster, useEditionRegistrations } from '../../hooks/use-organizer-data.js';
 import { useEdition } from '../../hooks/use-edition.js';
 import { createEditionWizardDraft } from '../../offline/edition-wizard-draft.js';
@@ -18,10 +17,19 @@ import {
 import { canPublishDraft, syncEditionWizardDraft } from '../../offline/sync-edition-wizard.js';
 import {
   draftMissingServerRegistrations,
+  flushCheckInSync,
+  getPendingCheckInSyncPlayerIds,
+  initLastSyncedRegistrations,
+  isCheckInSyncPending,
   mergeDraftWithServerRegistrations,
-  syncWizardAddNewPlayer,
-  syncWizardCheckInToggle,
+  scheduleWizardCheckInSync,
 } from '../../offline/sync-wizard-check-in.js';
+import {
+  applyDraftMutation,
+  invalidateStaleDrawPreview,
+  needsNewDrawPreview,
+  withDrawPreview,
+} from '../../lib/draw-input-fingerprint.js';
 import { CheckInStep } from '../../components/organizer/edition-wizard/CheckInStep.js';
 import { DrawPreviewStep } from '../../components/organizer/edition-wizard/DrawPreviewStep.js';
 import { GroupsFormatStep } from '../../components/organizer/edition-wizard/GroupsFormatStep.js';
@@ -48,78 +56,6 @@ function createRandomSeed(): string {
   return createClientId('seed');
 }
 
-function sameStringArray(left: readonly string[], right: readonly string[]): boolean {
-  return left.length === right.length && left.every((value, index) => value === right[index]);
-}
-
-function sameNumberArray(left: readonly number[], right: readonly number[]): boolean {
-  return left.length === right.length && left.every((value, index) => value === right[index]);
-}
-
-function shouldRunDrawPreview(draft: EditionWizardDraft, seedPlayerIds: string[]): boolean {
-  if (!draft.drawPreview?.length || !draft.drawRandomSeed) {
-    return true;
-  }
-
-  const checkedInPlayerIds = new Set(draft.checkedInPlayers.map((player) => player.playerId));
-  const previewPlayerIds = new Set(
-    draft.drawPreview.flatMap((group) => group.players.map((player) => player.playerId)),
-  );
-
-  if (checkedInPlayerIds.size !== previewPlayerIds.size) {
-    return true;
-  }
-
-  for (const playerId of checkedInPlayerIds) {
-    if (!previewPlayerIds.has(playerId)) {
-      return true;
-    }
-  }
-
-  if (!draft.seedPlayerIds || !sameStringArray(draft.seedPlayerIds, seedPlayerIds)) {
-    return true;
-  }
-
-  if (!draft.groupSizes) {
-    return true;
-  }
-
-  const previewGroupSizes = draft.drawPreview.map((group) => group.players.length);
-  if (!sameNumberArray(draft.groupSizes, previewGroupSizes)) {
-    return true;
-  }
-
-  return false;
-}
-
-function buildDrawPreview(
-  draft: EditionWizardDraft,
-  randomSeed: string,
-): EditionWizardDraft['drawPreview'] {
-  if (!draft.groupSizes || !draft.seedPlayerIds) {
-    return [];
-  }
-
-  const playerNameById = new Map(
-    draft.checkedInPlayers.map((player) => [player.playerId, player.playerName]),
-  );
-  const draw = executeExplicitDraw({
-    playerIds: draft.checkedInPlayers.map((player) => player.playerId),
-    seedPlayerIds: draft.seedPlayerIds,
-    groupSizes: draft.groupSizes,
-    randomSeed,
-  });
-
-  return draw.groups.map((group) => ({
-    name: group.name,
-    players: group.players.map((player) => ({
-      playerId: player.playerId,
-      playerName: playerNameById.get(player.playerId) ?? 'Jogador',
-      isSeed: player.isSeed,
-    })),
-  }));
-}
-
 export function EditionPreparePage() {
   const navigate = useNavigate();
   const { editionId, championshipId, draftId } = useParams<{
@@ -139,6 +75,10 @@ export function EditionPreparePage() {
   const rosterChampionshipId =
     draft?.championshipId ?? championshipId ?? editionQuery.data?.championshipId;
   const rosterQuery = useChampionshipRoster(rosterChampionshipId);
+  const draftRef = useRef<EditionWizardDraft | null>(null);
+  const hasInitialMergedRef = useRef<string | null>(null);
+
+  draftRef.current = draft;
 
   const deleteMutation = useMutation({
     mutationFn: () => deleteEdition(draft!.editionId!),
@@ -215,15 +155,54 @@ export function EditionPreparePage() {
   const persistDraft = useCallback(async (nextDraft: EditionWizardDraft) => {
     const saved = await saveEditionWizardDraft(nextDraft);
     setDraft(saved);
+    draftRef.current = saved;
     return saved;
   }, []);
 
+  const buildCheckInSyncContext = useCallback(
+    (sourceDraft: EditionWizardDraft) => ({
+      draftId: sourceDraft.id,
+      editionId: sourceDraft.editionId!,
+      championshipId: sourceDraft.championshipId,
+      queryClient,
+      getDraft: () => getEditionWizardDraft(sourceDraft.id),
+      persistDraft,
+      onError: (error: unknown) => {
+        notifyApiError(notify, error, 'Não foi possível sincronizar o check-in com o servidor.');
+      },
+    }),
+    [notify, persistDraft, queryClient],
+  );
+
   useEffect(() => {
-    if (!draft?.editionId || !registrationsQuery.data || !rosterQuery.data) {
+    if (!draft?.id || !registrationsQuery.data) {
       return;
     }
 
-    if (!draftMissingServerRegistrations(draft, registrationsQuery.data)) {
+    initLastSyncedRegistrations(draft.id, registrationsQuery.data);
+  }, [draft?.id, registrationsQuery.data]);
+
+  useEffect(() => {
+    hasInitialMergedRef.current = null;
+  }, [draft?.id]);
+
+  useEffect(() => {
+    const current = draftRef.current;
+    if (!current?.editionId || !registrationsQuery.data || !rosterQuery.data) {
+      return;
+    }
+
+    if (hasInitialMergedRef.current === current.id) {
+      return;
+    }
+
+    if (isCheckInSyncPending(current.id)) {
+      return;
+    }
+
+    const skipPlayerIds = getPendingCheckInSyncPlayerIds(current.id);
+    if (!draftMissingServerRegistrations(current, registrationsQuery.data, skipPlayerIds)) {
+      hasInitialMergedRef.current = current.id;
       return;
     }
 
@@ -234,13 +213,15 @@ export function EditionPreparePage() {
       ]),
     );
     const merged = mergeDraftWithServerRegistrations(
-      draft,
+      current,
       registrationsQuery.data,
       rosterByPlayerId,
+      skipPlayerIds,
     );
 
+    hasInitialMergedRef.current = current.id;
     void persistDraft(merged);
-  }, [draft, registrationsQuery.data, rosterQuery.data, persistDraft]);
+  }, [registrationsQuery.data, rosterQuery.data, persistDraft, draft?.id, draft?.editionId]);
 
   const goToStep = useCallback(
     async (step: number) => {
@@ -263,14 +244,7 @@ export function EditionPreparePage() {
 
   const runDrawPreview = useCallback(
     async (sourceDraft: EditionWizardDraft, randomSeed = createRandomSeed()) => {
-      const preview = buildDrawPreview(sourceDraft, randomSeed);
-      return persistDraft({
-        ...sourceDraft,
-        drawRandomSeed: randomSeed,
-        drawPreview: preview,
-        syncStatus:
-          sourceDraft.syncStatus === 'SINCRONIZADO' ? 'SINCRONIZADO' : 'PRONTO_PARA_SINCRONIZAR',
-      });
+      return persistDraft(withDrawPreview(sourceDraft, randomSeed));
     },
     [persistDraft],
   );
@@ -351,63 +325,56 @@ export function EditionPreparePage() {
           availablePlayers={availablePlayers}
           onTogglePlayer={(player) => {
             void (async () => {
-              const wasCheckedIn = draft.checkedInPlayers.some(
+              const current = draftRef.current ?? draft;
+              const wasCheckedIn = current.checkedInPlayers.some(
                 (entry) => entry.playerId === player.playerId,
               );
-              const previousDraft = draft;
-              const nextDraft = wasCheckedIn
-                ? removeCheckedInPlayer(draft, player.playerId)
-                : upsertCheckedInPlayer(draft, player);
+              const nextDraft = invalidateStaleDrawPreview(
+                wasCheckedIn
+                  ? removeCheckedInPlayer(current, player.playerId)
+                  : upsertCheckedInPlayer(current, player),
+              );
 
-              try {
-                const savedDraft = await persistDraft(nextDraft);
-                if (isOnline && draft.editionId) {
-                  const syncedDraft = await syncWizardCheckInToggle({
-                    draft: savedDraft,
-                    player,
-                    checkingIn: !wasCheckedIn,
-                    queryClient,
-                  });
-                  await persistDraft(syncedDraft);
-                }
-              } catch (error) {
-                await persistDraft(previousDraft);
-                notifyApiError(
-                  notify,
-                  error,
-                  'Não foi possível sincronizar o check-in com o servidor.',
-                );
+              const savedDraft = await persistDraft(nextDraft);
+              if (isOnline && savedDraft.editionId) {
+                scheduleWizardCheckInSync(buildCheckInSyncContext(savedDraft));
               }
             })();
           }}
           onAddNewPlayer={(name) => {
             void (async () => {
+              const current = draftRef.current ?? draft;
               const player: WizardDraftPlayer = {
                 playerId: createLocalPlayerId(name),
                 playerName: name,
                 accumulatedPoints: 0,
                 isNew: true,
               };
-              const previousDraft = draft;
-              const nextDraft = upsertCheckedInPlayer(draft, player);
+              const nextDraft = invalidateStaleDrawPreview(upsertCheckedInPlayer(current, player));
 
-              try {
-                const savedDraft = await persistDraft(nextDraft);
-                if (isOnline && draft.editionId) {
-                  const syncedDraft = await syncWizardAddNewPlayer({
-                    draft: savedDraft,
-                    player,
-                    queryClient,
-                  });
-                  await persistDraft(syncedDraft);
-                }
-              } catch (error) {
-                await persistDraft(previousDraft);
-                notifyApiError(notify, error, 'Não foi possível adicionar o jogador no servidor.');
+              const savedDraft = await persistDraft(nextDraft);
+              if (isOnline && savedDraft.editionId) {
+                scheduleWizardCheckInSync(buildCheckInSyncContext(savedDraft));
               }
             })();
           }}
-          onContinue={() => void goToStep(3)}
+          onContinue={() => {
+            void (async () => {
+              const current = draftRef.current ?? draft;
+              if (isOnline && current.editionId) {
+                try {
+                  const syncedDraft = await flushCheckInSync(buildCheckInSyncContext(current));
+                  if (syncedDraft) {
+                    await persistDraft(syncedDraft);
+                  }
+                } catch {
+                  return;
+                }
+              }
+
+              await goToStep(3);
+            })();
+          }}
         />
       ) : null}
 
@@ -415,7 +382,7 @@ export function EditionPreparePage() {
         <GroupsFormatStep
           draft={draft}
           onChange={(patch) => {
-            void persistDraft({ ...draft, ...patch });
+            void persistDraft(applyDraftMutation(draft, patch));
           }}
           onBack={() => void goToStep(2)}
           onContinue={() => void goToStep(4)}
@@ -426,12 +393,12 @@ export function EditionPreparePage() {
         <SeedsStep
           draft={draft}
           onChange={(seedPlayerIds) => {
-            void persistDraft({ ...draft, seedPlayerIds });
+            void persistDraft(applyDraftMutation(draft, { seedPlayerIds }));
           }}
           onBack={() => void goToStep(3)}
           onContinue={async (seedPlayerIds) => {
-            const draftWithSeeds = { ...draft, seedPlayerIds };
-            if (shouldRunDrawPreview(draft, seedPlayerIds)) {
+            const draftWithSeeds = applyDraftMutation(draft, { seedPlayerIds });
+            if (needsNewDrawPreview(draftWithSeeds)) {
               await runDrawPreview(draftWithSeeds, createRandomSeed());
             } else {
               await persistDraft(draftWithSeeds);
@@ -447,6 +414,9 @@ export function EditionPreparePage() {
           onBack={() => void goToStep(4)}
           onContinue={() => void goToStep(6)}
           onRedraw={() => {
+            void runDrawPreview(draft, createRandomSeed());
+          }}
+          onRecalculate={() => {
             void runDrawPreview(draft, createRandomSeed());
           }}
         />

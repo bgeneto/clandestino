@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Link, useOutletContext } from 'react-router-dom';
+import { useOutletContext } from 'react-router-dom';
 import { EditionHeader } from '../../components/edition/EditionHeader.js';
 import { GroupsView } from '../../components/edition/GroupsView.js';
 import { PublicMatchRow } from '../../components/edition/MatchCard.js';
@@ -60,13 +60,6 @@ export function PublicEditionPage() {
         live={!isPreparing}
         subtitle={isPreparing ? 'Edição em preparação' : 'Acompanhe o torneio ao vivo'}
       />
-      {/* TODO: remove this link/button since it allows any user to enter/participate in the edition even without a QR Code or link from organizer  */}
-      <Link
-        to={`/edicao/${editionId}/entrar`}
-        className="block rounded-xl border-2 border-dashed border-line bg-card px-4 py-3 text-center text-sm font-semibold text-foreground"
-      >
-        Sou jogador - clique para entrar/participar
-      </Link>
 
       <PublicTabs active={activeTab} onChange={setActiveTab} />
 

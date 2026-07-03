@@ -1,5 +1,6 @@
 import type { Edition, ExecuteDrawBody } from '@clandestino/shared-contracts';
 import { ApiError } from '../lib/api-client.js';
+import { isDrawPreviewStale, remapDraftPlayerIds } from '../lib/draw-input-fingerprint.js';
 import {
   createEdition,
   createPlayer,
@@ -24,6 +25,17 @@ export async function syncEditionWizardDraft(draft: EditionWizardDraft): Promise
     return { status: 'error', message: 'Complete todos os passos antes de sincronizar.' };
   }
 
+  if (!draft.drawRandomSeed || !draft.drawPreview?.length) {
+    return { status: 'error', message: 'Execute o sorteio antes de publicar.' };
+  }
+
+  if (isDrawPreviewStale(draft)) {
+    return {
+      status: 'error',
+      message: 'A configuração mudou desde o sorteio. Volte ao passo Seeds e recalcule os grupos.',
+    };
+  }
+
   const syncingDraft = await saveEditionWizardDraft({
     ...draft,
     syncStatus: 'SINCRONIZANDO',
@@ -46,24 +58,15 @@ export async function syncEditionWizardDraft(draft: EditionWizardDraft): Promise
     }
 
     if (idRemap.size > 0) {
-      syncingDraft.checkedInPlayers = syncingDraft.checkedInPlayers.map((entry) => {
-        const remappedId = idRemap.get(entry.playerId);
-        if (!remappedId) {
-          return entry;
-        }
+      Object.assign(syncingDraft, remapDraftPlayerIds(syncingDraft, idRemap));
+    }
 
-        return {
-          ...entry,
-          playerId: remappedId,
-          isNew: false,
-        };
-      });
-
-      if (syncingDraft.seedPlayerIds) {
-        syncingDraft.seedPlayerIds = syncingDraft.seedPlayerIds.map(
-          (playerId) => idRemap.get(playerId) ?? playerId,
-        );
-      }
+    if (isDrawPreviewStale(syncingDraft)) {
+      return {
+        status: 'error',
+        message:
+          'Jogadores sincronizados com novos IDs. Volte ao passo Seeds e recalcule o sorteio.',
+      };
     }
 
     if (!editionId) {
@@ -149,8 +152,10 @@ export function canPublishDraft(draft: EditionWizardDraft): boolean {
     draft.groupCount !== undefined &&
     draft.groupSizes !== undefined &&
     draft.seedPlayerIds !== undefined &&
+    draft.drawRandomSeed !== undefined &&
     draft.drawPreview !== undefined &&
-    draft.drawPreview.length > 0
+    draft.drawPreview.length > 0 &&
+    !isDrawPreviewStale(draft)
   );
 }
 

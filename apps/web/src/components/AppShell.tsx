@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import type { ReactNode } from 'react';
 import { ConnectionStatus } from './ConnectionStatus.js';
 import { NotificationProvider } from '../notifications/notification-context.js';
@@ -19,9 +20,19 @@ export function AppShell({ children }: AppShellProps) {
               <p className="text-xs uppercase tracking-[0.2em] text-header-foreground/60">
                 Tênis de Mesa
               </p>
-              <h1 className="text-lg font-semibold">Clandestino 🏓</h1>
+              <Link to="/" className="text-lg font-semibold">
+                Clandestino 🏓
+              </Link>
             </div>
-            <ConnectionStatus />
+            <div className="flex flex-col items-center gap-1">
+              <ConnectionStatus />
+              <Link
+                className="text-[11px] text-header-foreground/50 underline-offset-2 hover:text-header-foreground/70 hover:underline"
+                to="/organizador"
+              >
+                Organizador
+              </Link>
+            </div>
           </div>
         </header>
 

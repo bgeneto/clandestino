@@ -1,9 +1,6 @@
 import type {
   ArchiveChampionshipResponse,
   Championship,
-  ChampionshipEditionsResponse,
-  ChampionshipListResponse,
-  ChampionshipRankingResponse,
   ChampionshipRosterResponse,
   CorrectMatchResultBody,
   CreateChampionshipBody,
@@ -42,6 +39,13 @@ import { buildApiUrl } from './api-config.js';
 import { getOrganizerSession } from './organizer-session.js';
 import { invalidateOrganizerSession } from './organizer-session-guard.js';
 
+export {
+  fetchChampionship,
+  fetchChampionshipEditions,
+  fetchChampionshipRanking,
+  fetchChampionships,
+} from './public-api.js';
+
 const organizer = { organizerAuth: true } as const;
 
 export async function requestOrganizerMagicLink(
@@ -68,18 +72,10 @@ export async function fetchOrganizerSession(): Promise<OrganizerSessionStatus> {
   });
 }
 
-export async function fetchChampionships(): Promise<ChampionshipListResponse> {
-  return apiRequest<ChampionshipListResponse>('/championships');
-}
-
 export async function fetchOrganizerActiveEditions(): Promise<OrganizerActiveEditionsResponse> {
   return apiRequest<OrganizerActiveEditionsResponse>('/organizer/active-editions', {
     ...organizer,
   });
-}
-
-export async function fetchChampionship(championshipId: string): Promise<Championship> {
-  return apiRequest<Championship>(`/championships/${championshipId}`);
 }
 
 export async function createChampionship(body: CreateChampionshipBody): Promise<Championship> {
@@ -99,18 +95,6 @@ export async function updateChampionshipScoringTable(
     body,
     ...organizer,
   });
-}
-
-export async function fetchChampionshipEditions(
-  championshipId: string,
-): Promise<ChampionshipEditionsResponse> {
-  return apiRequest<ChampionshipEditionsResponse>(`/championships/${championshipId}/editions`);
-}
-
-export async function fetchChampionshipRanking(
-  championshipId: string,
-): Promise<ChampionshipRankingResponse> {
-  return apiRequest<ChampionshipRankingResponse>(`/championships/${championshipId}/ranking`);
 }
 
 export async function fetchChampionshipRoster(

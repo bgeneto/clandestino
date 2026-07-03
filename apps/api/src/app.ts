@@ -14,6 +14,7 @@ import {
 import { registerEditionRoutes } from './routes/editions.js';
 import { registerEditionDrawRoutes } from './routes/edition-draw.js';
 import { registerEditionPlacementRoutes } from './routes/edition-placement.js';
+import { registerEditionWithdrawalRoutes } from './routes/edition-withdrawals.js';
 import { registerEditionReadRoutes } from './routes/edition-read.js';
 import { registerMatchRoutes } from './routes/matches.js';
 import { registerOrganizerDashboardRoutes } from './routes/organizer-dashboard.js';
@@ -104,6 +105,7 @@ export async function createApp(config: ApiConfig, options?: { emailSender?: Ema
   await registerEditionReadRoutes(app);
   await registerMatchRoutes(app);
   await registerEditionPlacementRoutes(app);
+  await registerEditionWithdrawalRoutes(app);
   await registerOrganizerDashboardRoutes(app);
 
   const stopAutoConfirmJob = startAutoConfirmJob(app);

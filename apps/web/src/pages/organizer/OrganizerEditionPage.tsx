@@ -2,9 +2,8 @@ import { useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { ContestedMatch, Edition, Match } from '@clandestino/shared-contracts';
-import { MAX_SETS_SCORE } from '@clandestino/shared-contracts';
 import { GroupsView } from '../../components/edition/GroupsView.js';
-import { ScoreCounter } from '../../components/edition/ScoreCounter.js';
+import { MatchResultForm } from '../../components/edition/MatchResultForm.js';
 import { EditionTournamentOverview } from '../../components/organizer/EditionTournamentOverview.js';
 import { DrawAuditPanel } from '../../components/organizer/DrawAuditPanel.js';
 import { EditionQrCode } from '../../components/organizer/EditionQrCode.js';
@@ -28,7 +27,6 @@ import { useEditionSse } from '../../hooks/use-edition-sse.js';
 import { getDrawReadinessWarning } from '../../lib/draw-utils.js';
 import { isPlayerShuffleEnabled } from '../../lib/feature-flags.js';
 import { formatEditionStatus, formatEditionTitle, formatMatchScore } from '../../lib/format.js';
-import { validateScoreInput } from '../../lib/match-utils.js';
 import {
   cancelDraw,
   correctMatchResult,
@@ -39,6 +37,7 @@ import {
   publishPlacementStage,
   registerPlayer,
   unregisterPlayer,
+  withdrawPlayer,
 } from '../../lib/organizer-api.js';
 import { queryKeys } from '../../lib/query-keys.js';
 import { purgeEditionLocalState } from '../../lib/purge-edition-state.js';
@@ -60,6 +59,10 @@ function RegistrationsSection({ edition }: { edition: Edition }) {
   const registrationsQuery = useEditionRegistrations(edition.id);
   const participantsQuery = useEditionParticipants(edition.id);
   const [search, setSearch] = useState('');
+  const [withdrawTarget, setWithdrawTarget] = useState<{
+    playerId: string;
+    playerName: string;
+  } | null>(null);
 
   const registeredIds = useMemo(
     () => new Set((registrationsQuery.data ?? []).map((entry) => entry.playerId)),
@@ -102,6 +105,24 @@ function RegistrationsSection({ edition }: { edition: Edition }) {
   });
 
   const canRegister = edition.status === 'RASCUNHO' || edition.status === 'INSCRICOES_ABERTAS';
+  const canWithdraw = edition.status === 'EM_ANDAMENTO' || edition.status === 'FASE_COLOCACAO';
+
+  const withdrawMutation = useMutation({
+    mutationFn: (playerId: string) => withdrawPlayer(edition.id, playerId),
+    onSuccess: async () => {
+      notify.success('Jogador registrado como desistente.');
+      setWithdrawTarget(null);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.participants(edition.id) }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.matches(edition.id) }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.groups(edition.id) }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.standings(edition.id) }),
+      ]);
+    },
+    onError: (error) => {
+      notifyApiError(notify, error, 'Não foi possível registrar a desistência.');
+    },
+  });
 
   const participantNames = useMemo(() => {
     const map = new Map<string, string>();
@@ -174,16 +195,55 @@ function RegistrationsSection({ edition }: { edition: Edition }) {
               <div className="flex items-center gap-2 text-xs text-subtle">
                 <span>{participant.rankPosition}º</span>
                 <span>{participant.accumulatedPoints} pts</span>
+                {participant.withdrawnAt ? (
+                  <span className="rounded-full bg-rose-100 px-2 py-0.5 font-semibold text-rose-800">
+                    Desistente
+                  </span>
+                ) : null}
                 {isSeed ? (
                   <span className="rounded-full bg-amber-300 px-2 py-0.5 font-bold text-amber-950 dark:bg-amber-400">
                     SEED
                   </span>
+                ) : null}
+                {canWithdraw && !participant.withdrawnAt ? (
+                  <button
+                    type="button"
+                    className="rounded-lg border border-rose-300 px-2 py-1 text-[11px] font-semibold text-rose-700"
+                    onClick={() =>
+                      setWithdrawTarget({
+                        playerId: participant.playerId,
+                        playerName:
+                          participantNames.get(participant.playerId) ?? participant.playerName,
+                      })
+                    }
+                  >
+                    Retirar
+                  </button>
                 ) : null}
               </div>
             </li>
           );
         })}
       </ul>
+
+      <ConfirmDialog
+        isOpen={withdrawTarget !== null}
+        title="Registrar desistência"
+        description={
+          withdrawTarget
+            ? `Confirmar que ${withdrawTarget.playerName} desistiu da edição? Partidas pendentes serão tratadas conforme as regras da fase atual.`
+            : ''
+        }
+        confirmLabel="Confirmar desistência"
+        variant="warning"
+        isLoading={withdrawMutation.isPending}
+        onCancel={() => setWithdrawTarget(null)}
+        onConfirm={() => {
+          if (withdrawTarget) {
+            void withdrawMutation.mutateAsync(withdrawTarget.playerId);
+          }
+        }}
+      />
     </details>
   );
 }
@@ -370,22 +430,25 @@ function ContestCorrectionCard({
   const match = contest.match;
   const playerOneId = getPlayerOneId(match);
   const playerTwoId = getPlayerTwoId(match);
-  const [playerOneSets, setPlayerOneSets] = useState(
-    match.participants.find((entry) => entry.playerId === playerOneId)?.setsWon ?? 0,
-  );
-  const [playerTwoSets, setPlayerTwoSets] = useState(
-    match.participants.find((entry) => entry.playerId === playerTwoId)?.setsWon ?? 0,
-  );
   const [confirmedOfficial, setConfirmedOfficial] = useState(false);
 
-  const validation = validateScoreInput(playerOneSets, playerTwoSets);
-
   const correctMutation = useMutation({
-    mutationFn: () =>
-      correctMatchResult(match.id, {
-        setsWonByPlayerOne: playerOneSets,
-        setsWonByPlayerTwo: playerTwoSets,
-      }),
+    mutationFn: (
+      payload: import('../../components/edition/MatchResultForm.js').MatchResultSubmitPayload,
+    ) => {
+      if (payload.outcome === 'WALKOVER') {
+        return correctMatchResult(match.id, {
+          outcome: 'WALKOVER',
+          absentPlayerId: payload.absentPlayerId,
+        });
+      }
+
+      return correctMatchResult(match.id, {
+        outcome: 'PLAYED',
+        setsWonByPlayerOne: payload.setsWonByReporter,
+        setsWonByPlayerTwo: payload.setsWonByOpponent,
+      });
+    },
     onSuccess: async () => {
       notify.success('Resultado corrigido e oficializado. A classificação foi atualizada.');
       await Promise.all([
@@ -414,24 +477,22 @@ function ContestCorrectionCard({
         </p>
       ) : null}
 
-      <div className="mt-4 flex gap-4">
-        <ScoreCounter
-          label={playerNames.get(playerOneId) ?? 'Jogador 1'}
-          value={playerOneSets}
-          max={MAX_SETS_SCORE}
-          onIncrement={() => setPlayerOneSets((value) => Math.min(value + 1, MAX_SETS_SCORE))}
-          onDecrement={() => setPlayerOneSets((value) => Math.max(value - 1, 0))}
-        />
-        <ScoreCounter
-          label={playerNames.get(playerTwoId) ?? 'Jogador 2'}
-          value={playerTwoSets}
-          max={MAX_SETS_SCORE}
-          onIncrement={() => setPlayerTwoSets((value) => Math.min(value + 1, MAX_SETS_SCORE))}
-          onDecrement={() => setPlayerTwoSets((value) => Math.max(value - 1, 0))}
+      <div className="mt-4">
+        <MatchResultForm
+          organizerMode
+          playerOneId={playerOneId}
+          playerTwoId={playerTwoId}
+          playerOneLabel={playerNames.get(playerOneId) ?? 'Jogador 1'}
+          playerTwoLabel={playerNames.get(playerTwoId) ?? 'Jogador 2'}
+          reporterLabel={playerNames.get(playerOneId) ?? 'Jogador 1'}
+          opponentLabel={playerNames.get(playerTwoId) ?? 'Jogador 2'}
+          opponentId={playerTwoId}
+          disabled={!confirmedOfficial}
+          pending={correctMutation.isPending}
+          submitLabel="Oficializar resultado corrigido"
+          onSubmit={(payload) => void correctMutation.mutateAsync(payload)}
         />
       </div>
-
-      {!validation.valid ? <Alert variant="danger">{validation.reason}</Alert> : null}
 
       <label className="mt-4 flex items-start gap-2 text-sm text-muted">
         <input
@@ -442,15 +503,6 @@ function ContestCorrectionCard({
         />
         <span>Confirmo que o resultado corrigido é oficial e substitui o placar contestado.</span>
       </label>
-
-      <button
-        type="button"
-        disabled={!validation.valid || !confirmedOfficial || correctMutation.isPending}
-        onClick={() => void correctMutation.mutateAsync()}
-        className="mt-4 w-full rounded-lg bg-header px-4 py-2.5 text-sm font-semibold text-header-foreground disabled:opacity-50"
-      >
-        {correctMutation.isPending ? 'Salvando…' : 'Oficializar resultado corrigido'}
-      </button>
     </article>
   );
 }

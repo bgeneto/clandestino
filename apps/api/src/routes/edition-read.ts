@@ -205,6 +205,21 @@ export async function registerEditionReadRoutes(app: FastifyInstance): Promise<v
         .where(eq(schema.drawSnapshots.editionId, editionId))
         .orderBy(asc(schema.drawSnapshots.rankPosition));
 
+      const registrations = await app.db
+        .select({
+          playerId: schema.editionRegistrations.playerId,
+          withdrawnAt: schema.editionRegistrations.withdrawnAt,
+          withdrawnDuringPhase: schema.editionRegistrations.withdrawnDuringPhase,
+        })
+        .from(schema.editionRegistrations)
+        .where(eq(schema.editionRegistrations.editionId, editionId));
+
+      const withdrawalByPlayerId = new Map(
+        registrations
+          .filter((row) => row.withdrawnAt !== null)
+          .map((row) => [row.playerId, row] as const),
+      );
+
       if (snapshots.length > 0) {
         const playerIds = snapshots.map((snapshot) => snapshot.playerId);
         const players = await app.db
@@ -215,17 +230,26 @@ export async function registerEditionReadRoutes(app: FastifyInstance): Promise<v
         const namesById = new Map(players.map((player) => [player.id, player.name]));
 
         return {
-          participants: snapshots.map((snapshot) => ({
-            playerId: snapshot.playerId,
-            playerName: namesById.get(snapshot.playerId) ?? 'Jogador',
-            rankPosition: snapshot.rankPosition,
-            accumulatedPoints: snapshot.accumulatedPoints,
-            isSeed: snapshot.isSeed,
-          })),
+          participants: snapshots.map((snapshot) => {
+            const withdrawal = withdrawalByPlayerId.get(snapshot.playerId);
+            return {
+              playerId: snapshot.playerId,
+              playerName: namesById.get(snapshot.playerId) ?? 'Jogador',
+              rankPosition: snapshot.rankPosition,
+              accumulatedPoints: snapshot.accumulatedPoints,
+              isSeed: snapshot.isSeed,
+              ...(withdrawal?.withdrawnAt
+                ? {
+                    withdrawnAt: withdrawal.withdrawnAt.toISOString(),
+                    withdrawnDuringPhase: withdrawal.withdrawnDuringPhase ?? undefined,
+                  }
+                : {}),
+            };
+          }),
         };
       }
 
-      const registrations = await app.db
+      const registrationRows = await app.db
         .select({
           playerId: schema.editionRegistrations.playerId,
           playerName: schema.players.name,
@@ -247,20 +271,29 @@ export async function registerEditionReadRoutes(app: FastifyInstance): Promise<v
         championshipPoints.map((entry) => [entry.playerId, entry.accumulatedPoints]),
       );
 
-      const ranked = [...registrations].sort((left, right) => {
+      const ranked = [...registrationRows].sort((left, right) => {
         const leftPoints = pointsByPlayerId.get(left.playerId) ?? 0;
         const rightPoints = pointsByPlayerId.get(right.playerId) ?? 0;
         return rightPoints - leftPoints || left.playerName.localeCompare(right.playerName, 'pt-BR');
       });
 
       return {
-        participants: ranked.map((entry, index) => ({
-          playerId: entry.playerId,
-          playerName: entry.playerName,
-          rankPosition: index + 1,
-          accumulatedPoints: pointsByPlayerId.get(entry.playerId) ?? 0,
-          isSeed: false,
-        })),
+        participants: ranked.map((entry, index) => {
+          const withdrawal = withdrawalByPlayerId.get(entry.playerId);
+          return {
+            playerId: entry.playerId,
+            playerName: entry.playerName,
+            rankPosition: index + 1,
+            accumulatedPoints: pointsByPlayerId.get(entry.playerId) ?? 0,
+            isSeed: false,
+            ...(withdrawal?.withdrawnAt
+              ? {
+                  withdrawnAt: withdrawal.withdrawnAt.toISOString(),
+                  withdrawnDuringPhase: withdrawal.withdrawnDuringPhase ?? undefined,
+                }
+              : {}),
+          };
+        }),
       };
     },
   );

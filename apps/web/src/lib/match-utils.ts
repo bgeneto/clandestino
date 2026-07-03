@@ -96,6 +96,19 @@ function translateValidationReason(reason: string | undefined): string {
   }
 }
 
+export function bracketRoundLabel(round: Match['bracketRound']): string | null {
+  switch (round) {
+    case 'SEMIFINAL':
+      return 'Semifinal';
+    case 'FINAL':
+      return 'Final';
+    case 'THIRD_PLACE':
+      return 'Disputa 3º';
+    default:
+      return null;
+  }
+}
+
 export function canConfirmMatch(match: Match, playerId: string): boolean {
   return (
     match.status === 'AGUARDANDO_CONFIRMACAO' &&

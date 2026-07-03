@@ -16,9 +16,8 @@ import {
   getResultSubmitter,
   loadMatch,
   mapSetsToParticipants,
-  validateCorrectedScore,
-  validateSubmittedScore,
 } from '../lib/matches.js';
+import { parseOrganizerMatchCorrection, parsePlayerMatchSubmission } from '../lib/match-result.js';
 import { mapMatch } from '../lib/mappers.js';
 import { emitMatchConfirmed, emitMatchContested } from '../lib/sse-events.js';
 
@@ -67,24 +66,46 @@ export async function registerMatchRoutes(app: FastifyInstance): Promise<void> {
         throw forbidden('Apenas participantes podem registrar o resultado.');
       }
 
-      const validation = validateSubmittedScore(
-        request.body.setsWonByReporter,
-        request.body.setsWonByOpponent,
-      );
-
-      if (!validation.valid) {
-        throw unprocessableEntity('Placar inválido para o formato da partida.', {
-          reason: validation.reason,
-        });
-      }
-
-      const { playerOneSets, playerTwoSets } = mapSetsToParticipants(
+      const parsed = parsePlayerMatchSubmission(
+        request.body,
         playerId,
         match.playerOneId,
         match.playerTwoId,
-        request.body.setsWonByReporter,
-        request.body.setsWonByOpponent,
       );
+
+      if (parsed.outcome === 'WALKOVER') {
+        const confirmed = await confirmMatchResult(app.db, match.id, playerId, 'MATCH_CONFIRMED', {
+          correctedSets: {
+            playerOneSets: parsed.playerOneSets,
+            playerTwoSets: parsed.playerTwoSets,
+          },
+          outcome: 'WALKOVER',
+          walkoverAbsentPlayerId: parsed.walkoverAbsentPlayerId,
+        });
+
+        await app.db.insert(schema.auditEvents).values({
+          editionId: match.editionId,
+          matchId: match.id,
+          eventType: 'MATCH_WALKOVER',
+          payload: {
+            submittedByPlayerId: playerId,
+            absentPlayerId: parsed.walkoverAbsentPlayerId,
+          },
+          createdBy: playerId,
+        });
+
+        emitMatchConfirmed(app, confirmed.editionId, {
+          matchId: confirmed.match.id,
+          groupId: confirmed.groupId,
+        });
+
+        return { match: confirmed.match };
+      }
+
+      const { playerOneSets, playerTwoSets } = {
+        playerOneSets: parsed.playerOneSets,
+        playerTwoSets: parsed.playerTwoSets,
+      };
 
       const now = new Date();
 
@@ -300,24 +321,21 @@ export async function registerMatchRoutes(app: FastifyInstance): Promise<void> {
         throw conflict('Apenas partidas contestadas podem ser corrigidas pelo organizador.');
       }
 
-      const validation = validateCorrectedScore(
-        request.body.setsWonByPlayerOne,
-        request.body.setsWonByPlayerTwo,
+      const parsed = parseOrganizerMatchCorrection(
+        request.body,
+        match.playerOneId,
+        match.playerTwoId,
       );
-
-      if (!validation.valid) {
-        throw unprocessableEntity('Placar inválido para o formato da partida.', {
-          reason: validation.reason,
-        });
-      }
 
       const organizer = request.organizerEmail ?? 'organizer';
 
       const confirmed = await confirmMatchResult(app.db, match.id, organizer, 'MATCH_CORRECTED', {
         correctedSets: {
-          playerOneSets: request.body.setsWonByPlayerOne,
-          playerTwoSets: request.body.setsWonByPlayerTwo,
+          playerOneSets: parsed.playerOneSets,
+          playerTwoSets: parsed.playerTwoSets,
         },
+        outcome: parsed.outcome,
+        walkoverAbsentPlayerId: parsed.walkoverAbsentPlayerId,
       });
       emitMatchConfirmed(app, confirmed.editionId, {
         matchId: confirmed.match.id,

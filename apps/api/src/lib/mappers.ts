@@ -109,6 +109,14 @@ export function mapGroup(row: GroupRow): Group {
     editionId: row.editionId,
     name: row.name,
     phase: row.phase,
+    ...(row.placementFormat ? { placementFormat: row.placementFormat } : {}),
+    ...(row.bracketSeed ? { bracketSeed: row.bracketSeed } : {}),
+    ...(row.positionFrom !== null && row.positionFrom !== undefined
+      ? { positionFrom: row.positionFrom }
+      : {}),
+    ...(row.positionTo !== null && row.positionTo !== undefined
+      ? { positionTo: row.positionTo }
+      : {}),
   };
 }
 
@@ -159,7 +167,10 @@ export function mapMatch(
     editionId: row.editionId,
     groupId: row.groupId,
     status: row.status,
+    outcome: row.outcome,
     participants: participants.map(mapMatchParticipant),
+    ...(row.bracketRound ? { bracketRound: row.bracketRound } : {}),
+    ...(row.walkoverAbsentPlayerId ? { walkoverAbsentPlayerId: row.walkoverAbsentPlayerId } : {}),
     ...(options?.resultSubmittedByPlayerId
       ? { resultSubmittedByPlayerId: options.resultSubmittedByPlayerId }
       : {}),

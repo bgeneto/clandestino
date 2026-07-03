@@ -5,15 +5,13 @@ import {
   PublishPlacementResponseSchema,
 } from '@clandestino/shared-contracts';
 import { Type } from '@sinclair/typebox';
-import { and, asc, eq } from 'drizzle-orm';
+import { and, asc, eq, ne } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import { schema } from '../db/index.js';
 import { badRequest, conflict, notFound } from '../lib/errors.js';
-import {
-  PLACEMENT_PHASE,
-  buildPlacementMatchesForGroup,
-  finalizeEditionPlacements,
-} from '../lib/matches.js';
+import { generateSecureToken } from '../lib/crypto.js';
+import { buildPlacementMatchSpecs } from '../lib/bracket-placement.js';
+import { PLACEMENT_PHASE, finalizeEditionPlacements } from '../lib/matches.js';
 import { mapEdition, mapFinalPlacement, mapGroupWithPlayers } from '../lib/mappers.js';
 import { emitPhasePublished } from '../lib/sse-events.js';
 
@@ -68,7 +66,11 @@ export async function registerEditionPlacementRoutes(app: FastifyInstance): Prom
         .select({ id: schema.matches.id })
         .from(schema.matches)
         .where(
-          and(eq(schema.matches.editionId, editionId), eq(schema.matches.phase, PLACEMENT_PHASE)),
+          and(
+            eq(schema.matches.editionId, editionId),
+            eq(schema.matches.phase, PLACEMENT_PHASE),
+            ne(schema.matches.status, 'CANCELADA'),
+          ),
         )
         .limit(1);
 
@@ -104,7 +106,25 @@ export async function registerEditionPlacementRoutes(app: FastifyInstance): Prom
             continue;
           }
 
-          const generatedMatches = buildPlacementMatchesForGroup(playerIds);
+          const format =
+            group.placementFormat ??
+            (playerIds.length === 4
+              ? 'bracket-4'
+              : playerIds.length >= 3
+                ? 'round-robin'
+                : 'knockout');
+
+          const bracketSeed =
+            format === 'bracket-4' ? (group.bracketSeed ?? generateSecureToken(16)) : undefined;
+
+          if (format === 'bracket-4' && !group.bracketSeed) {
+            await tx
+              .update(schema.groups)
+              .set({ bracketSeed })
+              .where(eq(schema.groups.id, group.id));
+          }
+
+          const generatedMatches = buildPlacementMatchSpecs(format, playerIds, bracketSeed);
           if (generatedMatches.length === 0) {
             continue;
           }
@@ -118,6 +138,7 @@ export async function registerEditionPlacementRoutes(app: FastifyInstance): Prom
                 phase: PLACEMENT_PHASE,
                 playerOneId: match.playerOneId,
                 playerTwoId: match.playerTwoId,
+                bracketRound: match.bracketRound ?? null,
                 status: 'AGENDADA' as const,
               })),
             )

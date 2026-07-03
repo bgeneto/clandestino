@@ -48,6 +48,32 @@ export {
   generatePlacementStage,
   directPlacementsFromStandings,
 } from './generate-placement-stage.js';
+export { choosePlacementFormat, adaptPlacementBand } from './adapt-placement-band.js';
+export {
+  shufflePlayers,
+  generateBracketSemifinals,
+  orderPlayerPair,
+} from './generate-bracket-matches.js';
+export {
+  buildBracketFourState,
+  computeNextBracketMatches,
+  shouldPlayThirdPlaceMatch,
+  resolveBracketFourPositions,
+  type BracketFourState,
+  type BracketMatchInput,
+  type NextBracketMatch,
+  type WithdrawnBandPlayer,
+} from './advance-bracket-four.js';
+export {
+  resolveMinigroupThreeAfterWithdrawal,
+  activeStandingMatches,
+  assignMinigroupPositions,
+  type MinigroupThreeResolution,
+} from './resolve-minigroup-three.js';
+export {
+  applyWithdrawalToGroupStanding,
+  type WithdrawnPlayer,
+} from './apply-withdrawal-standing.js';
 export {
   calculateFinalStanding,
   attachScoringPoints,

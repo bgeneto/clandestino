@@ -69,14 +69,14 @@ export interface GroupStandingInput {
 
 export interface PlacementStageGroup {
   name: string;
-  format: 'round-robin' | 'knockout';
+  format: 'round-robin' | 'knockout' | 'bracket-4';
   playerIds: string[];
   positionRange: { from: number; to: number };
 }
 
 export interface PlacementGroupResult {
   positionRange: { from: number; to: number };
-  format: 'round-robin' | 'knockout';
+  format: 'round-robin' | 'knockout' | 'bracket-4';
   orderedPlayerIds?: string[];
   winnerId?: string;
   loserId?: string;
@@ -87,6 +87,9 @@ export interface FinalStandingEntry {
   playerId: string;
   position: number;
 }
+
+export type BracketRound = 'SEMIFINAL' | 'FINAL' | 'THIRD_PLACE';
+export type PlacementFormat = 'round-robin' | 'knockout' | 'bracket-4';
 
 export const COUNTED_MATCH_STATUSES = new Set<MatchStatus>(['CONFIRMADA', 'CORRIGIDA']);
 

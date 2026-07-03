@@ -15,17 +15,17 @@ Consulte [docs/domain-taxonomy.md](docs/domain-taxonomy.md) para a taxonomia do 
 
 ## Stack
 
-| Camada            | Tecnologia                                                |
-| ----------------- | --------------------------------------------------------- |
-| Linguagem         | TypeScript (ESM, `NodeNext`)                              |
-| Monorepo          | pnpm workspaces                                           |
-| API               | Fastify + TypeBox                                         |
-| Banco             | SQLite + Drizzle ORM                                      |
-| Lógica de torneio | `@clandestino/tournament-engine` (funções puras)          |
-| Contratos         | `@clandestino/shared-contracts` (tipos + schemas TypeBox) |
-| Frontend          | React + Vite + PWA                                        |
-| Testes            | Vitest + fast-check (property-based no motor de torneio)  |
-| Deploy            | Docker Compose (`api`); PWA estático via proxy reverso    |
+| Camada            | Tecnologia                                                            |
+| ----------------- | --------------------------------------------------------------------- |
+| Linguagem         | TypeScript (ESM, `NodeNext`)                                          |
+| Monorepo          | pnpm workspaces                                                       |
+| API               | Fastify + TypeBox                                                     |
+| Banco             | SQLite + Drizzle ORM                                                  |
+| Lógica de torneio | `@clandestino/tournament-engine` (funções puras)                      |
+| Contratos         | `@clandestino/shared-contracts` (tipos + schemas TypeBox)             |
+| Frontend          | React + Vite + PWA                                                    |
+| Testes            | Vitest + fast-check (engine); integração HTTP (API); Playwright (E2E) |
+| Deploy            | Docker Compose (`api`); PWA estático via proxy reverso                |
 
 ## Estrutura do repositório
 
@@ -263,6 +263,9 @@ Edite `docker-compose.yml` (ou use um arquivo `.env` na raiz lido pelo Compose) 
 | `NODE_ENV`                 | `production` (já definido no serviço `api`)                  |
 | `PUBLIC_APP_URL`           | URL pública do PWA, ex. `https://clandestino.sistema.pro.br` |
 | `ORGANIZER_ALLOWED_EMAILS` | E-mails reais, separados por vírgula                         |
+| `RESEND_API_KEY`           | Chave da API Resend                                          |
+| `EMAIL_FROM`               | Remetente verificado no Resend (ex. `admin@sistema.pro.br`)  |
+| `EMAIL_FROM_NAME`          | Nome do remetente (ex. `Clandestino - Tênis de Mesa`)        |
 | `DATABASE_URL`             | `file:/app/data/clandestino.db` (bind mount `./data`)        |
 | `SEED_ON_START`            | `false` (padrão) — **não** popular dados fictícios           |
 
@@ -304,6 +307,14 @@ Equivalente manual: `docker compose down` / `docker compose up -d --build`.
 
 ## Testes
 
+O repositório usa três camadas complementares:
+
+| Camada                     | Ferramenta                         | Quando usar                                |
+| -------------------------- | ---------------------------------- | ------------------------------------------ |
+| Unitários / property-based | Vitest (raiz, `api/lib`, `web`)    | Lógica pura, schemas, componentes          |
+| Integração HTTP            | Vitest + Fastify `inject` + SQLite | Fluxos completos da API sem browser        |
+| E2E (browser)              | Playwright                         | Validar UI + wiring (organizador, jogador) |
+
 ### Pacotes sem banco (sempre rodam)
 
 ```bash
@@ -312,26 +323,73 @@ pnpm typecheck     # todos os workspaces
 pnpm build         # compila todos os pacotes
 ```
 
+### Suíte completa (recomendado antes de PR)
+
+```bash
+pnpm test:all      # raiz + web + API (define TEST_DATABASE_URL para integração)
+```
+
+Ou, para controlar o arquivo de teste manualmente:
+
+```bash
+export TEST_DATABASE_URL="file:./data/clandestino_test.db"
+pnpm test && pnpm --filter @clandestino/web test && pnpm --filter @clandestino/api test
+```
+
 ### API — unitários + integração
 
 ```bash
-# Só unitários (sem arquivo de teste)
+# Só unitários (sem banco de teste)
 pnpm --filter @clandestino/api test
 
-# Unitários + integração HTTP (requer TEST_DATABASE_URL)
+# Unitários + integração HTTP
 export TEST_DATABASE_URL="file:./data/clandestino_test.db"
+pnpm --filter @clandestino/api db:migrate   # primeira vez ou após mudança de schema
 pnpm --filter @clandestino/api test
 ```
 
-Os testes em `apps/api/src/test/*.integration.test.ts` usam Fastify `inject` contra SQLite real. São **ignorados automaticamente** quando `TEST_DATABASE_URL` não está definida.
+- Arquivos: `apps/api/src/test/*.integration.test.ts`
+- Usam `createApp` + Fastify `inject` contra SQLite real (sem browser, sem Docker).
+- **Ignorados automaticamente** quando `TEST_DATABASE_URL` não está definida (`describe.skipIf(!hasTestDb)`).
+- Banco dedicado: `data/clandestino_test.db` — separado de `data/clandestino.db` (dev) e `data/clandestino_e2e.db` (E2E).
+- Helpers base: `apps/api/src/test/integration-setup.ts` (`migrateTestDb`, `truncateAll`, `loginOrganizer`, `playerHeaders`).
+- Cenários de fluxo: `apps/api/src/test/flow-helpers.ts` (`EditionFlowClient` — campeonato → sorteio → placares → colocação → desistência).
+- Exemplo de ciclo completo: `apps/api/src/test/edition-lifecycle.integration.test.ts` (WO, desistência, encerramento).
 
-Não é necessário Docker para rodar a integração — basta definir `TEST_DATABASE_URL`.
+Rodar um arquivo só:
 
-### Web
+```bash
+export TEST_DATABASE_URL="file:./data/clandestino_test.db"
+pnpm --filter @clandestino/api test -- src/test/edition-lifecycle.integration.test.ts
+```
+
+**Simular vários jogadores sem abrir browsers:** a integração HTTP alterna `X-Player-Id` / `X-Edition-Id` por requisição — use `EditionFlowClient` ou `playerHeaders` em loop sobre as partidas.
+
+### Web — unitários
 
 ```bash
 pnpm --filter @clandestino/web test
 ```
+
+### E2E — Playwright (browser)
+
+Testes de ponta a ponta na UI. O Playwright sobe automaticamente a API (`scripts/e2e-api.sh`) e o Vite (`:5173`); não é necessário `./start dev`.
+
+```bash
+pnpm test:e2e:install   # uma vez: baixa o Chromium
+pnpm test:e2e           # headless
+pnpm test:e2e:ui        # modo interativo (ver o fluxo no browser)
+```
+
+- Config: `e2e/playwright.config.ts`
+- Specs: `e2e/specs/`
+- Setup HTTP (criar edição, magic link, placares via API): `e2e/helpers/api.ts`
+- Banco E2E: `data/clandestino_e2e.db` (isolado; criado/migrado pelo script da API)
+- URL padrão: `http://127.0.0.1:5173` (proxy `/api` → `:3000`)
+
+Padrão híbrido: a spec prepara o torneio via **API** (rápido, determinístico) e valida passos críticos na **UI** (login organizador, encerrar edição, confirmação de placar).
+
+Com stack já rodando (`./start dev` ou `pnpm dev`), o Playwright reutiliza os servidores (`reuseExistingServer` fora de CI).
 
 ### Antes de push (hook pre-push)
 
@@ -339,7 +397,7 @@ pnpm --filter @clandestino/web test
 pnpm format:check && pnpm typecheck && pnpm test
 ```
 
-Para validar a API com integração antes do push:
+Para validar API com integração antes do push:
 
 ```bash
 export TEST_DATABASE_URL="file:./data/clandestino_test.db"
@@ -384,26 +442,30 @@ Fonte da verdade: `apps/api/src/config.ts`.
 
 ## Scripts principais
 
-| Comando                                      | Descrição                                        |
-| -------------------------------------------- | ------------------------------------------------ |
-| `./start dev`                                | Dev completo: api + web + Caddy                  |
-| `./start dev --seed`                         | Idem, com seed no start                          |
-| `./start prod`                               | API (produção local, detached)                   |
-| `./start --help`                             | Ajuda do wrapper de start                        |
-| `./stop`                                     | Detecta a stack ativa e para (dados preservados) |
-| `./stop dev` / `./stop prod`                 | Para a stack indicada                            |
-| `./stop <env> --volumes`                     | Para e apaga `data/clandestino.db` (confirmação) |
-| `pnpm build`                                 | Compila todos os workspaces                      |
-| `pnpm test`                                  | Testes da raiz (contracts + engine)              |
-| `pnpm typecheck`                             | TypeScript em todos os pacotes                   |
-| `pnpm --filter @clandestino/api dev`         | API com hot reload                               |
-| `pnpm --filter @clandestino/api start`       | API compilada (`node dist/server.js`)            |
-| `pnpm --filter @clandestino/api db:generate` | Gera migrações Drizzle                           |
-| `pnpm --filter @clandestino/api db:migrate`  | Aplica migrações                                 |
-| `pnpm --filter @clandestino/api db:seed`     | Dados de desenvolvimento                         |
-| `pnpm --filter @clandestino/api test`        | Testes unitários + integração                    |
-| `pnpm --filter @clandestino/web dev`         | PWA com Vite                                     |
-| `pnpm --filter @clandestino/web build`       | Build de produção do PWA                         |
+| Comando                                      | Descrição                                         |
+| -------------------------------------------- | ------------------------------------------------- |
+| `./start dev`                                | Dev completo: api + web + Caddy                   |
+| `./start dev --seed`                         | Idem, com seed no start                           |
+| `./start prod`                               | API (produção local, detached)                    |
+| `./start --help`                             | Ajuda do wrapper de start                         |
+| `./stop`                                     | Detecta a stack ativa e para (dados preservados)  |
+| `./stop dev` / `./stop prod`                 | Para a stack indicada                             |
+| `./stop <env> --volumes`                     | Para e apaga `data/clandestino.db` (confirmação)  |
+| `pnpm build`                                 | Compila todos os workspaces                       |
+| `pnpm test`                                  | Testes da raiz (contracts + engine)               |
+| `pnpm test:all`                              | Raiz + web + API integração (`TEST_DATABASE_URL`) |
+| `pnpm test:e2e:install`                      | Instala Chromium para Playwright                  |
+| `pnpm test:e2e`                              | E2E headless (sobe API + Vite automaticamente)    |
+| `pnpm test:e2e:ui`                           | E2E modo interativo                               |
+| `pnpm typecheck`                             | TypeScript em todos os pacotes                    |
+| `pnpm --filter @clandestino/api dev`         | API com hot reload                                |
+| `pnpm --filter @clandestino/api start`       | API compilada (`node dist/server.js`)             |
+| `pnpm --filter @clandestino/api db:generate` | Gera migrações Drizzle                            |
+| `pnpm --filter @clandestino/api db:migrate`  | Aplica migrações                                  |
+| `pnpm --filter @clandestino/api db:seed`     | Dados de desenvolvimento                          |
+| `pnpm --filter @clandestino/api test`        | Testes unitários + integração                     |
+| `pnpm --filter @clandestino/web dev`         | PWA com Vite                                      |
+| `pnpm --filter @clandestino/web build`       | Build de produção do PWA                          |
 
 ---
 

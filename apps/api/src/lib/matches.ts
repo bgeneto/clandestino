@@ -1,13 +1,18 @@
-import type { EditionRules, MatchStatus } from '@clandestino/shared-contracts';
+import type { EditionRules, MatchOutcome, MatchStatus } from '@clandestino/shared-contracts';
 import {
   COUNTED_MATCH_STATUSES,
   attachScoringPoints,
+  buildBracketFourState,
   calculateFinalStanding,
   calculateGroupStanding,
   directPlacementsFromStandings,
   generateGroupMatches,
   generatePlacementStage,
+  resolveBracketFourPositions,
+  resolveMinigroupThreeAfterWithdrawal,
+  assignMinigroupPositions,
   validateMatchResult,
+  type BracketMatchInput,
   type GroupStandingInput,
   type PlacementGroupResult,
   type StandingMatch,
@@ -16,11 +21,14 @@ import { and, asc, count, desc, eq, inArray, ne, sql } from 'drizzle-orm';
 import type { InferSelectModel } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import { schema } from '../db/index.js';
-import { GROUP_PHASE } from './draw.js';
+import { GROUP_PHASE, PLACEMENT_PHASE } from './draw.js';
+import { advanceBracketFourForGroup } from './bracket-placement.js';
+import { getPlacementGroupRange } from './bracket-placement.js';
+import { loadWithdrawnPlayerIds, loadWithdrawnPlayers } from './edition-registrations.js';
 import { badRequest, conflict, notFound } from './errors.js';
 import { mapMatch } from './mappers.js';
 
-export const PLACEMENT_PHASE = 'PLACEMENT_STAGE';
+export { PLACEMENT_PHASE } from './draw.js';
 
 type DbExecutor = Pick<
   FastifyInstance['db'],
@@ -124,6 +132,8 @@ export interface ConfirmMatchResultOptions {
     playerOneSets: number;
     playerTwoSets: number;
   };
+  outcome?: MatchOutcome;
+  walkoverAbsentPlayerId?: string;
 }
 
 export async function confirmMatchResult(
@@ -178,13 +188,21 @@ export async function confirmMatchResult(
 
     await tx
       .update(schema.matches)
-      .set({ status: 'CONFIRMADA', updatedAt: now })
+      .set({
+        status: 'CONFIRMADA',
+        outcome: options?.outcome ?? match.outcome,
+        walkoverAbsentPlayerId: options?.walkoverAbsentPlayerId ?? match.walkoverAbsentPlayerId,
+        updatedAt: now,
+      })
       .where(eq(schema.matches.id, match.id));
 
     await recalculateGroupStanding(tx, match.groupId, edition.rules);
 
     if (match.phase === GROUP_PHASE) {
       await maybeGeneratePlacementStage(tx, match.editionId, edition.rules, createdBy);
+    } else if (match.phase === PLACEMENT_PHASE) {
+      const withdrawnIds = await loadWithdrawnPlayerIds(tx, match.editionId);
+      await advanceBracketFourForGroup(tx, match.editionId, match.groupId, withdrawnIds, createdBy);
     }
 
     const playerOneSets =
@@ -386,6 +404,9 @@ export async function maybeGeneratePlacementStage(
           editionId,
           name: group.name,
           phase: PLACEMENT_PHASE,
+          placementFormat: group.format,
+          positionFrom: group.positionRange.from,
+          positionTo: group.positionRange.to,
         })),
       )
       .returning({ id: schema.groups.id });
@@ -452,7 +473,8 @@ export async function buildPlacementGroupResults(
   }));
 
   for (const group of placementGroups) {
-    const range = parsePlacementGroupRange(group.name);
+    const range =
+      getPlacementGroupRange(group) ?? parsePlacementGroupRange(group.name) ?? undefined;
     if (!range) {
       continue;
     }
@@ -462,7 +484,13 @@ export async function buildPlacementGroupResults(
       .from(schema.groupPlayers)
       .where(eq(schema.groupPlayers.groupId, group.id));
 
-    const format = groupPlayers.length >= 3 ? 'round-robin' : 'knockout';
+    const format =
+      group.placementFormat ??
+      (groupPlayers.length === 4
+        ? 'bracket-4'
+        : groupPlayers.length >= 3
+          ? 'round-robin'
+          : 'knockout');
 
     if (format === 'knockout') {
       const [match] = await db
@@ -471,7 +499,7 @@ export async function buildPlacementGroupResults(
         .where(and(eq(schema.matches.groupId, group.id), eq(schema.matches.phase, PLACEMENT_PHASE)))
         .limit(1);
 
-      if (!match || match.status !== 'CONFIRMADA') {
+      if (!match || !isMatchCounted(match.status)) {
         throw conflict(`A partida de colocação "${group.name}" ainda não foi confirmada.`);
       }
 
@@ -504,31 +532,176 @@ export async function buildPlacementGroupResults(
       continue;
     }
 
+    if (format === 'bracket-4') {
+      const bracketMatches = await db
+        .select()
+        .from(schema.matches)
+        .where(
+          and(eq(schema.matches.groupId, group.id), eq(schema.matches.phase, PLACEMENT_PHASE)),
+        );
+
+      const pending = bracketMatches.find((match) => !isMatchCounted(match.status));
+      if (pending) {
+        throw conflict(`As partidas do grupo "${group.name}" ainda não foram todas confirmadas.`);
+      }
+
+      const matchIds = bracketMatches.map((match) => match.id);
+      const participants =
+        matchIds.length === 0
+          ? []
+          : await db
+              .select()
+              .from(schema.matchParticipants)
+              .where(inArray(schema.matchParticipants.matchId, matchIds));
+
+      const participantsByMatchId = new Map<string, typeof participants>();
+      for (const participant of participants) {
+        const current = participantsByMatchId.get(participant.matchId) ?? [];
+        current.push(participant);
+        participantsByMatchId.set(participant.matchId, current);
+      }
+
+      const bracketInputs: BracketMatchInput[] = bracketMatches
+        .filter(
+          (
+            match,
+          ): match is typeof match & { bracketRound: NonNullable<typeof match.bracketRound> } =>
+            Boolean(match.bracketRound),
+        )
+        .map((match) => {
+          const rows = participantsByMatchId.get(match.id) ?? [];
+          const playerOne = rows.find((row) => row.playerId === match.playerOneId);
+          const playerTwo = rows.find((row) => row.playerId === match.playerTwoId);
+          const winnerId =
+            playerOne && playerTwo
+              ? playerOne.setsWon > playerTwo.setsWon
+                ? match.playerOneId
+                : playerTwo.setsWon > playerOne.setsWon
+                  ? match.playerTwoId
+                  : undefined
+              : undefined;
+
+          return {
+            bracketRound: match.bracketRound,
+            playerOneId: match.playerOneId,
+            playerTwoId: match.playerTwoId,
+            winnerId,
+            walkoverAbsentPlayerId: match.walkoverAbsentPlayerId ?? undefined,
+            confirmed: isMatchCounted(match.status),
+          };
+        });
+
+      if (bracketInputs.length < 2) {
+        throw conflict(`O bracket do grupo "${group.name}" está incompleto.`);
+      }
+
+      const withdrawn = await loadWithdrawnPlayers(db, editionId);
+      const bandWithdrawn = withdrawn.filter((entry) =>
+        groupPlayers.some((player) => player.playerId === entry.playerId),
+      );
+
+      const state = buildBracketFourState(bracketInputs);
+      const orderedPlayerIds = resolveBracketFourPositions(state, range, bandWithdrawn);
+
+      results.push({
+        positionRange: range,
+        format: 'bracket-4',
+        orderedPlayerIds,
+      });
+      continue;
+    }
+
     const standingRows = await db
       .select()
       .from(schema.standings)
       .where(eq(schema.standings.groupId, group.id))
       .orderBy(asc(schema.standings.rankInGroup));
 
-    if (standingRows.length !== groupPlayers.length) {
-      throw conflict(`A classificação do grupo "${group.name}" ainda não está completa.`);
-    }
-
-    const pendingMatches = await db
-      .select({ id: schema.matches.id })
+    const groupMatches = await db
+      .select()
       .from(schema.matches)
-      .where(
-        and(
-          eq(schema.matches.groupId, group.id),
-          eq(schema.matches.phase, PLACEMENT_PHASE),
-          ne(schema.matches.status, 'CONFIRMADA'),
-          ne(schema.matches.status, 'CANCELADA'),
-        ),
-      )
-      .limit(1);
+      .where(and(eq(schema.matches.groupId, group.id), eq(schema.matches.phase, PLACEMENT_PHASE)));
 
+    const pendingMatches = groupMatches.filter(
+      (match) => !isMatchCounted(match.status) && match.status !== 'CANCELADA',
+    );
     if (pendingMatches.length > 0) {
       throw conflict(`As partidas do grupo "${group.name}" ainda não foram todas confirmadas.`);
+    }
+
+    if (groupPlayers.length === 3) {
+      const withdrawn = await loadWithdrawnPlayers(db, editionId);
+      const withdrawnInBand = withdrawn.find((entry) =>
+        groupPlayers.some((player) => player.playerId === entry.playerId),
+      );
+
+      if (withdrawnInBand) {
+        const matchIds = groupMatches.map((match) => match.id);
+        const participants =
+          matchIds.length === 0
+            ? []
+            : await db
+                .select()
+                .from(schema.matchParticipants)
+                .where(inArray(schema.matchParticipants.matchId, matchIds));
+
+        const participantsByMatchId = new Map<string, typeof participants>();
+        for (const participant of participants) {
+          const current = participantsByMatchId.get(participant.matchId) ?? [];
+          current.push(participant);
+          participantsByMatchId.set(participant.matchId, current);
+        }
+
+        const standingMatches = groupMatches
+          .map((match) => toStandingMatch(match, participantsByMatchId.get(match.id) ?? []))
+          .filter((match): match is StandingMatch => match !== null);
+
+        const resolution = resolveMinigroupThreeAfterWithdrawal({
+          playerIds: groupPlayers.map((player) => player.playerId),
+          withdrawnPlayerId: withdrawnInBand.playerId,
+          matches: standingMatches,
+          positionRange: range,
+        });
+
+        const decisiveMatch = groupMatches.find(
+          (match) =>
+            isMatchCounted(match.status) &&
+            ((match.playerOneId === resolution.decisiveMatch?.playerA &&
+              match.playerTwoId === resolution.decisiveMatch.playerB) ||
+              (match.playerOneId === resolution.decisiveMatch?.playerB &&
+                match.playerTwoId === resolution.decisiveMatch.playerA)),
+        );
+
+        let decisiveWinnerId: string | undefined;
+        if (decisiveMatch) {
+          const participants = await db
+            .select()
+            .from(schema.matchParticipants)
+            .where(eq(schema.matchParticipants.matchId, decisiveMatch.id));
+          const playerOne = participants.find((row) => row.playerId === decisiveMatch.playerOneId);
+          const playerTwo = participants.find((row) => row.playerId === decisiveMatch.playerTwoId);
+          if (playerOne && playerTwo) {
+            decisiveWinnerId =
+              playerOne.setsWon > playerTwo.setsWon
+                ? decisiveMatch.playerOneId
+                : decisiveMatch.playerTwoId;
+          }
+        }
+
+        const assigned = assignMinigroupPositions(resolution, range, decisiveWinnerId);
+        results.push({
+          positionRange: range,
+          format: 'round-robin',
+          orderedPlayerIds: assigned
+            .sort((left, right) => left.position - right.position)
+            .map((entry) => entry.playerId),
+        });
+        continue;
+      }
+    }
+
+    if (standingRows.length !== groupPlayers.length) {
+      throw conflict(`A classificação do grupo "${group.name}" ainda não está completa.`);
     }
 
     results.push({

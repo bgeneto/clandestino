@@ -29,6 +29,7 @@ function match(id: string, groupId: string, status: Match['status']): Match {
     editionId: 'edition-1',
     groupId,
     status,
+    outcome: 'PLAYED',
     participants: [
       { playerId: 'p1', setsWon: 2 },
       { playerId: 'p2', setsWon: 0 },

@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import type { Match } from '@clandestino/shared-contracts';
 import {
   MATCH_STATUS_LABELS,
+  bracketRoundLabel,
   canConfirmMatch,
   getOpponentId,
   getPlayerSets,
@@ -85,18 +86,19 @@ export function MatchCard({
   confirming = false,
 }: MatchCardProps) {
   const awaitingConfirmation = canConfirmMatch(match, playerId);
-  const playerOneId = match.participants[0]?.playerId ?? '';
-  const playerTwoId = match.participants[1]?.playerId ?? '';
   const hasScore = match.status !== 'AGENDADA';
   const opponentId = getOpponentId(match, playerId);
+  const roundLabel = bracketRoundLabel(match.bracketRound);
+  const displayPhaseLabel = [phaseLabel, roundLabel].filter(Boolean).join(' · ') || undefined;
+  const isWalkover = match.outcome === 'WALKOVER';
 
   return (
     <article
       className={`rounded-xl bg-card p-4 shadow-sm ${cardBorderClass(match.status, awaitingConfirmation)}`}
     >
-      {phaseLabel ? (
+      {displayPhaseLabel ? (
         <p className="mb-2 text-[11px] font-bold uppercase tracking-wide text-subtle">
-          {phaseLabel}
+          {displayPhaseLabel}
         </p>
       ) : null}
       <p className="text-[15px] font-semibold text-foreground">
@@ -109,6 +111,11 @@ export function MatchCard({
       {hasScore ? (
         <p className="mt-2 text-lg font-bold text-foreground">
           {getPlayerSets(match, playerId)} × {opponentId ? getPlayerSets(match, opponentId) : '?'}
+          {isWalkover ? (
+            <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-900">
+              WO
+            </span>
+          ) : null}
         </p>
       ) : null}
 
@@ -164,7 +171,12 @@ export function PublicMatchRow({
         {playerOneName} vs {playerTwoName}
       </p>
       <p className="mt-1 text-xs text-subtle">
-        {groupName} · {MATCH_STATUS_LABELS[match.status]}
+        {groupName}
+        {bracketRoundLabel(match.bracketRound)
+          ? ` · ${bracketRoundLabel(match.bracketRound)}`
+          : ''}{' '}
+        · {MATCH_STATUS_LABELS[match.status]}
+        {match.outcome === 'WALKOVER' ? ' · WO' : ''}
       </p>
       {match.status !== 'AGENDADA' ? (
         <p className="mt-1 text-sm font-semibold text-foreground">

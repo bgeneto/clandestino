@@ -10,6 +10,7 @@ import type { DrawGroupInput } from '@clandestino/tournament-engine';
 
 export const DRAW_ALGORITHM = 'seeded-balanced-v1';
 export const GROUP_PHASE = 'GROUP_STAGE';
+export const PLACEMENT_PHASE = 'PLACEMENT_STAGE';
 
 export interface RankedEditionPlayer {
   playerId: string;

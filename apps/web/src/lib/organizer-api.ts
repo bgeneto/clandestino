@@ -35,6 +35,7 @@ import type {
   UnarchiveChampionshipResponse,
   UpdateScoringTableBody,
   VerifyOrganizerMagicLinkBody,
+  WithdrawPlayerResponse,
 } from '@clandestino/shared-contracts';
 import { apiRequest, ApiError } from './api-client.js';
 import { buildApiUrl } from './api-config.js';
@@ -262,6 +263,17 @@ export async function publishPlacementStage(editionId: string): Promise<PublishP
 export async function finalizeEdition(editionId: string): Promise<FinalizeEditionResponse> {
   return apiRequest<FinalizeEditionResponse>(`/editions/${editionId}/finalize`, {
     method: 'POST',
+    ...organizer,
+  });
+}
+
+export async function withdrawPlayer(
+  editionId: string,
+  playerId: string,
+): Promise<WithdrawPlayerResponse> {
+  return apiRequest(`/editions/${editionId}/withdrawals`, {
+    method: 'POST',
+    body: { playerId },
     ...organizer,
   });
 }

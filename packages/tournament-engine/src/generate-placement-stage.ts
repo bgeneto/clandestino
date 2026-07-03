@@ -1,5 +1,6 @@
 import type { TournamentRules } from '@clandestino/shared-contracts';
 import type { GroupStandingInput, PlacementStageGroup } from './types.js';
+import { choosePlacementFormat } from './adapt-placement-band.js';
 
 export function generatePlacementStage(
   groupStandings: GroupStandingInput[],
@@ -29,7 +30,7 @@ export function generatePlacementStage(
       continue;
     }
 
-    const format = playersAtRank.length >= 3 ? 'round-robin' : 'knockout';
+    const format = choosePlacementFormat(playersAtRank.length);
     const positionFrom = (rank - 1) * groupCount + 1;
     const positionTo = positionFrom + playersAtRank.length - 1;
 

@@ -6,6 +6,9 @@
     "build": "pnpm -r build",
     "test": "vitest run",
     "test:all": "pnpm test && pnpm --filter @clandestino/web test && TEST_DATABASE_URL=file:./data/clandestino_test.db pnpm --filter @clandestino/api test",
+    "test:e2e": "playwright test --config e2e/playwright.config.ts",
+    "test:e2e:ui": "playwright test --config e2e/playwright.config.ts --ui",
+    "test:e2e:install": "playwright install chromium",
     "test:watch": "vitest",
     "typecheck": "pnpm -r typecheck",
     "format": "prettier --write --ignore-unknown apps packages docker docs \"*\" \".*\"",
@@ -20,6 +23,7 @@
     "*.{ts,tsx,js,jsx,cjs,mjs,json,md,yml,yaml}": "prettier --write"
   },
   "devDependencies": {
+    "@playwright/test": "1.51.1",
     "lint-staged": "^17.0.8",
     "prettier": "^3.9.1",
     "simple-git-hooks": "^2.13.1",

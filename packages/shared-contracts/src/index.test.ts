@@ -42,12 +42,13 @@ describe('shared-contracts schemas', () => {
     expect(Value.Check(EditionRulesSchema, DEFAULT_EDITION_RULES)).toBe(true);
   });
 
-  it('rejects impossible match scores in entity shape', () => {
+  it('validates match entity shape including outcome', () => {
     const match = {
       id: '550e8400-e29b-41d4-a716-446655440001',
       editionId: '550e8400-e29b-41d4-a716-446655440002',
       groupId: '550e8400-e29b-41d4-a716-446655440003',
       status: 'AGENDADA',
+      outcome: 'PLAYED',
       participants: [
         { playerId: '550e8400-e29b-41d4-a716-446655440004', setsWon: 0 },
         { playerId: '550e8400-e29b-41d4-a716-446655440005', setsWon: 0 },

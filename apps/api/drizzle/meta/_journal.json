@@ -15,6 +15,13 @@
       "when": 1782765267091,
       "tag": "0001_mysterious_martin_li",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1783035000000,
+      "tag": "0002_wo_bracket_placement",
+      "breakpoints": true
     }
   ]
 }

@@ -322,7 +322,18 @@ function DrawSection({ edition }: { edition: Edition }) {
     <>
       {canDraw ? (
         <>
-          {drawWarning ? <Alert variant="warning">{drawWarning}</Alert> : null}
+          {drawWarning ? (
+            <Alert variant="warning">
+              {drawWarning}
+              {edition.status === 'RASCUNHO' || edition.status === 'INSCRICOES_ABERTAS' ? (
+                <span className="mt-2 block">
+                  Enquanto isso, use o link e o QR code na seção{' '}
+                  <strong>Acesso dos jogadores</strong> (no topo da página) para compartilhar com
+                  quem vai jogar.
+                </span>
+              ) : null}
+            </Alert>
+          ) : null}
           <button
             type="button"
             disabled={drawMutation.isPending || drawWarning !== null}
@@ -749,6 +760,12 @@ export function OrganizerEditionPage() {
         ) : null}
       </section>
 
+      <EditionAccessSection
+        editionId={edition.id}
+        editionName={edition.name}
+        editionStatus={edition.status}
+      />
+
       <ConfirmDialog
         isOpen={isDeleteDialogOpen}
         title="Excluir edição"
@@ -767,11 +784,6 @@ export function OrganizerEditionPage() {
       />
 
       <RegistrationsSection edition={edition} />
-      <EditionAccessSection
-        editionId={edition.id}
-        editionName={edition.name}
-        editionStatus={edition.status}
-      />
       <EditionTournamentOverview edition={edition} />
       <DrawSection edition={edition} />
       <ContestsSection edition={edition} />

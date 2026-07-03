@@ -69,16 +69,17 @@ export function HomePage() {
         </div>
       ) : null}
 
-      <div className="rounded-2xl border border-dashed border-line p-6 text-sm text-subtle">
-        <p>
-          Acesse uma edição pela URL <code className="text-muted">/edicao/:id</code> ou pela entrada
-          via QR code <code className="text-muted">/edicao/:id/entrar</code>.
+      <div className="rounded-2xl border border-dashed border-line bg-card p-6">
+        <h3 className="text-sm font-semibold text-foreground">Área do organizador</h3>
+        <p className="mt-1 text-sm text-subtle">
+          Gerencie campeonatos, edições, sorteios, participantes e resultados.
         </p>
-        <p className="mt-3">
-          <Link className="text-brand underline" to="/organizador">
-            Painel do organizador
-          </Link>
-        </p>
+        <Link
+          className="mt-4 inline-flex w-full items-center justify-center rounded-lg bg-brand px-4 py-2.5 text-sm font-medium text-white sm:w-auto"
+          to="/organizador"
+        >
+          🔐 Acessar painel
+        </Link>
       </div>
     </section>
   );

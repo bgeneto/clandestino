@@ -38,7 +38,7 @@ clandestino/
 │   ├── shared-contracts/    # Tipos e schemas compartilhados
 │   └── tournament-engine/   # Sorteio, validação e classificação (sem I/O)
 ├── docker/
-│   └── caddy/               # Caddyfile.dev (reverse proxy local)
+│   └── caddy/               # Caddyfile.dev + Caddyfile.prod
 ├── docker-compose.yml       # API (produção)
 ├── docker-compose.dev.yml   # Dev: api + web + Caddy (clandestino.test)
 ├── Dockerfile.dev           # Imagem compartilhada do compose dev
@@ -64,10 +64,10 @@ O comportamento da API depende de `NODE_ENV` e das variáveis abaixo. Use esta t
 | --------------------------- | ------------------------------------------------- | ------------------------------------------- | --------------------------------------------------- |
 | `NODE_ENV`                  | ausente, `development` ou `test`                  | `development` (no `docker-compose.dev.yml`) | `production`                                        |
 | Magic link na resposta JSON | **Sim** (padrão) — facilita testes sem e-mail     | **Sim**                                     | **Nunca** — enviado por e-mail via Resend           |
-| Subir tudo                  | `pnpm dev` em terminais separados                 | `./start dev`                               | `./start prod` + build do PWA                       |
+| Subir tudo                  | `pnpm dev` em terminais separados                 | `./start dev`                               | `./start prod` (API + build PWA em Docker)          |
 | URL do app                  | `http://localhost:5173`                           | `http://clandestino.test` (hosts + Caddy)   | URL pública HTTPS                                   |
 | API                         | `pnpm dev` no host (hot reload)                   | container `api` (hot reload via volume)     | Imagem Docker (`docker compose up api`)             |
-| PWA                         | `pnpm dev` no host (Vite, proxy `/api` → `:3000`) | container `web` (Vite atrás do Caddy)       | `pnpm build` + servir `apps/web/dist` (Caddy/nginx) |
+| PWA                         | `pnpm dev` no host (Vite, proxy `/api` → `:3000`) | container `web` (Vite atrás do Caddy)       | Docker (`apps/web/Dockerfile`) → `/srv/clandestino` |
 | Banco                       | Arquivo SQLite (`data/clandestino.db`)            | bind mount `./data` → `/app/data`           | bind mount `./data` → `/app/data`                   |
 | Seed                        | `db:seed` manual                                  | `./start dev --seed`                        | **Não** usar seed (`SEED_ON_START=false`)           |
 | `PUBLIC_APP_URL`            | `http://localhost:5173`                           | `http://clandestino.test`                   | URL pública HTTPS do PWA                            |
@@ -252,7 +252,7 @@ O diretório pai do arquivo é criado automaticamente no primeiro acesso.
 
 ## Produção (Docker Compose)
 
-O `docker-compose.yml` sobe a **API** com `NODE_ENV=production`. O banco SQLite persiste em `data/clandestino.db` (bind mount `./data`). O PWA é buildado separadamente e servido por proxy reverso (Caddy/nginx) na frente da API e dos arquivos estáticos.
+O `docker-compose.yml` sobe a **API** com `NODE_ENV=production`. O banco SQLite persiste em `data/clandestino.db` (bind mount `./data`). O PWA é buildado em **Docker** (`apps/web/Dockerfile`) e servido por Caddy/nginx na frente da API e dos arquivos estáticos — o servidor de produção não precisa de Node nem pnpm.
 
 ### 1. Ajustar variáveis no Compose
 
@@ -284,15 +284,31 @@ O entrypoint da API (`apps/api/docker-entrypoint.sh`) aplica migrações Drizzle
 
 ### 3. Build do PWA para produção
 
+`./start prod` compila o PWA via Docker (`web-build` no Compose) e publica em `/srv/clandestino` (destino do `file_server` no Caddy). Para outro caminho: `CLANDESTINO_WEB_ROOT=/caminho ./start prod`.
+
 ```bash
-# Aponte para a URL pública da API (sem proxy /api)
-VITE_API_URL=https://clandestino.sistema.pro.br/api pnpm --filter @clandestino/web build
+# Só build + deploy estático (sem subir a API)
+docker compose --profile web-build build web-build
+docker compose --profile web-build run --rm web-build
+rsync -a --delete apps/web/dist/ /srv/clandestino/
 ```
 
-Sirva `apps/web/dist` via Caddy/nginx. Exemplo de roteamento:
+`VITE_API_URL` (padrão `/api`) e `VITE_SHOW_PLAYER_SHUFFLE` vêm do `.env` na raiz, lidos pelo Compose no build.
 
-- `/api/*` → container `clandestino-api:3000` (strip prefix `/api`)
-- `/*` → arquivos estáticos do PWA
+Roteamento no Caddy (ver `docker/caddy/Caddyfile.prod`):
+
+- `/api/*` → container `clandestino-api:3000` (strip prefix `/api`; Caddy na rede Docker `clandestino`)
+- `/*` → `file_server` em `/srv/clandestino` com `try_files` para SPA
+
+### Layout mínimo no servidor
+
+| Caminho                       | Conteúdo                   |
+| ----------------------------- | -------------------------- |
+| `docker-compose.yml` + `.env` | Stack da API               |
+| `data/clandestino.db`         | SQLite                     |
+| `/srv/clandestino/`           | PWA estático (HTML/JS/CSS) |
+
+Não é necessário clonar o monorepo completo nem instalar `node_modules` no host — apenas Docker para a API e os artefatos estáticos para o Caddy.
 
 ### 4. Parar / atualizar
 
@@ -442,30 +458,30 @@ Fonte da verdade: `apps/api/src/config.ts`.
 
 ## Scripts principais
 
-| Comando                                      | Descrição                                         |
-| -------------------------------------------- | ------------------------------------------------- |
-| `./start dev`                                | Dev completo: api + web + Caddy                   |
-| `./start dev --seed`                         | Idem, com seed no start                           |
-| `./start prod`                               | API (produção local, detached)                    |
-| `./start --help`                             | Ajuda do wrapper de start                         |
-| `./stop`                                     | Detecta a stack ativa e para (dados preservados)  |
-| `./stop dev` / `./stop prod`                 | Para a stack indicada                             |
-| `./stop <env> --volumes`                     | Para e apaga `data/clandestino.db` (confirmação)  |
-| `pnpm build`                                 | Compila todos os workspaces                       |
-| `pnpm test`                                  | Testes da raiz (contracts + engine)               |
-| `pnpm test:all`                              | Raiz + web + API integração (`TEST_DATABASE_URL`) |
-| `pnpm test:e2e:install`                      | Instala Chromium para Playwright                  |
-| `pnpm test:e2e`                              | E2E headless (sobe API + Vite automaticamente)    |
-| `pnpm test:e2e:ui`                           | E2E modo interativo                               |
-| `pnpm typecheck`                             | TypeScript em todos os pacotes                    |
-| `pnpm --filter @clandestino/api dev`         | API com hot reload                                |
-| `pnpm --filter @clandestino/api start`       | API compilada (`node dist/server.js`)             |
-| `pnpm --filter @clandestino/api db:generate` | Gera migrações Drizzle                            |
-| `pnpm --filter @clandestino/api db:migrate`  | Aplica migrações                                  |
-| `pnpm --filter @clandestino/api db:seed`     | Dados de desenvolvimento                          |
-| `pnpm --filter @clandestino/api test`        | Testes unitários + integração                     |
-| `pnpm --filter @clandestino/web dev`         | PWA com Vite                                      |
-| `pnpm --filter @clandestino/web build`       | Build de produção do PWA                          |
+| Comando                                      | Descrição                                                                    |
+| -------------------------------------------- | ---------------------------------------------------------------------------- |
+| `./start dev`                                | Dev completo: api + web + Caddy                                              |
+| `./start dev --seed`                         | Idem, com seed no start                                                      |
+| `./start prod`                               | API (produção local, detached)                                               |
+| `./start --help`                             | Ajuda do wrapper de start                                                    |
+| `./stop`                                     | Detecta a stack ativa e para (dados preservados)                             |
+| `./stop dev` / `./stop prod`                 | Para a stack indicada                                                        |
+| `./stop <env> --volumes`                     | Para e apaga `data/clandestino.db` (confirmação)                             |
+| `pnpm build`                                 | Compila todos os workspaces                                                  |
+| `pnpm test`                                  | Testes da raiz (contracts + engine)                                          |
+| `pnpm test:all`                              | Raiz + web + API integração (`TEST_DATABASE_URL`)                            |
+| `pnpm test:e2e:install`                      | Instala Chromium para Playwright                                             |
+| `pnpm test:e2e`                              | E2E headless (sobe API + Vite automaticamente)                               |
+| `pnpm test:e2e:ui`                           | E2E modo interativo                                                          |
+| `pnpm typecheck`                             | TypeScript em todos os pacotes                                               |
+| `pnpm --filter @clandestino/api dev`         | API com hot reload                                                           |
+| `pnpm --filter @clandestino/api start`       | API compilada (`node dist/server.js`)                                        |
+| `pnpm --filter @clandestino/api db:generate` | Gera migrações Drizzle                                                       |
+| `pnpm --filter @clandestino/api db:migrate`  | Aplica migrações                                                             |
+| `pnpm --filter @clandestino/api db:seed`     | Dados de desenvolvimento                                                     |
+| `pnpm --filter @clandestino/api test`        | Testes unitários + integração                                                |
+| `pnpm --filter @clandestino/web dev`         | PWA com Vite                                                                 |
+| `pnpm --filter @clandestino/web build`       | Build do PWA no host (dev/CI); prod usa `docker compose --profile web-build` |
 
 ---
 

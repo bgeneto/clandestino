@@ -23,3 +23,28 @@ services:
       - '3000:3000'
     volumes:
       - ./data:/app/data
+    networks:
+      - proxy
+
+  # Build one-off do PWA (não sobe em `docker compose up`). Usado por ./start prod.
+  web-build:
+    profiles: [web-build]
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      target: export
+      args:
+        VITE_API_URL: ${VITE_API_URL:-/api}
+        VITE_SHOW_PLAYER_SHUFFLE: ${VITE_SHOW_PLAYER_SHUFFLE:-}
+    image: clandestino-web-build
+    volumes:
+      - ./apps/web/dist:/out
+    entrypoint: ['/bin/sh', '-c']
+    command:
+      - cp -a /dist/. /out/
+    networks:
+      - proxy
+
+networks:
+  proxy:
+    external: true

@@ -1,0 +1,36 @@
+# Fragmento de produção — inclua no Caddyfile principal do servidor.
+#
+# Pré-requisitos:
+#   - `import cors-api` definido no Caddyfile pai (headers CORS da API).
+#   - Caddy na mesma rede Docker que o serviço `clandestino-api`.
+#   - PWA em /srv/clandestino (./start prod publica apps/web/dist → lá).
+#
+# Rede Docker (no host do servidor):
+#   docker network connect clandestino <container-caddy>
+#
+# Build + deploy (sem Node/pnpm no servidor):
+#   ./start prod
+#   # ou manualmente:
+#   docker compose --profile web-build build web-build
+#   docker compose --profile web-build run --rm web-build
+#   rsync -a --delete apps/web/dist/ /srv/clandestino/
+
+@clandestino host clandestino.sistema.pro.br
+
+handle @clandestino {
+	@api path /api /api/*
+	handle @api {
+		import cors-api
+		uri strip_prefix /api
+		reverse_proxy clandestino-api:3000 {
+			flush_interval -1
+		}
+	}
+
+	handle {
+		root * /srv/clandestino
+		encode gzip
+		try_files {path} /index.html
+		file_server
+	}
+}

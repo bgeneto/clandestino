@@ -19,7 +19,7 @@ export function AppShell({ children }: AppShellProps) {
               <p className="text-xs uppercase tracking-[0.2em] text-header-foreground/60">
                 Tênis de Mesa
               </p>
-              <h1 className="text-lg font-semibold">Clandestino</h1>
+              <h1 className="text-lg font-semibold">Clandestino 🏓</h1>
             </div>
             <ConnectionStatus />
           </div>

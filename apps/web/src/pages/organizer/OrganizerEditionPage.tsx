@@ -6,7 +6,7 @@ import { GroupsView } from '../../components/edition/GroupsView.js';
 import { MatchResultForm } from '../../components/edition/MatchResultForm.js';
 import { EditionTournamentOverview } from '../../components/organizer/EditionTournamentOverview.js';
 import { DrawAuditPanel } from '../../components/organizer/DrawAuditPanel.js';
-import { EditionAccessSection } from '../../components/organizer/EditionAccessSection.js';
+import { EditionQrCode } from '../../components/organizer/EditionQrCode.js';
 import {
   useChampionshipRoster,
   useContestedMatches,
@@ -40,6 +40,7 @@ import {
 } from '../../lib/organizer-api.js';
 import { queryKeys } from '../../lib/query-keys.js';
 import { invalidateEditionQueries } from '../../lib/invalidate-edition-queries.js';
+import { buildEditionEntryUrl } from '../../lib/edition-entry-url.js';
 import { purgeEditionLocalState } from '../../lib/purge-edition-state.js';
 import { notifyApiError } from '../../notifications/notify-api-error.js';
 import { useNotification } from '../../notifications/notification-context.js';
@@ -327,9 +328,8 @@ function DrawSection({ edition }: { edition: Edition }) {
               {drawWarning}
               {edition.status === 'RASCUNHO' || edition.status === 'INSCRICOES_ABERTAS' ? (
                 <span className="mt-2 block">
-                  Enquanto isso, use o link e o QR code na seção{' '}
-                  <strong>Acesso dos jogadores</strong> (no topo da página) para compartilhar com
-                  quem vai jogar.
+                  Enquanto isso, compartilhe o link e o QR code em{' '}
+                  <strong>Acesso dos jogadores</strong> (logo acima, neste mesmo bloco).
                 </span>
               ) : null}
             </Alert>
@@ -758,13 +758,36 @@ export function OrganizerEditionPage() {
             Excluir edição
           </button>
         ) : null}
-      </section>
 
-      <EditionAccessSection
-        editionId={edition.id}
-        editionName={edition.name}
-        editionStatus={edition.status}
-      />
+        {edition.status !== 'ENCERRADA' ? (
+          <div className="mt-6 rounded-xl border border-header-foreground/15 bg-card p-4 text-foreground shadow-sm">
+            <h3 className="text-sm font-bold uppercase tracking-wide text-subtle">
+              Acesso dos jogadores
+            </h3>
+            {edition.status === 'RASCUNHO' || edition.status === 'INSCRICOES_ABERTAS' ? (
+              <p className="mt-1 text-sm text-muted">
+                Compartilhe este link ou QR code com os jogadores <strong>agora</strong> — não é
+                preciso fazer check-in nem publicar o sorteio.
+              </p>
+            ) : (
+              <p className="mt-1 text-sm text-muted">
+                Exiba ou envie para os jogadores entrarem na edição.
+              </p>
+            )}
+            <div className="mt-4">
+              <EditionQrCode
+                url={buildEditionEntryUrl(edition.id)}
+                hint={
+                  edition.status === 'RASCUNHO' || edition.status === 'INSCRICOES_ABERTAS'
+                    ? 'Os jogadores verão seus nomes após o check-in.'
+                    : undefined
+                }
+                editionName={edition.name}
+              />
+            </div>
+          </div>
+        ) : null}
+      </section>
 
       <ConfirmDialog
         isOpen={isDeleteDialogOpen}

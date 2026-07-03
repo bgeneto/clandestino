@@ -25,6 +25,7 @@ Ambientes:
   dev              Sobe api + web + caddy (hot reload, http://clandestino.test)
                    Assets do PWA (ícones, etc.) servidos ao vivo pelo Vite.
   prod             Sobe api + web-build (Caddy externo com file_server)
+                   Reconstrói imagens e recria containers a cada execução.
 
 Opções:
   --seed           (só dev) Popula dados de exemplo após migrar
@@ -119,8 +120,12 @@ assert_no_other_stack() {
 start_prod() {
   assert_no_other_stack "prod"
 
-  log "Subindo stack de produção (api + web-build)..."
-  SEED_ON_START=false docker compose -f "${COMPOSE_PROD}" up -d --build
+  log "Reconstruindo imagens de produção (api + PWA)..."
+  SEED_ON_START=false docker compose -f "${COMPOSE_PROD}" build api web-build
+
+  log "Subindo stack de produção (api + export do PWA para CLANDESTINO_WEB_ROOT)..."
+  # --force-recreate: web-build é one-shot (cp dist → volume); sem isso o PWA antigo permanece.
+  SEED_ON_START=false docker compose -f "${COMPOSE_PROD}" up -d --force-recreate --remove-orphans
 
   log "Stack prod em segundo plano."
   log "  API:  clandestino-api:3000 (rede clandestino — conecte o Caddy externo)"

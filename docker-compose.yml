@@ -1,4 +1,18 @@
+# Stack de produção — `docker compose up -d --build`
+#
+# Serviços:
+#   api        → Fastify (clandestino-api:3000, rede clandestino)
+#   web-build  → build one-shot do PWA → ${CLANDESTINO_WEB_ROOT:-./srv/clandestino}
+#
+# Caddy é EXTERNO a este compose. Monte o mesmo caminho no Caddy:
+#   ${CLANDESTINO_WEB_ROOT}:/srv/clandestino:ro
+# Fragmento: docker/caddy/Caddyfile.prod.external
+
 name: clandestino
+
+networks:
+  proxy:
+    external: true
 
 services:
   api:
@@ -12,23 +26,18 @@ services:
       API_HOST: 0.0.0.0
       API_PORT: '3000'
       NODE_ENV: production
-      PUBLIC_APP_URL: ${PUBLIC_APP_URL:-http://localhost:5173}
+      PUBLIC_APP_URL: ${PUBLIC_APP_URL:-http://localhost}
       ORGANIZER_ALLOWED_EMAILS: ${ORGANIZER_ALLOWED_EMAILS:-organizador@gmail.com}
       EMAIL_FROM: ${EMAIL_FROM:-admin@sistema.pro.br}
       EMAIL_FROM_NAME: ${EMAIL_FROM_NAME:-Clandestino - Tênis de Mesa}
       RESEND_API_KEY: ${RESEND_API_KEY:?RESEND_API_KEY é obrigatória em produção}
-      # Defina como "true" apenas em ambiente local para popular dados de exemplo.
       SEED_ON_START: 'false'
-    ports:
-      - '3000:3000'
     volumes:
       - ./data:/app/data
     networks:
       - proxy
 
-  # Build one-off do PWA (não sobe em `docker compose up`). Usado por ./start prod.
   web-build:
-    profiles: [web-build]
     build:
       context: .
       dockerfile: apps/web/Dockerfile
@@ -37,14 +46,10 @@ services:
         VITE_API_URL: ${VITE_API_URL:-/api}
         VITE_SHOW_PLAYER_SHUFFLE: ${VITE_SHOW_PLAYER_SHUFFLE:-}
     image: clandestino-web-build
+    container_name: clandestino-web-build
+    restart: 'no'
     volumes:
-      - ./apps/web/dist:/out
+      - ${CLANDESTINO_WEB_ROOT:-./srv/clandestino}:/out
     entrypoint: ['/bin/sh', '-c']
     command:
       - cp -a /dist/. /out/
-    networks:
-      - proxy
-
-networks:
-  proxy:
-    external: true

@@ -6,7 +6,7 @@
 #
 # Targets:
 #   build  — artefatos em /app/apps/web/dist (debug)
-#   export — só os estáticos em /dist (usado por web-build no compose)
+#   export — estáticos em /dist (serviço web-build no compose de produção)
 # ---------------------------------------------------------------------------
 
 FROM node:22-bookworm-slim AS base

@@ -38,7 +38,7 @@ clandestino/
 │   ├── shared-contracts/    # Tipos e schemas compartilhados
 │   └── tournament-engine/   # Sorteio, validação e classificação (sem I/O)
 ├── docker/
-│   └── caddy/               # Caddyfile.dev + Caddyfile.prod
+│   └── caddy/               # Caddyfile.dev + Caddyfile.prod.external
 ├── docker-compose.yml       # API (produção)
 ├── docker-compose.dev.yml   # Dev: api + web + Caddy (clandestino.test)
 ├── Dockerfile.dev           # Imagem compartilhada do compose dev
@@ -60,20 +60,20 @@ clandestino/
 
 O comportamento da API depende de `NODE_ENV` e das variáveis abaixo. Use esta tabela como referência rápida.
 
-| Aspecto                     | Desenvolvimento (host)                            | Desenvolvimento (Caddy)                     | Produção                                            |
-| --------------------------- | ------------------------------------------------- | ------------------------------------------- | --------------------------------------------------- |
-| `NODE_ENV`                  | ausente, `development` ou `test`                  | `development` (no `docker-compose.dev.yml`) | `production`                                        |
-| Magic link na resposta JSON | **Sim** (padrão) — facilita testes sem e-mail     | **Sim**                                     | **Nunca** — enviado por e-mail via Resend           |
-| Subir tudo                  | `pnpm dev` em terminais separados                 | `./start dev`                               | `./start prod` (API + build PWA em Docker)          |
-| URL do app                  | `http://localhost:5173`                           | `http://clandestino.test` (hosts + Caddy)   | URL pública HTTPS                                   |
-| API                         | `pnpm dev` no host (hot reload)                   | container `api` (hot reload via volume)     | Imagem Docker (`docker compose up api`)             |
-| PWA                         | `pnpm dev` no host (Vite, proxy `/api` → `:3000`) | container `web` (Vite atrás do Caddy)       | Docker (`apps/web/Dockerfile`) → `/srv/clandestino` |
-| Banco                       | Arquivo SQLite (`data/clandestino.db`)            | bind mount `./data` → `/app/data`           | bind mount `./data` → `/app/data`                   |
-| Seed                        | `db:seed` manual                                  | `./start dev --seed`                        | **Não** usar seed (`SEED_ON_START=false`)           |
-| `PUBLIC_APP_URL`            | `http://localhost:5173`                           | `http://clandestino.test`                   | URL pública HTTPS do PWA                            |
-| `ORGANIZER_ALLOWED_EMAILS`  | `organizador@gmail.com`                           | `organizador@gmail.com`                     | E-mails reais do organizador                        |
-| Rate limit (magic link)     | Ativo (padrão 10 req / 15 min)                    | Ativo (padrão 10 req / 15 min)              | Ativo                                               |
-| Testes de integração        | `TEST_DATABASE_URL` → arquivo `.db` separado      | idem                                        | Não rodam em deploy                                 |
+| Aspecto                     | Desenvolvimento (host)                            | Desenvolvimento (Caddy)                     | Produção                                                   |
+| --------------------------- | ------------------------------------------------- | ------------------------------------------- | ---------------------------------------------------------- |
+| `NODE_ENV`                  | ausente, `development` ou `test`                  | `development` (no `docker-compose.dev.yml`) | `production`                                               |
+| Magic link na resposta JSON | **Sim** (padrão) — facilita testes sem e-mail     | **Sim**                                     | **Nunca** — enviado por e-mail via Resend                  |
+| Subir tudo                  | `pnpm dev` em terminais separados                 | `./start dev`                               | `docker compose up -d --build`                             |
+| URL do app                  | `http://localhost:5173`                           | `http://clandestino.test` (hosts + Caddy)   | URL pública HTTPS                                          |
+| API                         | `pnpm dev` no host (hot reload)                   | container `api` (hot reload via volume)     | Imagem Docker (`docker compose up api`)                    |
+| PWA                         | `pnpm dev` no host (Vite, proxy `/api` → `:3000`) | container `web` (Vite atrás do Caddy)       | `web-build` → `CLANDESTINO_WEB_ROOT` + Caddy `file_server` |
+| Banco                       | Arquivo SQLite (`data/clandestino.db`)            | bind mount `./data` → `/app/data`           | bind mount `./data` → `/app/data`                          |
+| Seed                        | `db:seed` manual                                  | `./start dev --seed`                        | **Não** usar seed (`SEED_ON_START=false`)                  |
+| `PUBLIC_APP_URL`            | `http://localhost:5173`                           | `http://clandestino.test`                   | URL pública HTTPS do PWA                                   |
+| `ORGANIZER_ALLOWED_EMAILS`  | `organizador@gmail.com`                           | `organizador@gmail.com`                     | E-mails reais do organizador                               |
+| Rate limit (magic link)     | Ativo (padrão 10 req / 15 min)                    | Ativo (padrão 10 req / 15 min)              | Ativo                                                      |
+| Testes de integração        | `TEST_DATABASE_URL` → arquivo `.db` separado      | idem                                        | Não rodam em deploy                                        |
 
 Arquivos de exemplo: `apps/api/.env.example`, `apps/web/.env.example`.
 
@@ -252,7 +252,7 @@ O diretório pai do arquivo é criado automaticamente no primeiro acesso.
 
 ## Produção (Docker Compose)
 
-O `docker-compose.yml` sobe a **API** com `NODE_ENV=production`. O banco SQLite persiste em `data/clandestino.db` (bind mount `./data`). O PWA é buildado em **Docker** (`apps/web/Dockerfile`) e servido por Caddy/nginx na frente da API e dos arquivos estáticos — o servidor de produção não precisa de Node nem pnpm.
+`docker compose up -d --build` sobe **api** + **web-build** (PWA em Docker, sem Node/pnpm no host). O Caddy externo serve os estáticos com `file_server` em `CLANDESTINO_WEB_ROOT` (padrão `/srv/clandestino` em produção).
 
 ### 1. Ajustar variáveis no Compose
 
@@ -262,6 +262,7 @@ Edite `docker-compose.yml` (ou use um arquivo `.env` na raiz lido pelo Compose) 
 | -------------------------- | ------------------------------------------------------------ |
 | `NODE_ENV`                 | `production` (já definido no serviço `api`)                  |
 | `PUBLIC_APP_URL`           | URL pública do PWA, ex. `https://clandestino.sistema.pro.br` |
+| `CLANDESTINO_WEB_ROOT`     | Caminho dos estáticos no host, ex. `/srv/clandestino`        |
 | `ORGANIZER_ALLOWED_EMAILS` | E-mails reais, separados por vírgula                         |
 | `RESEND_API_KEY`           | Chave da API Resend                                          |
 | `EMAIL_FROM`               | Remetente verificado no Resend (ex. `admin@sistema.pro.br`)  |
@@ -271,44 +272,28 @@ Edite `docker-compose.yml` (ou use um arquivo `.env` na raiz lido pelo Compose) 
 
 Em produção, magic links **não** aparecem na resposta HTTP — o link é enviado por e-mail via Resend (`RESEND_API_KEY`, `EMAIL_FROM`, `EMAIL_FROM_NAME`).
 
-### 2. Build e subir a stack
+### 2. Subir a stack
 
 ```bash
-./start prod
-curl http://localhost:3000/health   # {"status":"ok"}
+CLANDESTINO_WEB_ROOT=/srv/clandestino docker compose up -d --build
 ```
 
-Equivalente manual: `docker compose up -d --build`. O script força `SEED_ON_START=false` e recusa subir se a stack dev estiver ativa.
+Equivalente: `./start prod`. O script recusa subir se a stack dev estiver ativa.
 
-O entrypoint da API (`apps/api/docker-entrypoint.sh`) aplica migrações Drizzle automaticamente a cada start.
+O entrypoint da API aplica migrações automaticamente. O serviço **web-build** compila o PWA em Docker e copia para `CLANDESTINO_WEB_ROOT` — o mesmo caminho que o Caddy externo monta em `/srv/clandestino`.
 
-### 3. Build do PWA para produção
+### 3. Caddy externo
 
-`./start prod` compila o PWA via Docker (`web-build` no Compose) e publica em `/srv/clandestino` (destino do `file_server` no Caddy). Para outro caminho: `CLANDESTINO_WEB_ROOT=/caminho ./start prod`.
+Fragmento: `docker/caddy/Caddyfile.prod.external`. O Caddy deve:
+
+- montar `${CLANDESTINO_WEB_ROOT}:/srv/clandestino:ro`
+- estar na rede Docker `clandestino` (`docker network connect clandestino <caddy>`)
+
+Para atualizar só o PWA após mudanças no código:
 
 ```bash
-# Só build + deploy estático (sem subir a API)
-docker compose --profile web-build build web-build
-docker compose --profile web-build run --rm web-build
-rsync -a --delete apps/web/dist/ /srv/clandestino/
+docker compose up -d --build --force-recreate web-build
 ```
-
-`VITE_API_URL` (padrão `/api`) e `VITE_SHOW_PLAYER_SHUFFLE` vêm do `.env` na raiz, lidos pelo Compose no build.
-
-Roteamento no Caddy (ver `docker/caddy/Caddyfile.prod`):
-
-- `/api/*` → container `clandestino-api:3000` (strip prefix `/api`; Caddy na rede Docker `clandestino`)
-- `/*` → `file_server` em `/srv/clandestino` com `try_files` para SPA
-
-### Layout mínimo no servidor
-
-| Caminho                       | Conteúdo                   |
-| ----------------------------- | -------------------------- |
-| `docker-compose.yml` + `.env` | Stack da API               |
-| `data/clandestino.db`         | SQLite                     |
-| `/srv/clandestino/`           | PWA estático (HTML/JS/CSS) |
-
-Não é necessário clonar o monorepo completo nem instalar `node_modules` no host — apenas Docker para a API e os artefatos estáticos para o Caddy.
 
 ### 4. Parar / atualizar
 

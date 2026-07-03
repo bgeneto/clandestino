@@ -4,7 +4,7 @@
 #
 #   ./start dev            # stack dev (api + web + caddy)
 #   ./start dev --seed       # idem, com seed de exemplo no start
-#   ./start prod             # stack prod (api)
+#   ./start prod             # api + web-build (Caddy externo)
 #   ./start --help
 #
 # Migrações: automáticas no start da API (dev command / prod entrypoint).
@@ -24,18 +24,17 @@ Uso: ./start <dev|prod> [opções]
 Ambientes:
   dev              Sobe api + web + caddy (hot reload, http://clandestino.test)
                    Assets do PWA (ícones, etc.) servidos ao vivo pelo Vite.
-  prod             Sobe api em produção (http://localhost:3000)
-                   Build do PWA via Docker → /srv/clandestino (Caddy file_server)
-                   Não requer Node/pnpm no host.
+  prod             Sobe api + web-build (Caddy externo com file_server)
 
 Opções:
   --seed           (só dev) Popula dados de exemplo após migrar
   --help, -h       Mostra esta ajuda
 
 Variáveis:
-  VITE_API_URL              (prod) Prefixo da API no build do PWA (padrão: /api)
-  VITE_SHOW_PLAYER_SHUFFLE  (prod) Flag Vite opcional (lida do .env na raiz)
-  CLANDESTINO_WEB_ROOT      (prod) Destino do rsync após build (padrão: /srv/clandestino)
+  CLANDESTINO_WEB_ROOT      Destino dos estáticos (padrão: ./srv/clandestino; use /srv/clandestino em prod)
+  PUBLIC_APP_URL            URL pública do PWA (magic links; use https em prod)
+  VITE_API_URL              Prefixo da API no build do PWA (padrão: /api)
+  VITE_SHOW_PLAYER_SHUFFLE  Flag Vite opcional (lida do .env na raiz)
 
 Exemplos:
   ./start dev
@@ -117,32 +116,17 @@ assert_no_other_stack() {
   fi
 }
 
-build_web_assets() {
-  local vite_api_url="${VITE_API_URL:-/api}"
+start_prod() {
+  assert_no_other_stack "prod"
 
-  log "Construindo PWA via Docker (apps/web/Dockerfile) — VITE_API_URL=${vite_api_url}..."
-  mkdir -p "${ROOT_DIR}/apps/web/dist"
-  VITE_API_URL="${vite_api_url}" docker compose -f "${COMPOSE_PROD}" --profile web-build build web-build
-  docker compose -f "${COMPOSE_PROD}" --profile web-build run --rm web-build
-  log "PWA atualizado em apps/web/dist."
-}
+  log "Subindo stack de produção (api + web-build)..."
+  SEED_ON_START=false docker compose -f "${COMPOSE_PROD}" up -d --build
 
-deploy_web_assets() {
-  local web_root="${CLANDESTINO_WEB_ROOT:-/srv/clandestino}"
-  local dist_dir="${ROOT_DIR}/apps/web/dist"
-
-  if [[ ! -d "${dist_dir}" ]]; then
-    die "Build do PWA ausente em apps/web/dist."
-  fi
-
-  log "Publicando PWA em ${web_root}..."
-  if mkdir -p "${web_root}" && rsync -a --delete "${dist_dir}/" "${web_root}/"; then
-    log "PWA publicado em ${web_root} (file_server do Caddy)."
-  else
-    warn "Não foi possível publicar em ${web_root} (permissão?)."
-    warn "Copie manualmente: rsync -a --delete apps/web/dist/ ${web_root}/"
-    warn "Ou defina CLANDESTINO_WEB_ROOT para outro destino."
-  fi
+  log "Stack prod em segundo plano."
+  log "  API:  clandestino-api:3000 (rede clandestino — conecte o Caddy externo)"
+  log "  PWA:  ${CLANDESTINO_WEB_ROOT:-./srv/clandestino} (file_server no Caddy externo)"
+  log "  Logs: docker compose logs -f"
+  log "  Parar: ./stop prod"
 }
 
 warn_hosts_entry() {
@@ -182,21 +166,6 @@ start_dev() {
   log "  Logs:       docker compose -f docker-compose.dev.yml logs -f"
   log "  Parar:      ./stop dev"
   log "  Packages:   recompilados em todo ./start dev (mudanças em packages/*)"
-}
-
-start_prod() {
-  # Build e deploy do PWA no host antes de checar conflito com dev.
-  build_web_assets
-  deploy_web_assets
-
-  assert_no_other_stack "prod"
-
-  log "Subindo stack de produção local (api)..."
-  SEED_ON_START=false docker compose -f "${COMPOSE_PROD}" up -d --build
-
-  log "Stack prod em segundo plano."
-  log "  API health: http://localhost:3000/health"
-  log "  Parar:      ./stop prod"
 }
 
 main() {

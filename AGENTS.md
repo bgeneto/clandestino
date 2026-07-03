@@ -98,23 +98,23 @@ React + Vite + PWA (`apps/web/`):
 - GET de edição com **404** = edição removida: não servir cache IndexedDB; chamar `purgeEditionLocalState` e limpar sessão do jogador
 - Em dev (host): `VITE_API_URL=/api` + proxy Vite → `localhost:3000`
 - Em dev (Caddy): `VITE_API_URL=/api` + proxy Caddy → `clandestino.test/api/*`
-- Em produção: build estático via Docker (`apps/web/Dockerfile`, profile `web-build`) servido por reverse proxy
+- Em produção: `web-build` (Docker) popula `CLANDESTINO_WEB_ROOT`; Caddy usa `file_server`
 
 ### Docker e Compose
 
-| Arquivo                         | Função                                                           |
-| ------------------------------- | ---------------------------------------------------------------- |
-| `start`                         | Wrapper: `./start dev`, `./start dev --seed`, `./start prod`     |
-| `stop`                          | Wrapper: `./stop [dev\|prod] [--volumes]` (auto-detecta a stack) |
-| `docker-compose.yml`            | Serviço `api` (produção); profile `web-build` para PWA estático  |
-| `docker-compose.dev.yml`        | Dev completo: `api` + `web` + `caddy` (`clandestino.test`)       |
-| `Dockerfile.dev`                | Imagem compartilhada dev (deps + build de `packages/*`)          |
-| `docker/caddy/Caddyfile.dev`    | Reverse proxy dev: `/api/*` → API, `/*` → Vite                   |
-| `docker/caddy/Caddyfile.prod`   | Fragmento prod: `/api/*` → API, `/*` → `file_server`             |
-| `apps/api/Dockerfile`           | Build multi-stage da API (produção)                              |
-| `apps/web/Dockerfile`           | Build multi-stage do PWA (produção; target `export`)             |
-| `apps/api/docker-entrypoint.sh` | `db:migrate` + seed opcional + `node dist/server.js`             |
-| `.dockerignore`                 | Contexto de build enxuto                                         |
+| Arquivo                                | Função                                                           |
+| -------------------------------------- | ---------------------------------------------------------------- |
+| `start`                                | Wrapper: `./start dev`, `./start dev --seed`, `./start prod`     |
+| `stop`                                 | Wrapper: `./stop [dev\|prod] [--volumes]` (auto-detecta a stack) |
+| `docker-compose.yml`                   | Produção: `api` + `web-build` (Caddy externo)                    |
+| `docker-compose.dev.yml`               | Dev completo: `api` + `web` + `caddy` (`clandestino.test`)       |
+| `Dockerfile.dev`                       | Imagem compartilhada dev (deps + build de `packages/*`)          |
+| `docker/caddy/Caddyfile.dev`           | Reverse proxy dev: `/api/*` → API, `/*` → Vite                   |
+| `docker/caddy/Caddyfile.prod.external` | Fragmento Caddy externo (`file_server` + `/api` → API)           |
+| `apps/api/Dockerfile`                  | Build multi-stage da API (produção)                              |
+| `apps/web/Dockerfile`                  | Build multi-stage do PWA (target `export` → `web-build`)         |
+| `apps/api/docker-entrypoint.sh`        | `db:migrate` + seed opcional + `node dist/server.js`             |
+| `.dockerignore`                        | Contexto de build enxuto                                         |
 
 **Agentes:** para testar no browser, prefira `./start dev`. Para stack prod local, `./start prod`. Para integração, defina `TEST_DATABASE_URL=file:./data/clandestino_test.db` — sem Docker. Não commite `.env` com credenciais.
 
@@ -272,21 +272,21 @@ pnpm typecheck
 
 ### Produção (Docker Compose)
 
-| Item                       | Valor / regra                                                                                             |
-| -------------------------- | --------------------------------------------------------------------------------------------------------- |
-| `NODE_ENV`                 | **`production`** (já no serviço `api` do Compose)                                                         |
-| Magic link                 | **nunca** na resposta HTTP — enviado por e-mail via Resend                                                |
-| `RESEND_API_KEY`           | **obrigatória** em produção                                                                               |
-| `EMAIL_FROM`               | remetente verificado no Resend (ex. `admin@sistema.pro.br`)                                               |
-| `EMAIL_FROM_NAME`          | nome exibido no e-mail (ex. `Clandestino - Tênis de Mesa`)                                                |
-| `PUBLIC_APP_URL`           | URL pública HTTPS do PWA (magic links válidos)                                                            |
-| `ORGANIZER_ALLOWED_EMAILS` | e-mails reais do organizador                                                                              |
-| `SEED_ON_START`            | **`false`** — não rodar seed em produção                                                                  |
-| Subir stack                | `./start prod`                                                                                            |
-| Parar stack                | `./stop prod` (dados preservados)                                                                         |
-| Migrações                  | automáticas no entrypoint (`docker-entrypoint.sh`)                                                        |
-| PWA                        | `./start prod` ou `docker compose --profile web-build run --rm web-build`; publicar em `/srv/clandestino` |
-| `VITE_API_URL`             | prefixo da API no build do PWA (padrão `/api`, mesma origem via Caddy)                                    |
+| Item                       | Valor / regra                                                                              |
+| -------------------------- | ------------------------------------------------------------------------------------------ |
+| `NODE_ENV`                 | **`production`** (já no serviço `api` do Compose)                                          |
+| Magic link                 | **nunca** na resposta HTTP — enviado por e-mail via Resend                                 |
+| `RESEND_API_KEY`           | **obrigatória** em produção                                                                |
+| `EMAIL_FROM`               | remetente verificado no Resend (ex. `admin@sistema.pro.br`)                                |
+| `EMAIL_FROM_NAME`          | nome exibido no e-mail (ex. `Clandestino - Tênis de Mesa`)                                 |
+| `PUBLIC_APP_URL`           | URL pública HTTPS do PWA (magic links válidos)                                             |
+| `ORGANIZER_ALLOWED_EMAILS` | e-mails reais do organizador                                                               |
+| `SEED_ON_START`            | **`false`** — não rodar seed em produção                                                   |
+| Subir stack                | `./start prod`                                                                             |
+| Parar stack                | `./stop prod` (dados preservados)                                                          |
+| Migrações                  | automáticas no entrypoint (`docker-entrypoint.sh`)                                         |
+| PWA                        | `docker compose up -d --build` (`web-build` → `CLANDESTINO_WEB_ROOT`); Caddy `file_server` |
+| `VITE_API_URL`             | prefixo da API no build do PWA (padrão `/api`, mesma origem via Caddy)                     |
 
 **Segurança em produção (já implementada):**
 

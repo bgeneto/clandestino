@@ -24,7 +24,7 @@ Uso: ./stop [dev|prod] [opções]
 Ambientes:
   (nenhum)         Detecta automaticamente a stack ativa e para
   dev              Para a stack de desenvolvimento (api + web + caddy)
-  prod             Para a stack de produção (api)
+  prod             Para a stack de produção (api + web-build; caddy opcional)
 
 Opções:
   --volumes        Apaga também data/clandestino.db (DESTRUTIVO — dados perdidos)

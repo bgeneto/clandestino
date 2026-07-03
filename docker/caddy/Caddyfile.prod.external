@@ -1,0 +1,29 @@
+# Fragmento para Caddy externo (fora deste compose).
+#
+# Pré-requisitos:
+#   - `import cors-api` definido no Caddyfile pai.
+#   - `docker compose up -d --build` (api + web-build neste repositório).
+#   - Mesmo caminho no host para web-build e Caddy:
+#       ${CLANDESTINO_WEB_ROOT:-./srv/clandestino}  →  /srv/clandestino no container Caddy
+#   - Caddy na mesma rede Docker que a API:
+#       docker network connect clandestino <container-caddy>
+
+@clandestino host clandestino.sistema.pro.br
+
+handle @clandestino {
+	@api path /api /api/*
+	handle @api {
+		import cors-api
+		uri strip_prefix /api
+		reverse_proxy clandestino-api:3000 {
+			flush_interval -1
+		}
+	}
+
+	handle {
+		root * /srv/clandestino
+		encode gzip
+		try_files {path} /index.html
+		file_server
+	}
+}

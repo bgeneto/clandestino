@@ -16,10 +16,10 @@ const surfaceClasses = {
 };
 
 const progressClasses = {
-  danger: 'bg-danger-foreground/40',
-  warning: 'bg-warning-foreground/40',
-  success: 'bg-success-foreground/40',
-  info: 'bg-info-foreground/40',
+  danger: 'bg-danger-foreground/80',
+  warning: 'bg-warning-foreground/80',
+  success: 'bg-success-foreground/80',
+  info: 'bg-info-foreground/80',
 };
 
 type NotificationProps = {
@@ -29,34 +29,54 @@ type NotificationProps = {
   onResume: (id: string) => void;
 };
 
+function elapsedMs(item: NotificationItem, now: number): number {
+  if (item.pausedAt !== null) {
+    return item.pausedAt - item.createdAt - item.elapsedWhilePaused;
+  }
+
+  return now - item.createdAt - item.elapsedWhilePaused;
+}
+
 export function Notification({ item, onDismiss, onPause, onResume }: NotificationProps) {
-  const [progress, setProgress] = useState(1);
+  const barRef = useRef<HTMLDivElement>(null);
   const frameRef = useRef<number | null>(null);
-  const lastTickRef = useRef<number>(Date.now());
+  const hoverPauseEnabledRef = useRef(false);
+  const [secondsRemaining, setSecondsRemaining] = useState(() =>
+    Math.max(1, Math.ceil(item.duration / 1000)),
+  );
+
+  useEffect(() => {
+    const enableHoverPause = window.setTimeout(() => {
+      hoverPauseEnabledRef.current = true;
+    }, 400);
+
+    return () => {
+      window.clearTimeout(enableHoverPause);
+    };
+  }, []);
 
   useEffect(() => {
     const tick = () => {
       const now = Date.now();
-      const delta = now - lastTickRef.current;
-      lastTickRef.current = now;
+      const elapsed = elapsedMs(item, now);
+      const remaining = Math.max(0, item.duration - elapsed);
+      const progress = remaining / item.duration;
 
-      if (item.pausedAt === null) {
-        const elapsed = now - item.createdAt - item.elapsedWhilePaused;
-        const remaining = Math.max(0, item.duration - elapsed);
-        setProgress(remaining / item.duration);
+      if (barRef.current) {
+        barRef.current.style.width = `${progress * 100}%`;
+      }
 
-        if (remaining <= 0) {
-          onDismiss(item.id);
-          return;
-        }
-      } else {
-        void delta;
+      const nextSeconds = Math.max(1, Math.ceil(remaining / 1000));
+      setSecondsRemaining((current) => (current === nextSeconds ? current : nextSeconds));
+
+      if (remaining <= 0) {
+        onDismiss(item.id);
+        return;
       }
 
       frameRef.current = window.requestAnimationFrame(tick);
     };
 
-    lastTickRef.current = Date.now();
     frameRef.current = window.requestAnimationFrame(tick);
 
     return () => {
@@ -67,13 +87,16 @@ export function Notification({ item, onDismiss, onPause, onResume }: Notificatio
   }, [item, onDismiss]);
 
   const role = item.variant === 'danger' ? 'alert' : 'status';
-  const secondsRemaining = Math.max(1, Math.ceil(progress * (item.duration / 1000)));
 
   return (
     <div
       role={role}
       className={`relative overflow-hidden rounded-2xl border shadow-lg backdrop-blur ${surfaceClasses[item.variant]}`}
-      onMouseEnter={() => onPause(item.id)}
+      onMouseEnter={() => {
+        if (hoverPauseEnabledRef.current) {
+          onPause(item.id);
+        }
+      }}
       onMouseLeave={() => onResume(item.id)}
       onFocus={() => onPause(item.id)}
       onBlur={() => onResume(item.id)}
@@ -96,10 +119,11 @@ export function Notification({ item, onDismiss, onPause, onResume }: Notificatio
         </button>
       </div>
       <div className="flex items-center gap-2 px-4 pb-3">
-        <div className="h-1 flex-1 overflow-hidden rounded-full bg-black/10">
+        <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-foreground/15">
           <div
-            className={`h-full origin-left rounded-full transition-[width] duration-75 ${progressClasses[item.variant]}`}
-            style={{ width: `${progress * 100}%` }}
+            ref={barRef}
+            className={`h-full rounded-full ${progressClasses[item.variant]}`}
+            style={{ width: '100%' }}
           />
         </div>
         <span className="text-[10px] tabular-nums opacity-70" aria-hidden="true">

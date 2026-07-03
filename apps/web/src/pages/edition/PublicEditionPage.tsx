@@ -60,12 +60,12 @@ export function PublicEditionPage() {
         live={!isPreparing}
         subtitle={isPreparing ? 'Edição em preparação' : 'Acompanhe o torneio ao vivo'}
       />
-
+      {/* TODO: remove this link/button since it allows any user to enter/participate in the edition even without a QR Code or link from organizer  */}
       <Link
         to={`/edicao/${editionId}/entrar`}
         className="block rounded-xl border-2 border-dashed border-line bg-card px-4 py-3 text-center text-sm font-semibold text-foreground"
       >
-        📷 Sou jogador — entrar com QR code
+        Sou jogador - clique para entrar/participar
       </Link>
 
       <PublicTabs active={activeTab} onChange={setActiveTab} />

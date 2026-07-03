@@ -83,7 +83,8 @@ export function PlayerEntryPage() {
 
       {!participantsQuery.isLoading && !participantsQuery.isError && !hasNoParticipants ? (
         <section className="rounded-xl border border-warning-surface bg-warning-surface px-4 py-3 text-sm text-warning-foreground">
-          Clique ou busque seu nome abaixo para <b>entrar</b> nesta edição do torneio.
+          Clique no seu nome <b>somente</b> se você vai <b>participar/jogar</b> nesta edição do
+          torneio.
         </section>
       ) : null}
 

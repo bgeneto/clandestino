@@ -51,9 +51,15 @@ export function PublicEditionPage() {
     });
   }, [standingsQuery.data, groupsQuery.data, playerNames]);
 
+  const isPreparing = edition.status === 'RASCUNHO' || edition.status === 'INSCRICOES_ABERTAS';
+
   return (
     <div className="space-y-4 pb-6">
-      <EditionHeader edition={edition} live subtitle="Acompanhe o torneio ao vivo" />
+      <EditionHeader
+        edition={edition}
+        live={!isPreparing}
+        subtitle={isPreparing ? 'Edição em preparação' : 'Acompanhe o torneio ao vivo'}
+      />
 
       <Link
         to={`/edicao/${editionId}/entrar`}

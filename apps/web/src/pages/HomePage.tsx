@@ -38,8 +38,9 @@ export function HomePage() {
         <p className="mt-2 text-sm leading-6 text-muted">
           Bem-vindo ao app oficial do campeonato <b>Clandestino</b> de tênis de mesa.
           <br />
-          Escaneie o QR code da edição ou acesse o link público para ingressar ou acompanhar ao
-          vivo.
+          Escaneie o QR code da edição ou acesse o link público fornecido pelo organizador para
+          ingressar ou acompanhar ao vivo. Caso não tenha o link/código, entre em contato com o
+          organizador.
         </p>
       </div>
 

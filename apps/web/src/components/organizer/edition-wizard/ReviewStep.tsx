@@ -50,7 +50,7 @@ export function ReviewStep({ draft, isOnline, isPublishing, onBack, onPublish }:
           <dd className="text-foreground">{draft.groupCount}</dd>
         </div>
         <div className="flex justify-between gap-4">
-          <dt className="text-subtle">Partidas da fase de grupos</dt>
+          <dt className="text-subtle">Quantidade de partidas da 1ª fase</dt>
           <dd className="text-foreground">{totalMatches}</dd>
         </div>
         <div className="flex justify-between gap-4">

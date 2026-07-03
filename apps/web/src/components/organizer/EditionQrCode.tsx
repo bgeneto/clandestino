@@ -3,7 +3,7 @@ import QRCode from 'qrcode';
 
 type EditionQrCodeProps = {
   url: string;
-  label?: string;
+  hint?: string;
   editionName: string;
 };
 
@@ -32,7 +32,7 @@ function WhatsAppShareButton({ url, editionName }: { url: string; editionName: s
   );
 }
 
-export function EditionQrCode({ url, label, editionName }: EditionQrCodeProps) {
+export function EditionQrCode({ url, hint, editionName }: EditionQrCodeProps) {
   const [dataUrl, setDataUrl] = useState<string | null>(null);
 
   useEffect(() => {
@@ -69,13 +69,12 @@ export function EditionQrCode({ url, label, editionName }: EditionQrCodeProps) {
           Gerando QR…
         </div>
       )}
-      {label ? (
-        <p className="mt-2 text-xs text-subtle">
-          <a href={url} className="underline hover:text-foreground">
-            {label}
-          </a>
-        </p>
-      ) : null}
+      {hint ? <p className="mt-2 text-xs text-subtle">{hint}</p> : null}
+      <p className="mt-1 text-xs">
+        <a href={url} className="break-all underline hover:text-foreground">
+          {url}
+        </a>
+      </p>
       <div className="mt-2 flex flex-wrap items-center justify-center gap-2">
         <WhatsAppShareButton url={url} editionName={editionName} />
       </div>

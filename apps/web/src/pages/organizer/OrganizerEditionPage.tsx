@@ -6,12 +6,11 @@ import { GroupsView } from '../../components/edition/GroupsView.js';
 import { MatchResultForm } from '../../components/edition/MatchResultForm.js';
 import { EditionTournamentOverview } from '../../components/organizer/EditionTournamentOverview.js';
 import { DrawAuditPanel } from '../../components/organizer/DrawAuditPanel.js';
-import { EditionQrCode } from '../../components/organizer/EditionQrCode.js';
+import { EditionAccessSection } from '../../components/organizer/EditionAccessSection.js';
 import {
   useChampionshipRoster,
   useContestedMatches,
   useDrawSnapshots,
-  useEditionQr,
   useEditionRegistrations,
   useFinalPlacements,
 } from '../../hooks/use-organizer-data.js';
@@ -40,6 +39,7 @@ import {
   withdrawPlayer,
 } from '../../lib/organizer-api.js';
 import { queryKeys } from '../../lib/query-keys.js';
+import { invalidateEditionQueries } from '../../lib/invalidate-edition-queries.js';
 import { purgeEditionLocalState } from '../../lib/purge-edition-state.js';
 import { notifyApiError } from '../../notifications/notify-api-error.js';
 import { useNotification } from '../../notifications/notification-context.js';
@@ -258,10 +258,6 @@ function DrawSection({ edition }: { edition: Edition }) {
     edition.id,
     edition.status !== 'RASCUNHO' && edition.status !== 'INSCRICOES_ABERTAS',
   );
-  const qrQuery = useEditionQr(
-    edition.id,
-    edition.status === 'SORTEIO_PUBLICADO' || edition.status === 'EM_ANDAMENTO',
-  );
   const matchesQuery = useEditionMatches(edition.id);
 
   const groupStageGroups = useMemo(
@@ -287,12 +283,7 @@ function DrawSection({ edition }: { edition: Edition }) {
     mutationFn: () => executeDraw(edition.id),
     onSuccess: async () => {
       notify.success('Sorteio executado com sucesso.');
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: queryKeys.groups(edition.id) }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.participants(edition.id) }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.drawSnapshots(edition.id) }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.edition(edition.id) }),
-      ]);
+      await invalidateEditionQueries(queryClient, edition.id);
     },
     onError: (error) => {
       notifyApiError(notify, error, 'Não foi possível executar o sorteio.');
@@ -303,11 +294,7 @@ function DrawSection({ edition }: { edition: Edition }) {
     mutationFn: () => cancelDraw(edition.id),
     onSuccess: async () => {
       notify.success('Sorteio cancelado. Você pode executar novamente.');
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: queryKeys.groups(edition.id) }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.drawSnapshots(edition.id) }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.edition(edition.id) }),
-      ]);
+      await invalidateEditionQueries(queryClient, edition.id);
     },
     onError: (error) => {
       notifyApiError(notify, error, 'Não foi possível cancelar o sorteio.');
@@ -318,10 +305,7 @@ function DrawSection({ edition }: { edition: Edition }) {
     mutationFn: () => generateMatches(edition.id),
     onSuccess: async () => {
       notify.success('Partidas geradas com sucesso.');
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: queryKeys.matches(edition.id) }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.edition(edition.id) }),
-      ]);
+      await invalidateEditionQueries(queryClient, edition.id);
     },
     onError: (error) => {
       notifyApiError(notify, error, 'Não foi possível gerar as partidas.');
@@ -355,19 +339,6 @@ function DrawSection({ edition }: { edition: Edition }) {
           <GroupsView groups={groupStageGroups} playerNames={playerNames} emptyVariant="draw" />
           {snapshotsQuery.data ? <DrawAuditPanel snapshots={snapshotsQuery.data} /> : null}
         </>
-      ) : null}
-
-      {qrQuery.data ? (
-        <div className="rounded-xl border border-line p-4">
-          <h4 className="mb-3 text-center text-sm font-bold uppercase text-subtle">
-            QR Code da edição
-          </h4>
-          <EditionQrCode
-            url={qrQuery.data.url}
-            label="Exiba para os jogadores entrarem ou compartilhe no WhatsApp"
-            editionName={edition.name}
-          />
-        </div>
       ) : null}
 
       {canGenerate ? (
@@ -796,6 +767,11 @@ export function OrganizerEditionPage() {
       />
 
       <RegistrationsSection edition={edition} />
+      <EditionAccessSection
+        editionId={edition.id}
+        editionName={edition.name}
+        editionStatus={edition.status}
+      />
       <EditionTournamentOverview edition={edition} />
       <DrawSection edition={edition} />
       <ContestsSection edition={edition} />

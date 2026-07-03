@@ -55,9 +55,11 @@ export function ParticipantList({ participants, onSelect }: ParticipantListProps
       </div>
 
       {filtered.length === 0 ? (
-        <p className="rounded-xl border border-warning-surface bg-warning-surface px-4 py-3 text-sm text-warning-foreground">
-          Nenhum jogador encontrado com &quot;{query}&quot;. Fale com o organizador.
-        </p>
+        query.trim() ? (
+          <p className="rounded-xl border border-warning-surface bg-warning-surface px-4 py-3 text-sm text-warning-foreground">
+            Nenhum jogador encontrado com &quot;{query}&quot;. Fale com o organizador.
+          </p>
+        ) : null
       ) : (
         <Alert variant="info">Não encontrou seu nome? Fale com o organizador.</Alert>
       )}

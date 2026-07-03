@@ -70,6 +70,10 @@ export function PlayerEntryPage() {
     );
   }
 
+  const participants = participantsQuery.data ?? [];
+  const isPreparing = edition.status === 'RASCUNHO' || edition.status === 'INSCRICOES_ABERTAS';
+  const hasNoParticipants = !participantsQuery.isLoading && participants.length === 0;
+
   return (
     <div className="space-y-4">
       <EditionHeader
@@ -77,11 +81,11 @@ export function PlayerEntryPage() {
         subtitle="✅ SELECIONE seu nome abaixo para participar do evento."
       />
 
-      {!participantsQuery.isLoading && !participantsQuery.isError && (
+      {!participantsQuery.isLoading && !participantsQuery.isError && !hasNoParticipants ? (
         <section className="rounded-xl border border-warning-surface bg-warning-surface px-4 py-3 text-sm text-warning-foreground">
           Clique ou busque seu nome abaixo para <b>entrar</b> nesta edição do torneio.
         </section>
-      )}
+      ) : null}
 
       {participantsQuery.isLoading ? (
         <p className="text-sm text-subtle">Carregando participantes…</p>
@@ -92,12 +96,20 @@ export function PlayerEntryPage() {
             Ver torneio em modo público
           </Link>
         </section>
+      ) : hasNoParticipants ? (
+        <section className="space-y-3 rounded-xl border border-warning-surface bg-warning-surface p-4 text-sm text-warning-foreground">
+          <p>
+            {isPreparing
+              ? 'O organizador ainda não confirmou participantes nesta edição. Volte mais tarde ou fale com o organizador.'
+              : 'Seu nome não está na lista desta edição. Fale com o organizador.'}
+          </p>
+          <Link to={`/edicao/${editionId}`} className="font-semibold text-foreground underline">
+            Ver torneio em modo público
+          </Link>
+        </section>
       ) : (
         <>
-          <ParticipantList
-            participants={participantsQuery.data ?? []}
-            onSelect={setPendingParticipant}
-          />
+          <ParticipantList participants={participants} onSelect={setPendingParticipant} />
           <Link
             to={`/edicao/${editionId}`}
             className="block text-center text-sm text-subtle underline"

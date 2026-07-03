@@ -16,17 +16,25 @@ import {
   upsertCheckedInPlayer,
 } from '../../offline/edition-wizard-draft.js';
 import { canPublishDraft, syncEditionWizardDraft } from '../../offline/sync-edition-wizard.js';
+import {
+  draftMissingServerRegistrations,
+  mergeDraftWithServerRegistrations,
+  syncWizardAddNewPlayer,
+  syncWizardCheckInToggle,
+} from '../../offline/sync-wizard-check-in.js';
 import { CheckInStep } from '../../components/organizer/edition-wizard/CheckInStep.js';
 import { DrawPreviewStep } from '../../components/organizer/edition-wizard/DrawPreviewStep.js';
 import { GroupsFormatStep } from '../../components/organizer/edition-wizard/GroupsFormatStep.js';
 import { ReviewStep } from '../../components/organizer/edition-wizard/ReviewStep.js';
 import { SeedsStep } from '../../components/organizer/edition-wizard/SeedsStep.js';
 import { WizardStepNav } from '../../components/organizer/edition-wizard/WizardStepNav.js';
+import { EditionAccessSection } from '../../components/organizer/EditionAccessSection.js';
 import { formatEditionDate } from '../../lib/format.js';
 import { Alert } from '../../components/ui/Alert.js';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog.js';
 import { deleteEdition } from '../../lib/organizer-api.js';
 import { queryKeys } from '../../lib/query-keys.js';
+import { invalidateEditionAfterPublish } from '../../lib/invalidate-edition-queries.js';
 import { purgeEditionLocalState } from '../../lib/purge-edition-state.js';
 import { createClientId } from '../../lib/create-client-id.js';
 import { notifyApiError } from '../../notifications/notify-api-error.js';
@@ -210,6 +218,30 @@ export function EditionPreparePage() {
     return saved;
   }, []);
 
+  useEffect(() => {
+    if (!draft?.editionId || !registrationsQuery.data || !rosterQuery.data) {
+      return;
+    }
+
+    if (!draftMissingServerRegistrations(draft, registrationsQuery.data)) {
+      return;
+    }
+
+    const rosterByPlayerId = new Map(
+      rosterQuery.data.map((entry) => [
+        entry.playerId,
+        { playerName: entry.playerName, accumulatedPoints: entry.accumulatedPoints },
+      ]),
+    );
+    const merged = mergeDraftWithServerRegistrations(
+      draft,
+      registrationsQuery.data,
+      rosterByPlayerId,
+    );
+
+    void persistDraft(merged);
+  }, [draft, registrationsQuery.data, rosterQuery.data, persistDraft]);
+
   const goToStep = useCallback(
     async (step: number) => {
       if (!draft) {
@@ -306,26 +338,74 @@ export function EditionPreparePage() {
         onCancel={() => setIsDeleteDialogOpen(false)}
       />
 
+      <EditionAccessSection
+        editionId={draft.editionId}
+        editionName={draft.predictedEditionName}
+        editionStatus={editionQuery.data?.status}
+        offlinePending={!isOnline && !draft.editionId}
+      />
+
       {draft.currentStep === 2 ? (
         <CheckInStep
           draft={draft}
           availablePlayers={availablePlayers}
           onTogglePlayer={(player) => {
-            const nextDraft = draft.checkedInPlayers.some(
-              (entry) => entry.playerId === player.playerId,
-            )
-              ? removeCheckedInPlayer(draft, player.playerId)
-              : upsertCheckedInPlayer(draft, player);
-            void persistDraft(nextDraft);
+            void (async () => {
+              const wasCheckedIn = draft.checkedInPlayers.some(
+                (entry) => entry.playerId === player.playerId,
+              );
+              const previousDraft = draft;
+              const nextDraft = wasCheckedIn
+                ? removeCheckedInPlayer(draft, player.playerId)
+                : upsertCheckedInPlayer(draft, player);
+
+              try {
+                const savedDraft = await persistDraft(nextDraft);
+                if (isOnline && draft.editionId) {
+                  const syncedDraft = await syncWizardCheckInToggle({
+                    draft: savedDraft,
+                    player,
+                    checkingIn: !wasCheckedIn,
+                    queryClient,
+                  });
+                  await persistDraft(syncedDraft);
+                }
+              } catch (error) {
+                await persistDraft(previousDraft);
+                notifyApiError(
+                  notify,
+                  error,
+                  'Não foi possível sincronizar o check-in com o servidor.',
+                );
+              }
+            })();
           }}
           onAddNewPlayer={(name) => {
-            const player: WizardDraftPlayer = {
-              playerId: createLocalPlayerId(name),
-              playerName: name,
-              accumulatedPoints: 0,
-              isNew: true,
-            };
-            void persistDraft(upsertCheckedInPlayer(draft, player));
+            void (async () => {
+              const player: WizardDraftPlayer = {
+                playerId: createLocalPlayerId(name),
+                playerName: name,
+                accumulatedPoints: 0,
+                isNew: true,
+              };
+              const previousDraft = draft;
+              const nextDraft = upsertCheckedInPlayer(draft, player);
+
+              try {
+                const savedDraft = await persistDraft(nextDraft);
+                if (isOnline && draft.editionId) {
+                  const syncedDraft = await syncWizardAddNewPlayer({
+                    draft: savedDraft,
+                    player,
+                    queryClient,
+                  });
+                  await persistDraft(syncedDraft);
+                }
+              } catch (error) {
+                await persistDraft(previousDraft);
+                notifyApiError(notify, error, 'Não foi possível adicionar o jogador no servidor.');
+              }
+            })();
           }}
           onContinue={() => void goToStep(3)}
         />
@@ -398,6 +478,7 @@ export function EditionPreparePage() {
             setIsPublishing(false);
 
             if (result.status === 'synced') {
+              await invalidateEditionAfterPublish(queryClient, result.editionId);
               void navigate(`/organizador/edicao/${result.editionId}`);
               return;
             }

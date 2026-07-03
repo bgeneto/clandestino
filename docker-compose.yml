@@ -12,7 +12,7 @@ services:
       API_HOST: 0.0.0.0
       API_PORT: '3000'
       NODE_ENV: production
-      PUBLIC_APP_URL: http://localhost:5173
+      PUBLIC_APP_URL: ${PUBLIC_APP_URL:-http://localhost:5173}
       ORGANIZER_ALLOWED_EMAILS: ${ORGANIZER_ALLOWED_EMAILS:-organizador@gmail.com}
       EMAIL_FROM: ${EMAIL_FROM:-admin@sistema.pro.br}
       EMAIL_FROM_NAME: ${EMAIL_FROM_NAME:-Clandestino - Tênis de Mesa}

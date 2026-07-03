@@ -61,7 +61,7 @@ export function OrganizerLayout() {
           onClick={() => void clearSession()}
           className="w-full rounded-lg border border-line px-4 py-2 text-sm text-muted transition-colors group-hover/footer:bg-card-muted hover:dark:bg-[#1e293b]"
         >
-          Sair ⮊
+          Sair
         </button>
       </footer>
     </div>

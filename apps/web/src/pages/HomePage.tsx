@@ -64,7 +64,7 @@ export function HomePage() {
               onClick={() => void clearSession()}
               className="rounded-lg border border-line px-4 py-2 text-muted"
             >
-              Sair ⮊
+              Sair
             </button>
           </div>
         </div>

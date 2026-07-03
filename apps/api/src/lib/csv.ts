@@ -75,9 +75,7 @@ export function parseImportScoresCsv(content: string): ParsedCsvRow[] {
     const normalizedName = playerName;
     const previousLine = seenPlayers.get(normalizedName);
     if (previousLine !== undefined) {
-      throw badRequest(
-        `Linha ${lineNumber}: jogador "${playerName}" já aparece na linha ${previousLine}.`,
-      );
+      continue;
     }
 
     seenPlayers.set(normalizedName, lineNumber);

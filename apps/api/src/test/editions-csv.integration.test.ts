@@ -395,6 +395,35 @@ describe.skipIf(!hasTestDb)('jogadores, campeonatos e importação CSV (integra�
     expect(points.map((row) => Number(row.accumulated_points))).toEqual([3947, 135]);
   });
 
+  it('ignora jogadores duplicados no mesmo CSV mantendo a primeira pontuação', async () => {
+    const championshipId = await createChampionship('Campeonato CSV Duplicado');
+    await createPlayer('ANA SOUZA');
+
+    const csv = 'player_name,accumulated_points\nAna Souza,120\nana souza,999\nBruno Lima,80\n';
+    const response = await app.inject({
+      method: 'POST',
+      url: `/championships/${championshipId}/import-scores`,
+      headers: { ...organizerHeaders(organizerToken), 'content-type': 'text/csv' },
+      payload: csv,
+    });
+
+    expect(response.statusCode).toBe(200);
+    const body = response.json<{
+      importedCount: number;
+      createdPlayersCount: number;
+      skippedExistingCount: number;
+    }>();
+    expect(body.importedCount).toBe(2);
+    expect(body.createdPlayersCount).toBe(1);
+    expect(body.skippedExistingCount).toBe(0);
+
+    const points = await adminQuery(
+      `SELECT accumulated_points FROM championship_player_points WHERE championship_id = ? ORDER BY accumulated_points DESC`,
+      [championshipId],
+    );
+    expect(points.map((row) => Number(row.accumulated_points))).toEqual([120, 80]);
+  });
+
   it('cadastra jogadores ausentes automaticamente durante a importação', async () => {
     const championshipId = await createChampionship('Campeonato CSV Auto');
     await createPlayer('Ana Souza');

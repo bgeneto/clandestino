@@ -35,20 +35,20 @@ Ana Souza,10`);
     expect(rows).toEqual([{ playerName: 'ANA SOUZA', accumulatedPoints: 10, lineNumber: 2 }]);
   });
 
-  it('rejects duplicate player names', () => {
-    expect(() =>
-      parseImportScoresCsv(`player_name,accumulated_points
+  it('ignores duplicate player names after the first occurrence', () => {
+    const rows = parseImportScoresCsv(`player_name,accumulated_points
 Ana Souza,10
-Ana Souza,20`),
-    ).toThrow(/linha 3/i);
+Ana Souza,20`);
+
+    expect(rows).toEqual([{ playerName: 'ANA SOUZA', accumulatedPoints: 10, lineNumber: 2 }]);
   });
 
-  it('rejects duplicate player names regardless of casing', () => {
-    expect(() =>
-      parseImportScoresCsv(`player_name,accumulated_points
+  it('ignores duplicate player names regardless of casing', () => {
+    const rows = parseImportScoresCsv(`player_name,accumulated_points
 Ana Souza,10
-ana souza,20`),
-    ).toThrow(/linha 3/i);
+ana souza,20`);
+
+    expect(rows).toEqual([{ playerName: 'ANA SOUZA', accumulatedPoints: 10, lineNumber: 2 }]);
   });
 
   it('rejects headers without required columns', () => {

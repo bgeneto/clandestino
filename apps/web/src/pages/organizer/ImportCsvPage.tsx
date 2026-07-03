@@ -48,15 +48,23 @@ function parseCsvLine(line: string): string[] {
   return fields;
 }
 
-function parseCsvPreview(content: string): { rows: ImportScoresCsvRow[]; errors: string[] } {
+function parseCsvPreview(content: string): {
+  rows: ImportScoresCsvRow[];
+  errors: string[];
+  warnings: string[];
+} {
   const normalized = content.replace(/^\uFEFF/, '').trim();
   if (!normalized) {
-    return { rows: [], errors: [] };
+    return { rows: [], errors: [], warnings: [] };
   }
 
   const lines = normalized.split(/\r?\n/).filter((line) => line.trim().length > 0);
   if (lines.length < 2) {
-    return { rows: [], errors: ['O CSV deve conter cabeçalho e ao menos uma linha de dados.'] };
+    return {
+      rows: [],
+      errors: ['O CSV deve conter cabeçalho e ao menos uma linha de dados.'],
+      warnings: [],
+    };
   }
 
   const headerLine = lines[0] ?? '';
@@ -73,11 +81,13 @@ function parseCsvPreview(content: string): { rows: ImportScoresCsvRow[]; errors:
           ? error.message
           : `Cabeçalho inválido. Use: ${IMPORT_SCORES_CSV_FORMAT_HINT}`,
       ],
+      warnings: [],
     };
   }
 
   const rows: ImportScoresCsvRow[] = [];
   const errors: string[] = [];
+  const warnings: string[] = [];
   const seenPlayers = new Map<string, number>();
 
   for (let index = 1; index < lines.length; index++) {
@@ -105,7 +115,7 @@ function parseCsvPreview(content: string): { rows: ImportScoresCsvRow[]; errors:
 
     const previousLine = seenPlayers.get(nameValidation.name);
     if (previousLine !== undefined) {
-      errors.push(
+      warnings.push(
         `Linha ${lineNumber}: jogador "${nameValidation.name}" já aparece na linha ${previousLine}.`,
       );
       continue;
@@ -115,7 +125,7 @@ function parseCsvPreview(content: string): { rows: ImportScoresCsvRow[]; errors:
     rows.push({ playerName: nameValidation.name, accumulatedPoints: points });
   }
 
-  return { rows, errors };
+  return { rows, errors, warnings };
 }
 
 export function ImportCsvPage() {
@@ -250,8 +260,16 @@ export function ImportCsvPage() {
           </label>
 
           {preview.errors.length > 0 ? (
-            <div className="rounded-lg border border-warning-surface bg-warning-surface px-3 py-2 text-sm text-warning-foreground">
+            <div className="rounded-lg border border-danger-surface bg-danger-surface px-3 py-2 text-sm text-danger-foreground">
               {preview.errors.map((entry) => (
+                <p key={entry}>{entry}</p>
+              ))}
+            </div>
+          ) : null}
+
+          {preview.warnings.length > 0 ? (
+            <div className="rounded-lg border border-warning-surface bg-warning-surface px-3 py-2 text-sm text-warning-foreground">
+              {preview.warnings.map((entry) => (
                 <p key={entry}>{entry}</p>
               ))}
             </div>

@@ -1,10 +1,10 @@
 import { useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import type { ContestedMatch, Edition, Match } from '@clandestino/shared-contracts';
+import type { Edition } from '@clandestino/shared-contracts';
 import { GroupsView } from '../../components/edition/GroupsView.js';
-import { MatchResultForm } from '../../components/edition/MatchResultForm.js';
 import { EditionTournamentOverview } from '../../components/organizer/EditionTournamentOverview.js';
+import { OrganizerOfficializeMatchCard } from '../../components/organizer/OrganizerOfficializeMatchCard.js';
 import { DrawAuditPanel } from '../../components/organizer/DrawAuditPanel.js';
 import { EditionQrCode } from '../../components/organizer/EditionQrCode.js';
 import {
@@ -23,12 +23,22 @@ import { useEdition } from '../../hooks/use-edition.js';
 import { Alert } from '../../components/ui/Alert.js';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog.js';
 import { useEditionSse } from '../../hooks/use-edition-sse.js';
-import { getDrawReadinessWarning } from '../../lib/draw-utils.js';
+import { useEditionWizardDraft } from '../../hooks/use-edition-wizard-draft.js';
+import { buildDrawPlanFromDraft } from '../../offline/sync-wizard-draw-plan.js';
+import {
+  canExecuteExplicitDraw,
+  getDrawReadinessWarning,
+  resolveEffectiveDrawPlan,
+} from '../../lib/draw-utils.js';
 import { isPlayerShuffleEnabled } from '../../lib/feature-flags.js';
-import { formatEditionStatus, formatEditionTitle, formatMatchScore } from '../../lib/format.js';
+import { formatEditionStatus, formatEditionTitle } from '../../lib/format.js';
+import {
+  getEditionFinalizeBlockers,
+  getPendingMatches,
+  shouldShowFinalizeSection,
+} from '../../lib/edition-progress.js';
 import {
   cancelDraw,
-  correctMatchResult,
   deleteEdition,
   executeDraw,
   finalizeEdition,
@@ -44,14 +54,6 @@ import { buildEditionEntryUrl } from '../../lib/edition-entry-url.js';
 import { purgeEditionLocalState } from '../../lib/purge-edition-state.js';
 import { notifyApiError } from '../../notifications/notify-api-error.js';
 import { useNotification } from '../../notifications/notification-context.js';
-
-function getPlayerOneId(match: Match): string {
-  return match.participants[0]?.playerId ?? '';
-}
-
-function getPlayerTwoId(match: Match): string {
-  return match.participants[1]?.playerId ?? '';
-}
 
 function RegistrationsSection({ edition }: { edition: Edition }) {
   const queryClient = useQueryClient();
@@ -252,6 +254,7 @@ function RegistrationsSection({ edition }: { edition: Edition }) {
 function DrawSection({ edition }: { edition: Edition }) {
   const queryClient = useQueryClient();
   const notify = useNotification();
+  const wizardDraft = useEditionWizardDraft(edition.id);
   const registrationsQuery = useEditionRegistrations(edition.id);
   const groupsQuery = useEditionGroups(edition.id);
   const participantsQuery = useEditionParticipants(edition.id);
@@ -266,8 +269,18 @@ function DrawSection({ edition }: { edition: Edition }) {
     [groupsQuery.data],
   );
 
+  const effectiveDrawPlan = useMemo(
+    () =>
+      resolveEffectiveDrawPlan(
+        edition.drawPlan,
+        wizardDraft ? buildDrawPlanFromDraft(wizardDraft) : null,
+      ),
+    [edition.drawPlan, wizardDraft],
+  );
+
   const playerCount = registrationsQuery.data?.length ?? 0;
-  const drawWarning = getDrawReadinessWarning(playerCount, edition.rules);
+  const drawWarning = getDrawReadinessWarning(playerCount, edition.rules, effectiveDrawPlan);
+  const canExecuteExplicit = canExecuteExplicitDraw(effectiveDrawPlan);
   const hasDraw = (groupsQuery.data?.groups.length ?? 0) > 0;
   const hasMatches = (matchesQuery.data?.length ?? 0) > 0;
   const isDrawCollapsed = edition.status === 'FASE_COLOCACAO' || edition.status === 'ENCERRADA';
@@ -281,7 +294,17 @@ function DrawSection({ edition }: { edition: Edition }) {
   }, [participantsQuery.data]);
 
   const drawMutation = useMutation({
-    mutationFn: () => executeDraw(edition.id),
+    mutationFn: () => {
+      if (canExecuteExplicit && effectiveDrawPlan) {
+        return executeDraw(edition.id, {
+          groupCount: effectiveDrawPlan.groupCount,
+          groupSizes: effectiveDrawPlan.groupSizes,
+          seedPlayerIds: effectiveDrawPlan.seedPlayerIds,
+        });
+      }
+
+      return executeDraw(edition.id);
+    },
     onSuccess: async () => {
       notify.success('Sorteio executado com sucesso.');
       await invalidateEditionQueries(queryClient, edition.id);
@@ -388,97 +411,6 @@ function DrawSection({ edition }: { edition: Edition }) {
   );
 }
 
-function ContestCorrectionCard({
-  contest,
-  playerNames,
-  editionId,
-}: {
-  contest: ContestedMatch;
-  playerNames: Map<string, string>;
-  editionId: string;
-}) {
-  const queryClient = useQueryClient();
-  const notify = useNotification();
-  const match = contest.match;
-  const playerOneId = getPlayerOneId(match);
-  const playerTwoId = getPlayerTwoId(match);
-  const [confirmedOfficial, setConfirmedOfficial] = useState(false);
-
-  const correctMutation = useMutation({
-    mutationFn: (
-      payload: import('../../components/edition/MatchResultForm.js').MatchResultSubmitPayload,
-    ) => {
-      if (payload.outcome === 'WALKOVER') {
-        return correctMatchResult(match.id, {
-          outcome: 'WALKOVER',
-          absentPlayerId: payload.absentPlayerId,
-        });
-      }
-
-      return correctMatchResult(match.id, {
-        outcome: 'PLAYED',
-        setsWonByPlayerOne: payload.setsWonByReporter,
-        setsWonByPlayerTwo: payload.setsWonByOpponent,
-      });
-    },
-    onSuccess: async () => {
-      notify.success('Resultado corrigido e oficializado. A classificação foi atualizada.');
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: queryKeys.contestedMatches(editionId) }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.matches(editionId) }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.standings(editionId) }),
-      ]);
-    },
-    onError: (error) => {
-      notifyApiError(notify, error, 'Não foi possível corrigir o placar.');
-    },
-  });
-
-  return (
-    <article className="rounded-lg border border-rose-200 bg-rose-50/50 p-4">
-      <p className="text-sm font-semibold text-foreground">
-        {playerNames.get(playerOneId) ?? 'Jogador 1'} vs{' '}
-        {playerNames.get(playerTwoId) ?? 'Jogador 2'}
-      </p>
-      <p className="mt-1 text-xs text-subtle">
-        Placar contestado: {formatMatchScore(match.participants, playerOneId, playerTwoId)}
-      </p>
-      {contest.contestReason ? (
-        <p className="mt-2 text-sm text-muted">
-          <span className="font-medium">Motivo:</span> {contest.contestReason}
-        </p>
-      ) : null}
-
-      <div className="mt-4">
-        <MatchResultForm
-          organizerMode
-          playerOneId={playerOneId}
-          playerTwoId={playerTwoId}
-          playerOneLabel={playerNames.get(playerOneId) ?? 'Jogador 1'}
-          playerTwoLabel={playerNames.get(playerTwoId) ?? 'Jogador 2'}
-          reporterLabel={playerNames.get(playerOneId) ?? 'Jogador 1'}
-          opponentLabel={playerNames.get(playerTwoId) ?? 'Jogador 2'}
-          opponentId={playerTwoId}
-          disabled={!confirmedOfficial}
-          pending={correctMutation.isPending}
-          submitLabel="Oficializar resultado corrigido"
-          onSubmit={(payload) => void correctMutation.mutateAsync(payload)}
-        />
-      </div>
-
-      <label className="mt-4 flex items-start gap-2 text-sm text-muted">
-        <input
-          type="checkbox"
-          checked={confirmedOfficial}
-          onChange={(event) => setConfirmedOfficial(event.target.checked)}
-          className="mt-1"
-        />
-        <span>Confirmo que o resultado corrigido é oficial e substitui o placar contestado.</span>
-      </label>
-    </article>
-  );
-}
-
 function ContestsSection({ edition }: { edition: Edition }) {
   const contestsQuery = useContestedMatches(edition.id);
   const participantsQuery = useEditionParticipants(edition.id);
@@ -501,11 +433,55 @@ function ContestsSection({ edition }: { edition: Edition }) {
       <h3 className="text-sm font-bold uppercase tracking-wide text-subtle">Contestações</h3>
       <div className="space-y-4">
         {contests.map((contest) => (
-          <ContestCorrectionCard
+          <OrganizerOfficializeMatchCard
             key={contest.match.id}
-            contest={contest}
+            match={contest.match}
             playerNames={playerNames}
             editionId={edition.id}
+            variant="contested"
+            contestReason={contest.contestReason}
+          />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function PendingMatchesSection({ edition }: { edition: Edition }) {
+  const matchesQuery = useEditionMatches(edition.id);
+  const participantsQuery = useEditionParticipants(edition.id);
+
+  const playerNames = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const participant of participantsQuery.data ?? []) {
+      map.set(participant.playerId, participant.playerName);
+    }
+    return map;
+  }, [participantsQuery.data]);
+
+  const pendingMatches = useMemo(
+    () => getPendingMatches(matchesQuery.data ?? []),
+    [matchesQuery.data],
+  );
+
+  if (pendingMatches.length === 0) {
+    return null;
+  }
+
+  return (
+    <section className="space-y-4 rounded-xl bg-card p-4 shadow-sm">
+      <h3 className="text-sm font-bold uppercase tracking-wide text-subtle">Partidas pendentes</h3>
+      <p className="text-sm text-muted">
+        Registre oficialmente o resultado das partidas sem placar confirmado.
+      </p>
+      <div className="space-y-4">
+        {pendingMatches.map((match) => (
+          <OrganizerOfficializeMatchCard
+            key={match.id}
+            match={match}
+            playerNames={playerNames}
+            editionId={edition.id}
+            variant="pending"
           />
         ))}
       </div>
@@ -576,12 +552,23 @@ function FinalizeSection({ edition }: { edition: Edition }) {
   const queryClient = useQueryClient();
   const notify = useNotification();
   const groupsQuery = useEditionGroups(edition.id);
+  const matchesQuery = useEditionMatches(edition.id);
   const participantsQuery = useEditionParticipants(edition.id);
   const finalPlacementsQuery = useFinalPlacements(edition.id, edition.status === 'ENCERRADA');
 
+  const groups = groupsQuery.data?.groups ?? [];
+  const matches = matchesQuery.data ?? [];
+
   const hasPlacementGroups =
     edition.status === 'FASE_COLOCACAO' &&
-    (groupsQuery.data?.groups ?? []).some((entry) => entry.group.phase === 'PLACEMENT_STAGE');
+    groups.some((entry) => entry.group.phase === 'PLACEMENT_STAGE');
+
+  const finalizeBlockers = useMemo(
+    () => getEditionFinalizeBlockers(edition, matches, groups),
+    [edition, matches, groups],
+  );
+
+  const canFinalize = finalizeBlockers.length === 0;
 
   const playerNames = useMemo(() => {
     const map = new Map<string, string>();
@@ -649,6 +636,10 @@ function FinalizeSection({ edition }: { edition: Edition }) {
     return null;
   }
 
+  if (!shouldShowFinalizeSection(edition.status)) {
+    return null;
+  }
+
   return (
     <section className="space-y-4 rounded-xl bg-card p-4 shadow-sm">
       <h3 className="text-sm font-bold uppercase tracking-wide text-subtle">Encerramento</h3>
@@ -657,9 +648,10 @@ function FinalizeSection({ edition }: { edition: Edition }) {
           ? 'Fase de grupos concluída. Não há disputas de colocação — as posições finais já estão definidas pela classificação dos grupos. Encerre a edição para registrar a classificação final e atribuir pontos aos jogadores.'
           : 'Encerre a edição para registrar a classificação final das partidas e atribuir pontos aos jogadores.'}
       </p>
+      {!canFinalize ? <p className="text-sm text-amber-700">{finalizeBlockers[0]}</p> : null}
       <button
         type="button"
-        disabled={finalizeMutation.isPending}
+        disabled={finalizeMutation.isPending || !canFinalize}
         onClick={() => void finalizeMutation.mutateAsync()}
         className="w-full rounded-lg bg-brand px-4 py-3 text-sm font-semibold text-white disabled:opacity-50"
       >
@@ -800,6 +792,7 @@ export function OrganizerEditionPage() {
       <EditionTournamentOverview edition={edition} />
       <DrawSection edition={edition} />
       <ContestsSection edition={edition} />
+      <PendingMatchesSection edition={edition} />
       <PlacementSection edition={edition} />
       <FinalizeSection edition={edition} />
     </div>

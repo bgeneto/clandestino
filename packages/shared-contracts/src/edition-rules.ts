@@ -50,10 +50,10 @@ export const DEFAULT_GROUP_RANKING_CRITERIA: RankingCriterion[] = [
 ];
 
 export const DEFAULT_EDITION_RULES: EditionRules = {
-  minimumGroupSize: 4,
-  preferredGroupSize: 5,
-  maximumGroupSize: 6,
-  protectedSeedCount: 3,
+  minimumGroupSize: 3,
+  preferredGroupSize: 4,
+  maximumGroupSize: 5,
+  protectedSeedCount: 0,
   seedingMethod: 'fixed-heads',
   groupRankingCriteria: DEFAULT_GROUP_RANKING_CRITERIA,
   placementStageFormat: 'round-robin',

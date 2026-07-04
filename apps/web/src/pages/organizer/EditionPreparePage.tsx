@@ -24,6 +24,7 @@ import {
   mergeDraftWithServerRegistrations,
   scheduleWizardCheckInSync,
 } from '../../offline/sync-wizard-check-in.js';
+import { syncWizardDrawPlan } from '../../offline/sync-wizard-draw-plan.js';
 import {
   applyDraftMutation,
   invalidateStaleDrawPreview,
@@ -385,7 +386,28 @@ export function EditionPreparePage() {
             void persistDraft(applyDraftMutation(draft, patch));
           }}
           onBack={() => void goToStep(2)}
-          onContinue={() => void goToStep(4)}
+          onContinue={(config) => {
+            void (async () => {
+              const current = draftRef.current ?? draft;
+              const withGroups = applyDraftMutation(current, config);
+              await persistDraft(withGroups);
+
+              if (isOnline && withGroups.editionId) {
+                try {
+                  await syncWizardDrawPlan(withGroups, queryClient);
+                } catch (error) {
+                  notifyApiError(
+                    notify,
+                    error,
+                    'Não foi possível salvar a configuração de grupos.',
+                  );
+                  return;
+                }
+              }
+
+              await goToStep(4);
+            })();
+          }}
         />
       ) : null}
 
@@ -398,11 +420,19 @@ export function EditionPreparePage() {
           onBack={() => void goToStep(3)}
           onContinue={async (seedPlayerIds) => {
             const draftWithSeeds = applyDraftMutation(draft, { seedPlayerIds });
-            if (needsNewDrawPreview(draftWithSeeds)) {
-              await runDrawPreview(draftWithSeeds, createRandomSeed());
-            } else {
-              await persistDraft(draftWithSeeds);
+            const savedDraft = needsNewDrawPreview(draftWithSeeds)
+              ? await runDrawPreview(draftWithSeeds, createRandomSeed())
+              : await persistDraft(draftWithSeeds);
+
+            if (isOnline && savedDraft.editionId) {
+              try {
+                await syncWizardDrawPlan(savedDraft, queryClient);
+              } catch (error) {
+                notifyApiError(notify, error, 'Não foi possível salvar os seeds.');
+                return;
+              }
             }
+
             await goToStep(5);
           }}
         />

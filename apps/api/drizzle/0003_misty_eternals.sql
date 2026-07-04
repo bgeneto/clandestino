@@ -1,0 +1,2 @@
+ALTER TABLE `edition` ADD `draw_plan` text;--> statement-breakpoint
+UPDATE `edition` SET `rules` = '{"minimumGroupSize":3,"preferredGroupSize":4,"maximumGroupSize":5,"protectedSeedCount":0,"seedingMethod":"fixed-heads","groupRankingCriteria":["SETS_WON","SET_DIFF","MATCHES_WON"],"placementStageFormat":"round-robin"}' WHERE `status` IN ('RASCUNHO', 'INSCRICOES_ABERTAS') AND `id` NOT IN (SELECT DISTINCT `edition_id` FROM `draw_snapshot`);

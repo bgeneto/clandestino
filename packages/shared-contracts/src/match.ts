@@ -19,6 +19,11 @@ export const MatchStatusSchema = Type.Union(
 
 export type MatchStatus = Static<typeof MatchStatusSchema>;
 
+/** Mirrors isGroupStageComplete — a match is settled for edition close purposes. */
+export function isMatchResolvedForEditionClose(status: MatchStatus): boolean {
+  return status === 'CONFIRMADA' || status === 'CANCELADA';
+}
+
 export const MatchParticipantSchema = Type.Object(
   {
     playerId: UuidSchema,

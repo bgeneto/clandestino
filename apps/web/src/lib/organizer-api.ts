@@ -30,6 +30,7 @@ import type {
   RequestOrganizerMagicLinkBody,
   RequestOrganizerMagicLinkResponse,
   UnarchiveChampionshipResponse,
+  UpdateEditionBody,
   UpdateScoringTableBody,
   VerifyOrganizerMagicLinkBody,
   WithdrawPlayerResponse,
@@ -157,6 +158,14 @@ export async function deleteEdition(editionId: string): Promise<DeleteEditionRes
   });
 }
 
+export async function updateEdition(editionId: string, body: UpdateEditionBody): Promise<Edition> {
+  return apiRequest<Edition>(`/editions/${editionId}`, {
+    method: 'PATCH',
+    body,
+    ...organizer,
+  });
+}
+
 export async function fetchEditionRegistrations(
   editionId: string,
 ): Promise<EditionRegistrationsResponse> {
@@ -226,7 +235,7 @@ export async function fetchContestedMatches(
   return apiRequest<EditionContestedMatchesResponse>(`/editions/${editionId}/contested-matches`);
 }
 
-export async function correctMatchResult(
+export async function officializeMatchResult(
   matchId: string,
   body: CorrectMatchResultBody,
 ): Promise<void> {
@@ -236,6 +245,9 @@ export async function correctMatchResult(
     ...organizer,
   });
 }
+
+/** @deprecated Use officializeMatchResult */
+export const correctMatchResult = officializeMatchResult;
 
 export async function publishPlacementStage(editionId: string): Promise<PublishPlacementResponse> {
   return apiRequest<PublishPlacementResponse>(`/editions/${editionId}/placement/publish`, {

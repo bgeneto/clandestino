@@ -179,14 +179,15 @@ Ordem de dependência: `shared-contracts` → `tournament-engine` → `api` / `w
 
 ## Regras de negócio críticas
 
-| Tópico           | Regra                                                                                               |
-| ---------------- | --------------------------------------------------------------------------------------------------- |
-| Desempate        | sets ganhos → saldo de sets → partidas vencidas                                                     |
-| Seeds            | exatamente 1 por grupo; do ranking atual                                                            |
-| Confirmação      | adversário confirma; contestação → organizador                                                      |
-| Auto-confirmação | job no Fastify (`setInterval`), configurável por edição                                             |
-| Match status     | `AGENDADA \| AGUARDANDO_CONFIRMACAO \| CONFIRMADA \| CONTESTADA \| CORRIGIDA \| CANCELADA`          |
-| Integridade DB   | um jogador por grupo/edição; sem partida duplicada na mesma fase; sem classificação final duplicada |
+| Tópico           | Regra                                                                                                                                          |
+| ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| Desempate        | sets ganhos → saldo de sets → partidas vencidas                                                                                                |
+| Seeds            | exatamente 1 por grupo; do ranking atual                                                                                                       |
+| Confirmação      | adversário confirma; contestação → organizador; organizador pode oficializar `AGENDADA`/`AGUARDANDO_CONFIRMACAO` via `PUT /matches/:id/result` |
+| Encerrar edição  | só quando todas as partidas estão `CONFIRMADA` ou `CANCELADA` (e colocação publicada, se houver bands)                                         |
+| Auto-confirmação | job no Fastify (`setInterval`), configurável por edição                                                                                        |
+| Match status     | `AGENDADA \| AGUARDANDO_CONFIRMACAO \| CONFIRMADA \| CONTESTADA \| CORRIGIDA \| CANCELADA`                                                     |
+| Integridade DB   | um jogador por grupo/edição; sem partida duplicada na mesma fase; sem classificação final duplicada                                            |
 
 ## O que **não** fazer
 

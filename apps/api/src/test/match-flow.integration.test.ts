@@ -253,4 +253,73 @@ describe.skipIf(!hasTestDb)('fluxo de partidas e autorização (integração HTT
       );
     }
   });
+
+  it('bloqueia encerramento com partidas AGENDADA', async () => {
+    const { editionId } = await setupTournament();
+
+    const finalize = await org('POST', `/editions/${editionId}/finalize`);
+    expect(finalize.statusCode).toBe(409);
+    expect(finalize.json<{ error: string }>().error).toContain('sem resultado confirmado');
+  });
+
+  it('bloqueia encerramento em SORTEIO_PUBLICADO sem partidas geradas', async () => {
+    const championshipId = (
+      await org('POST', '/championships', { name: `Campeonato ${Date.now()}` })
+    ).json<{ id: string }>().id;
+
+    const playerNames = ['Ana', 'Bruno', 'Carla', 'Daniel'];
+    const playerIds: string[] = [];
+    for (const name of playerNames) {
+      const created = await org('POST', '/players', { name });
+      playerIds.push(created.json<{ id: string }>().id);
+    }
+
+    const edition = await org('POST', '/editions', {
+      championshipId,
+      date: '2026-07-04',
+      rules: FLOW_RULES,
+    });
+    const editionId = getCreatedEditionId(edition.json());
+
+    for (const playerId of playerIds) {
+      const reg = await org('POST', `/editions/${editionId}/registrations`, { playerId });
+      expect(reg.statusCode).toBe(201);
+    }
+
+    const draw = await org('POST', `/editions/${editionId}/draw`, {
+      randomSeed: 'integration-seed',
+    });
+    expect(draw.statusCode).toBe(201);
+
+    const finalize = await org('POST', `/editions/${editionId}/finalize`);
+    expect(finalize.statusCode).toBe(409);
+    expect(finalize.json<{ error: string }>().error).toContain('Gere as partidas');
+  });
+
+  it('permite organizador oficializar partida AGENDADA e avançar fase', async () => {
+    const { editionId, matches } = await setupTournament();
+
+    for (const match of matches) {
+      const [playerOneId, playerTwoId] = participants(match);
+      const officialize = await app.inject({
+        method: 'PUT',
+        url: `/matches/${match.id}/result`,
+        headers: organizerHeaders(organizerToken),
+        payload: {
+          setsWonByPlayerOne: 2,
+          setsWonByPlayerTwo: 0,
+        },
+      });
+      expect(officialize.statusCode).toBe(200);
+      expect(officialize.json<{ match: Match }>().match.status).toBe('CONFIRMADA');
+      void playerOneId;
+      void playerTwoId;
+    }
+
+    const edition = await org('GET', `/editions/${editionId}`);
+    expect(edition.json<{ status: string }>().status).toBe('FASE_COLOCACAO');
+
+    const finalize = await org('POST', `/editions/${editionId}/finalize`);
+    expect(finalize.statusCode).toBe(200);
+  });
 });

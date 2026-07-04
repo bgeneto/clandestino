@@ -49,10 +49,10 @@ describe('chooseGroupConfiguration', () => {
     );
   });
 
-  it('prefers 5-player groups for 15 participants', () => {
+  it('prefers groups near preferred size for 15 participants', () => {
     const config = chooseGroupConfiguration(15, rules);
-    expect(config.groupCount).toBe(3);
-    expect(config.groupSizes).toEqual([5, 5, 5]);
+    expect(config.groupCount).toBe(4);
+    expect(config.groupSizes).toEqual([4, 4, 4, 3]);
   });
 });
 

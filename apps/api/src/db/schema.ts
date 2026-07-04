@@ -13,6 +13,7 @@ import {
 import {
   DEFAULT_SCORING_TABLE,
   DEFAULT_TOURNAMENT_RULES,
+  type EditionDrawPlan,
   type EditionRules,
   type MatchOutcome,
   type MatchStatus,
@@ -95,6 +96,7 @@ export const editions = sqliteTable(
       .$type<EditionRules>()
       .notNull()
       .default(DEFAULT_TOURNAMENT_RULES),
+    drawPlan: text('draw_plan', { mode: 'json' }).$type<EditionDrawPlan | null>(),
     status: text('status', { enum: EDITION_STATUSES }).notNull().default('RASCUNHO'),
     autoConfirmMinutes: integer('auto_confirm_minutes').notNull().default(15),
     createdAt,

@@ -1,4 +1,10 @@
-import type { EditionRules, MatchOutcome, MatchStatus } from '@clandestino/shared-contracts';
+import type {
+  EditionRules,
+  EditionStatus,
+  MatchOutcome,
+  MatchStatus,
+} from '@clandestino/shared-contracts';
+import { isMatchResolvedForEditionClose } from '@clandestino/shared-contracts';
 import {
   COUNTED_MATCH_STATUSES,
   attachScoringPoints,
@@ -119,7 +125,8 @@ export async function loadMatch(db: DbExecutor, matchId: string): Promise<Loaded
   return { match, participants };
 }
 
-export type ConfirmAuditEventType = 'MATCH_CONFIRMED' | 'MATCH_CORRECTED' | 'AUTO_CONFIRMED';
+export type ConfirmAuditEventType =
+  'MATCH_CONFIRMED' | 'MATCH_CORRECTED' | 'MATCH_ORGANIZER_RECORDED' | 'AUTO_CONFIRMED';
 
 export interface ConfirmedMatchResult {
   match: ReturnType<typeof mapMatch>;
@@ -134,6 +141,7 @@ export interface ConfirmMatchResultOptions {
   };
   outcome?: MatchOutcome;
   walkoverAbsentPlayerId?: string;
+  auditExtras?: Record<string, unknown>;
 }
 
 export async function confirmMatchResult(
@@ -225,6 +233,7 @@ export async function confirmMatchResult(
           [match.playerOneId]: playerOneSets,
           [match.playerTwoId]: playerTwoSets,
         },
+        ...options?.auditExtras,
       },
       createdBy,
     });
@@ -742,6 +751,85 @@ export async function countEditionRegistrations(
     .where(eq(schema.editionRegistrations.editionId, editionId));
 
   return result?.count ?? 0;
+}
+
+const EDITION_NOT_STARTED_STATUSES: EditionStatus[] = [
+  'RASCUNHO',
+  'INSCRICOES_ABERTAS',
+  'SORTEIO_PUBLICADO',
+];
+
+export interface EditionForFinalizeCheck {
+  id: string;
+  status: EditionStatus;
+}
+
+export async function getEditionFinalizeBlockers(
+  db: DbExecutor,
+  edition: EditionForFinalizeCheck,
+): Promise<string[]> {
+  const blockers: string[] = [];
+
+  if (EDITION_NOT_STARTED_STATUSES.includes(edition.status)) {
+    if (edition.status === 'SORTEIO_PUBLICADO') {
+      blockers.push('Gere as partidas antes de encerrar a edição.');
+    } else {
+      blockers.push('O torneio ainda não foi iniciado.');
+    }
+    return blockers;
+  }
+
+  const matchRows = await db
+    .select({ status: schema.matches.status })
+    .from(schema.matches)
+    .where(eq(schema.matches.editionId, edition.id));
+
+  const pendingCount = matchRows.filter(
+    (row) => !isMatchResolvedForEditionClose(row.status),
+  ).length;
+
+  if (pendingCount > 0) {
+    blockers.push(`Ainda há ${pendingCount} partida(s) sem resultado confirmado.`);
+  }
+
+  if (edition.status === 'FASE_COLOCACAO') {
+    const placementGroups = await db
+      .select({ id: schema.groups.id })
+      .from(schema.groups)
+      .where(
+        and(eq(schema.groups.editionId, edition.id), eq(schema.groups.phase, PLACEMENT_PHASE)),
+      );
+
+    if (placementGroups.length > 0) {
+      const [existingPlacementMatch] = await db
+        .select({ id: schema.matches.id })
+        .from(schema.matches)
+        .where(
+          and(
+            eq(schema.matches.editionId, edition.id),
+            eq(schema.matches.phase, PLACEMENT_PHASE),
+            ne(schema.matches.status, 'CANCELADA'),
+          ),
+        )
+        .limit(1);
+
+      if (!existingPlacementMatch) {
+        blockers.push('Publique a fase de colocação antes de encerrar.');
+      }
+    }
+  }
+
+  return blockers;
+}
+
+export async function assertEditionReadyToFinalize(
+  db: DbExecutor,
+  edition: EditionForFinalizeCheck,
+): Promise<void> {
+  const blockers = await getEditionFinalizeBlockers(db, edition);
+  if (blockers.length > 0) {
+    throw conflict(blockers[0]!);
+  }
 }
 
 export async function finalizeEditionPlacements(

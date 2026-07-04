@@ -28,6 +28,17 @@ export const DrawSnapshotListResponseSchema = Type.Object(
 
 export type DrawSnapshotListResponse = Static<typeof DrawSnapshotListResponseSchema>;
 
+export const EditionDrawPlanSchema = Type.Object(
+  {
+    groupCount: Type.Optional(Type.Integer({ minimum: 1 })),
+    groupSizes: Type.Optional(Type.Array(Type.Integer({ minimum: 2 }), { minItems: 1 })),
+    seedPlayerIds: Type.Optional(Type.Array(UuidSchema, { minItems: 1 })),
+  },
+  { $id: 'EditionDrawPlan' },
+);
+
+export type EditionDrawPlan = Static<typeof EditionDrawPlanSchema>;
+
 export const ExecuteDrawBodySchema = Type.Object(
   {
     randomSeed: Type.Optional(Type.String({ minLength: 1 })),

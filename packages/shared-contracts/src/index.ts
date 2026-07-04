@@ -104,9 +104,11 @@ export {
   EditionParticipantSchema,
   EditionParticipantsResponseSchema,
   DeleteEditionResponseSchema,
+  UpdateEditionBodySchema,
   type EditionParticipant,
   type EditionParticipantsResponse,
   type DeleteEditionResponse,
+  type UpdateEditionBody,
 } from './edition.js';
 
 export {
@@ -146,6 +148,7 @@ export {
   CorrectMatchResultBodySchema,
   ContestedMatchSchema,
   EditionContestedMatchesResponseSchema,
+  isMatchResolvedForEditionClose,
   type MatchStatus,
   type MatchParticipant,
   type Match,
@@ -178,9 +181,11 @@ export {
 export {
   DrawSnapshotSchema,
   DrawSnapshotListResponseSchema,
+  EditionDrawPlanSchema,
   ExecuteDrawBodySchema,
   type DrawSnapshot,
   type DrawSnapshotListResponse,
+  type EditionDrawPlan,
   type ExecuteDrawBody,
 } from './draw-snapshot.js';
 

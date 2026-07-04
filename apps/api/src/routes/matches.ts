@@ -317,8 +317,14 @@ export async function registerMatchRoutes(app: FastifyInstance): Promise<void> {
 
       const { match } = loaded;
 
-      if (match.status !== 'CONTESTADA') {
-        throw conflict('Apenas partidas contestadas podem ser corrigidas pelo organizador.');
+      const organizerRecordableStatuses = new Set<typeof match.status>([
+        'AGENDADA',
+        'AGUARDANDO_CONFIRMACAO',
+        'CONTESTADA',
+      ]);
+
+      if (!organizerRecordableStatuses.has(match.status)) {
+        throw conflict('Esta partida não pode ser alterada pelo organizador.');
       }
 
       const parsed = parseOrganizerMatchCorrection(
@@ -328,14 +334,22 @@ export async function registerMatchRoutes(app: FastifyInstance): Promise<void> {
       );
 
       const organizer = request.organizerEmail ?? 'organizer';
+      const previousStatus = match.status;
+      const auditEventType =
+        previousStatus === 'CONTESTADA' ? 'MATCH_CORRECTED' : 'MATCH_ORGANIZER_RECORDED';
 
-      const confirmed = await confirmMatchResult(app.db, match.id, organizer, 'MATCH_CORRECTED', {
+      const confirmed = await confirmMatchResult(app.db, match.id, organizer, auditEventType, {
         correctedSets: {
           playerOneSets: parsed.playerOneSets,
           playerTwoSets: parsed.playerTwoSets,
         },
         outcome: parsed.outcome,
         walkoverAbsentPlayerId: parsed.walkoverAbsentPlayerId,
+        auditExtras: {
+          previousStatus,
+          outcome: parsed.outcome,
+          overwrotePlayerSubmission: previousStatus === 'AGUARDANDO_CONFIRMACAO',
+        },
       });
       emitMatchConfirmed(app, confirmed.editionId, {
         matchId: confirmed.match.id,

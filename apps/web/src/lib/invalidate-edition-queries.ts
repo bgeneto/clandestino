@@ -16,6 +16,18 @@ export async function invalidateEditionQueries(
   ]);
 }
 
+export async function invalidateEditionAfterMatchOfficialized(
+  queryClient: QueryClient,
+  editionId: string,
+): Promise<void> {
+  await Promise.all([
+    invalidateEditionQueries(queryClient, editionId),
+    queryClient.invalidateQueries({ queryKey: queryKeys.standings(editionId) }),
+    queryClient.invalidateQueries({ queryKey: queryKeys.contestedMatches(editionId) }),
+    queryClient.invalidateQueries({ queryKey: queryKeys.organizerActiveEditions() }),
+  ]);
+}
+
 export async function invalidateEditionAfterPublish(
   queryClient: QueryClient,
   editionId: string,

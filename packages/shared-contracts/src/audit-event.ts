@@ -12,6 +12,7 @@ export const AuditEventTypeSchema = Type.Union(
     Type.Literal('MATCH_CONFIRMED'),
     Type.Literal('MATCH_CONTESTED'),
     Type.Literal('MATCH_CORRECTED'),
+    Type.Literal('MATCH_ORGANIZER_RECORDED'),
     Type.Literal('MATCH_CANCELLED'),
     Type.Literal('MATCH_WALKOVER'),
     Type.Literal('AUTO_CONFIRMED'),

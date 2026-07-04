@@ -22,6 +22,20 @@
       "when": 1783035000000,
       "tag": "0002_wo_bracket_placement",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1783174090367,
+      "tag": "0003_misty_eternals",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1783175264953,
+      "tag": "0004_busy_bloodaxe",
+      "breakpoints": true
     }
   ]
 }

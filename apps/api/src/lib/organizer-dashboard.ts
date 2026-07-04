@@ -1,5 +1,5 @@
 import type { EditionStatus, OrganizerActiveEdition } from '@clandestino/shared-contracts';
-import { and, count, eq, inArray, isNull, ne } from 'drizzle-orm';
+import { and, count, eq, inArray, isNull, ne, or } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import { schema } from '../db/index.js';
 import { PLACEMENT_PHASE } from './matches.js';
@@ -9,6 +9,7 @@ type DbExecutor = Pick<FastifyInstance['db'], 'select'>;
 export interface OrganizerEditionActionInput {
   status: EditionStatus;
   contestedMatchCount: number;
+  pendingMatchCount: number;
   placementGroupCount: number;
 }
 
@@ -22,6 +23,10 @@ export function deriveOrganizerEditionAction(
 ): OrganizerEditionAction {
   if (input.contestedMatchCount > 0) {
     return { needsOrganizerAction: true, actionLabel: 'Resolver contestação' };
+  }
+
+  if (input.pendingMatchCount > 0) {
+    return { needsOrganizerAction: true, actionLabel: 'Registrar resultados pendentes' };
   }
 
   switch (input.status) {
@@ -101,6 +106,23 @@ export async function loadOrganizerActiveEditions(
     )
     .groupBy(schema.matches.editionId);
 
+  const pendingRows = await db
+    .select({
+      editionId: schema.matches.editionId,
+      count: count(),
+    })
+    .from(schema.matches)
+    .where(
+      and(
+        inArray(schema.matches.editionId, editionIds),
+        or(
+          eq(schema.matches.status, 'AGENDADA'),
+          eq(schema.matches.status, 'AGUARDANDO_CONFIRMACAO'),
+        ),
+      ),
+    )
+    .groupBy(schema.matches.editionId);
+
   const placementRows = await db
     .select({
       editionId: schema.groups.editionId,
@@ -113,14 +135,17 @@ export async function loadOrganizerActiveEditions(
     .groupBy(schema.groups.editionId);
 
   const contestedByEditionId = countByEditionId(contestedRows);
+  const pendingByEditionId = countByEditionId(pendingRows);
   const placementByEditionId = countByEditionId(placementRows);
 
   const editions = editionRows.map((row) => {
     const contestedMatchCount = contestedByEditionId.get(row.id) ?? 0;
+    const pendingMatchCount = pendingByEditionId.get(row.id) ?? 0;
     const placementGroupCount = placementByEditionId.get(row.id) ?? 0;
     const action = deriveOrganizerEditionAction({
       status: row.status,
       contestedMatchCount,
+      pendingMatchCount,
       placementGroupCount,
     });
 

@@ -10,6 +10,7 @@ import {
   ErrorResponseSchema,
   generateRecurringEditionDates,
   RegisterPlayerBodySchema,
+  UpdateEditionBodySchema,
 } from '@clandestino/shared-contracts';
 import { Type } from '@sinclair/typebox';
 import { and, asc, eq, inArray, sql } from 'drizzle-orm';
@@ -28,6 +29,11 @@ import {
   notFound,
   validateEditionRules,
 } from '../lib/errors.js';
+import {
+  deriveRulesFromDrawPlan,
+  mergeDrawPlan,
+  validateDrawPlanAgainstRegistrations,
+} from '../lib/draw-plan.js';
 import { mapEdition, mapRegistration } from '../lib/mappers.js';
 
 export async function registerEditionRoutes(app: FastifyInstance): Promise<void> {
@@ -181,6 +187,109 @@ export async function registerEditionRoutes(app: FastifyInstance): Promise<void>
       }
 
       return mapEdition(edition);
+    },
+  );
+
+  typed.patch(
+    '/editions/:id',
+    {
+      preHandler: app.requireOrganizer,
+      schema: {
+        params: Type.Object({ id: Type.String({ format: 'uuid' }) }),
+        body: UpdateEditionBodySchema,
+        response: {
+          200: EditionSchema,
+          400: ErrorResponseSchema,
+          401: ErrorResponseSchema,
+          404: ErrorResponseSchema,
+          409: ErrorResponseSchema,
+        },
+      },
+    },
+    async (request) => {
+      const editionId = request.params.id;
+
+      const [edition] = await app.db
+        .select()
+        .from(schema.editions)
+        .where(eq(schema.editions.id, editionId))
+        .limit(1);
+
+      if (!edition) {
+        throw notFound('Edição não encontrada.');
+      }
+
+      if (edition.status !== 'RASCUNHO' && edition.status !== 'INSCRICOES_ABERTAS') {
+        throw conflict('A edição não pode ser alterada neste status.');
+      }
+
+      const [drawSnapshotCountRow, groupCountRow] = await Promise.all([
+        app.db
+          .select({ count: sql<number>`count(*)` })
+          .from(schema.drawSnapshots)
+          .where(eq(schema.drawSnapshots.editionId, editionId)),
+        app.db
+          .select({ count: sql<number>`count(*)` })
+          .from(schema.groups)
+          .where(eq(schema.groups.editionId, editionId)),
+      ]);
+
+      const hasPublishedDraw =
+        (drawSnapshotCountRow[0]?.count ?? 0) > 0 || (groupCountRow[0]?.count ?? 0) > 0;
+
+      if (hasPublishedDraw) {
+        throw conflict('Não é possível alterar a configuração após o sorteio publicado.');
+      }
+
+      if (request.body.rules === undefined && request.body.drawPlan === undefined) {
+        throw badRequest('Nenhum campo para atualizar.');
+      }
+
+      let nextRules = edition.rules;
+      if (request.body.rules !== undefined) {
+        const rulesError = validateEditionRules(request.body.rules);
+        if (rulesError) {
+          throw badRequest(`Regras da edição inválidas: ${rulesError}`);
+        }
+        nextRules = request.body.rules;
+      }
+
+      const nextDrawPlan = mergeDrawPlan(edition.drawPlan, request.body.drawPlan);
+      if (nextDrawPlan?.groupCount !== undefined) {
+        nextRules = deriveRulesFromDrawPlan(nextRules, nextDrawPlan);
+      }
+
+      if (nextDrawPlan) {
+        const registrations = await app.db
+          .select({ playerId: schema.editionRegistrations.playerId })
+          .from(schema.editionRegistrations)
+          .where(eq(schema.editionRegistrations.editionId, editionId));
+
+        const drawPlanError = validateDrawPlanAgainstRegistrations(
+          nextDrawPlan,
+          registrations.length,
+          new Set(registrations.map((entry) => entry.playerId)),
+        );
+
+        if (drawPlanError) {
+          throw badRequest(drawPlanError);
+        }
+      }
+
+      const [updatedEdition] = await app.db
+        .update(schema.editions)
+        .set({
+          rules: nextRules,
+          drawPlan: nextDrawPlan,
+        })
+        .where(eq(schema.editions.id, editionId))
+        .returning();
+
+      if (!updatedEdition) {
+        throw notFound('Edição não encontrada.');
+      }
+
+      return mapEdition(updatedEdition);
     },
   );
 

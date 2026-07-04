@@ -1,0 +1,1458 @@
+{
+  "version": "6",
+  "dialect": "sqlite",
+  "id": "f0c75fab-8b20-4ba3-a680-feb35dcecb58",
+  "prevId": "4511aee1-213c-4c9b-bd15-e36abbfb47f9",
+  "tables": {
+    "audit_event": {
+      "name": "audit_event",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "edition_id": {
+          "name": "edition_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "championship_id": {
+          "name": "championship_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "match_id": {
+          "name": "match_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "event_type": {
+          "name": "event_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "payload": {
+          "name": "payload",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'{}'"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "audit_event_edition_created_at_idx": {
+          "name": "audit_event_edition_created_at_idx",
+          "columns": [
+            "edition_id",
+            "created_at"
+          ],
+          "isUnique": false
+        },
+        "audit_event_championship_created_at_idx": {
+          "name": "audit_event_championship_created_at_idx",
+          "columns": [
+            "championship_id",
+            "created_at"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "audit_event_edition_id_edition_id_fk": {
+          "name": "audit_event_edition_id_edition_id_fk",
+          "tableFrom": "audit_event",
+          "tableTo": "edition",
+          "columnsFrom": [
+            "edition_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "cascade"
+        },
+        "audit_event_championship_id_championship_id_fk": {
+          "name": "audit_event_championship_id_championship_id_fk",
+          "tableFrom": "audit_event",
+          "tableTo": "championship",
+          "columnsFrom": [
+            "championship_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "cascade"
+        },
+        "audit_event_match_id_match_id_fk": {
+          "name": "audit_event_match_id_match_id_fk",
+          "tableFrom": "audit_event",
+          "tableTo": "match",
+          "columnsFrom": [
+            "match_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "audit_event_payload_is_object": {
+          "name": "audit_event_payload_is_object",
+          "value": "json_type(\"audit_event\".\"payload\") = 'object'"
+        },
+        "audit_event_scope_required": {
+          "name": "audit_event_scope_required",
+          "value": "\"audit_event\".\"edition_id\" IS NOT NULL OR \"audit_event\".\"championship_id\" IS NOT NULL"
+        }
+      }
+    },
+    "championship_player_points": {
+      "name": "championship_player_points",
+      "columns": {
+        "championship_id": {
+          "name": "championship_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "player_id": {
+          "name": "player_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "accumulated_points": {
+          "name": "accumulated_points",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "championship_player_points_championship_id_championship_id_fk": {
+          "name": "championship_player_points_championship_id_championship_id_fk",
+          "tableFrom": "championship_player_points",
+          "tableTo": "championship",
+          "columnsFrom": [
+            "championship_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "cascade"
+        },
+        "championship_player_points_player_id_player_id_fk": {
+          "name": "championship_player_points_player_id_player_id_fk",
+          "tableFrom": "championship_player_points",
+          "tableTo": "player",
+          "columnsFrom": [
+            "player_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {
+        "championship_player_points_pk": {
+          "columns": [
+            "championship_id",
+            "player_id"
+          ],
+          "name": "championship_player_points_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "championship_player_points_non_negative": {
+          "name": "championship_player_points_non_negative",
+          "value": "\"championship_player_points\".\"accumulated_points\" >= 0"
+        }
+      }
+    },
+    "championship": {
+      "name": "championship",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "scoring_table": {
+          "name": "scoring_table",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'[{\"position\":1,\"points\":200},{\"position\":2,\"points\":180},{\"position\":3,\"points\":160},{\"position\":4,\"points\":140},{\"position\":5,\"points\":100},{\"position\":6,\"points\":90},{\"position\":7,\"points\":80},{\"position\":8,\"points\":70},{\"position\":9,\"points\":50},{\"position\":10,\"points\":45},{\"position\":11,\"points\":40},{\"position\":12,\"points\":35},{\"position\":13,\"points\":20},{\"position\":14,\"points\":15},{\"position\":15,\"points\":10},{\"position\":16,\"points\":5},{\"position\":17,\"points\":4},{\"position\":18,\"points\":3},{\"position\":19,\"points\":2},{\"position\":20,\"points\":1}]'"
+        },
+        "default_edition_rules": {
+          "name": "default_edition_rules",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "archived_at": {
+          "name": "archived_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "championship_name_unique": {
+          "name": "championship_name_unique",
+          "columns": [
+            "name"
+          ],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "championship_scoring_table_is_array": {
+          "name": "championship_scoring_table_is_array",
+          "value": "json_type(\"championship\".\"scoring_table\") = 'array'"
+        }
+      }
+    },
+    "draw_snapshot": {
+      "name": "draw_snapshot",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "edition_id": {
+          "name": "edition_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "player_id": {
+          "name": "player_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "accumulated_points": {
+          "name": "accumulated_points",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "rank_position": {
+          "name": "rank_position",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "is_seed": {
+          "name": "is_seed",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": false
+        },
+        "algorithm": {
+          "name": "algorithm",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "random_seed": {
+          "name": "random_seed",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "drawn_at": {
+          "name": "drawn_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "drawn_by": {
+          "name": "drawn_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "draw_snapshot_edition_player_unique": {
+          "name": "draw_snapshot_edition_player_unique",
+          "columns": [
+            "edition_id",
+            "player_id"
+          ],
+          "isUnique": true
+        },
+        "draw_snapshot_edition_rank_unique": {
+          "name": "draw_snapshot_edition_rank_unique",
+          "columns": [
+            "edition_id",
+            "rank_position"
+          ],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {
+        "draw_snapshot_edition_id_edition_id_fk": {
+          "name": "draw_snapshot_edition_id_edition_id_fk",
+          "tableFrom": "draw_snapshot",
+          "tableTo": "edition",
+          "columnsFrom": [
+            "edition_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "cascade"
+        },
+        "draw_snapshot_player_id_player_id_fk": {
+          "name": "draw_snapshot_player_id_player_id_fk",
+          "tableFrom": "draw_snapshot",
+          "tableTo": "player",
+          "columnsFrom": [
+            "player_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "draw_snapshot_accumulated_points_non_negative": {
+          "name": "draw_snapshot_accumulated_points_non_negative",
+          "value": "\"draw_snapshot\".\"accumulated_points\" >= 0"
+        },
+        "draw_snapshot_rank_position_positive": {
+          "name": "draw_snapshot_rank_position_positive",
+          "value": "\"draw_snapshot\".\"rank_position\" > 0"
+        }
+      }
+    },
+    "edition_registration": {
+      "name": "edition_registration",
+      "columns": {
+        "edition_id": {
+          "name": "edition_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "player_id": {
+          "name": "player_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "registered_at": {
+          "name": "registered_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "withdrawn_at": {
+          "name": "withdrawn_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "withdrawn_during_phase": {
+          "name": "withdrawn_during_phase",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "edition_registration_edition_id_edition_id_fk": {
+          "name": "edition_registration_edition_id_edition_id_fk",
+          "tableFrom": "edition_registration",
+          "tableTo": "edition",
+          "columnsFrom": [
+            "edition_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "cascade"
+        },
+        "edition_registration_player_id_player_id_fk": {
+          "name": "edition_registration_player_id_player_id_fk",
+          "tableFrom": "edition_registration",
+          "tableTo": "player",
+          "columnsFrom": [
+            "player_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {
+        "edition_registration_pk": {
+          "columns": [
+            "edition_id",
+            "player_id"
+          ],
+          "name": "edition_registration_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "edition": {
+      "name": "edition",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "championship_id": {
+          "name": "championship_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "date": {
+          "name": "date",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "rules": {
+          "name": "rules",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'{\"minimumGroupSize\":3,\"preferredGroupSize\":4,\"maximumGroupSize\":5,\"protectedSeedCount\":0,\"seedingMethod\":\"fixed-heads\",\"groupRankingCriteria\":[\"SETS_WON\",\"SET_DIFF\",\"MATCHES_WON\"],\"placementStageFormat\":\"round-robin\"}'"
+        },
+        "draw_plan": {
+          "name": "draw_plan",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'RASCUNHO'"
+        },
+        "auto_confirm_minutes": {
+          "name": "auto_confirm_minutes",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 15
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "edition_championship_name_unique": {
+          "name": "edition_championship_name_unique",
+          "columns": [
+            "championship_id",
+            "name"
+          ],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {
+        "edition_championship_id_championship_id_fk": {
+          "name": "edition_championship_id_championship_id_fk",
+          "tableFrom": "edition",
+          "tableTo": "championship",
+          "columnsFrom": [
+            "championship_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "edition_rules_is_object": {
+          "name": "edition_rules_is_object",
+          "value": "json_type(\"edition\".\"rules\") = 'object'"
+        },
+        "edition_auto_confirm_minutes_positive": {
+          "name": "edition_auto_confirm_minutes_positive",
+          "value": "\"edition\".\"auto_confirm_minutes\" > 0"
+        }
+      }
+    },
+    "final_placement": {
+      "name": "final_placement",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "edition_id": {
+          "name": "edition_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "player_id": {
+          "name": "player_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "position": {
+          "name": "position",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "points_awarded": {
+          "name": "points_awarded",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "final_placement_edition_player_unique": {
+          "name": "final_placement_edition_player_unique",
+          "columns": [
+            "edition_id",
+            "player_id"
+          ],
+          "isUnique": true
+        },
+        "final_placement_edition_position_unique": {
+          "name": "final_placement_edition_position_unique",
+          "columns": [
+            "edition_id",
+            "position"
+          ],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {
+        "final_placement_edition_id_edition_id_fk": {
+          "name": "final_placement_edition_id_edition_id_fk",
+          "tableFrom": "final_placement",
+          "tableTo": "edition",
+          "columnsFrom": [
+            "edition_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "cascade"
+        },
+        "final_placement_player_id_player_id_fk": {
+          "name": "final_placement_player_id_player_id_fk",
+          "tableFrom": "final_placement",
+          "tableTo": "player",
+          "columnsFrom": [
+            "player_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "final_placement_position_positive": {
+          "name": "final_placement_position_positive",
+          "value": "\"final_placement\".\"position\" > 0"
+        },
+        "final_placement_points_awarded_non_negative": {
+          "name": "final_placement_points_awarded_non_negative",
+          "value": "\"final_placement\".\"points_awarded\" >= 0"
+        }
+      }
+    },
+    "group_player": {
+      "name": "group_player",
+      "columns": {
+        "group_id": {
+          "name": "group_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "edition_id": {
+          "name": "edition_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "player_id": {
+          "name": "player_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "is_seed": {
+          "name": "is_seed",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": false
+        }
+      },
+      "indexes": {
+        "group_player_edition_player_unique": {
+          "name": "group_player_edition_player_unique",
+          "columns": [
+            "edition_id",
+            "player_id"
+          ],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {
+        "group_player_player_id_player_id_fk": {
+          "name": "group_player_player_id_player_id_fk",
+          "tableFrom": "group_player",
+          "tableTo": "player",
+          "columnsFrom": [
+            "player_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "cascade"
+        },
+        "group_player_group_edition_fk": {
+          "name": "group_player_group_edition_fk",
+          "tableFrom": "group_player",
+          "tableTo": "group",
+          "columnsFrom": [
+            "group_id",
+            "edition_id"
+          ],
+          "columnsTo": [
+            "id",
+            "edition_id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {
+        "group_player_pk": {
+          "columns": [
+            "group_id",
+            "player_id"
+          ],
+          "name": "group_player_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "group": {
+      "name": "group",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "edition_id": {
+          "name": "edition_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "phase": {
+          "name": "phase",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "placement_format": {
+          "name": "placement_format",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "bracket_seed": {
+          "name": "bracket_seed",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "position_from": {
+          "name": "position_from",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "position_to": {
+          "name": "position_to",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "group_edition_phase_name_unique": {
+          "name": "group_edition_phase_name_unique",
+          "columns": [
+            "edition_id",
+            "phase",
+            "name"
+          ],
+          "isUnique": true
+        },
+        "group_id_edition_unique": {
+          "name": "group_id_edition_unique",
+          "columns": [
+            "id",
+            "edition_id"
+          ],
+          "isUnique": true
+        },
+        "group_id_edition_phase_unique": {
+          "name": "group_id_edition_phase_unique",
+          "columns": [
+            "id",
+            "edition_id",
+            "phase"
+          ],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {
+        "group_edition_id_edition_id_fk": {
+          "name": "group_edition_id_edition_id_fk",
+          "tableFrom": "group",
+          "tableTo": "edition",
+          "columnsFrom": [
+            "edition_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "match_participant": {
+      "name": "match_participant",
+      "columns": {
+        "match_id": {
+          "name": "match_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "player_id": {
+          "name": "player_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "sets_won": {
+          "name": "sets_won",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "match_participant_match_id_match_id_fk": {
+          "name": "match_participant_match_id_match_id_fk",
+          "tableFrom": "match_participant",
+          "tableTo": "match",
+          "columnsFrom": [
+            "match_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "cascade"
+        },
+        "match_participant_player_id_player_id_fk": {
+          "name": "match_participant_player_id_player_id_fk",
+          "tableFrom": "match_participant",
+          "tableTo": "player",
+          "columnsFrom": [
+            "player_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {
+        "match_participant_pk": {
+          "columns": [
+            "match_id",
+            "player_id"
+          ],
+          "name": "match_participant_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "match_participant_sets_won_non_negative": {
+          "name": "match_participant_sets_won_non_negative",
+          "value": "\"match_participant\".\"sets_won\" >= 0"
+        },
+        "match_participant_sets_won_max": {
+          "name": "match_participant_sets_won_max",
+          "value": "\"match_participant\".\"sets_won\" <= 7"
+        }
+      }
+    },
+    "match": {
+      "name": "match",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "edition_id": {
+          "name": "edition_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "group_id": {
+          "name": "group_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "phase": {
+          "name": "phase",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "player_one_id": {
+          "name": "player_one_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "player_two_id": {
+          "name": "player_two_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'AGENDADA'"
+        },
+        "outcome": {
+          "name": "outcome",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'PLAYED'"
+        },
+        "bracket_round": {
+          "name": "bracket_round",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "walkover_absent_player_id": {
+          "name": "walkover_absent_player_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "match_edition_phase_players_unique": {
+          "name": "match_edition_phase_players_unique",
+          "columns": [
+            "edition_id",
+            "phase",
+            "player_one_id",
+            "player_two_id"
+          ],
+          "isUnique": true
+        },
+        "match_edition_status_idx": {
+          "name": "match_edition_status_idx",
+          "columns": [
+            "edition_id",
+            "status"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "match_edition_id_edition_id_fk": {
+          "name": "match_edition_id_edition_id_fk",
+          "tableFrom": "match",
+          "tableTo": "edition",
+          "columnsFrom": [
+            "edition_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "cascade"
+        },
+        "match_player_one_id_player_id_fk": {
+          "name": "match_player_one_id_player_id_fk",
+          "tableFrom": "match",
+          "tableTo": "player",
+          "columnsFrom": [
+            "player_one_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "cascade"
+        },
+        "match_player_two_id_player_id_fk": {
+          "name": "match_player_two_id_player_id_fk",
+          "tableFrom": "match",
+          "tableTo": "player",
+          "columnsFrom": [
+            "player_two_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "cascade"
+        },
+        "match_walkover_absent_player_id_player_id_fk": {
+          "name": "match_walkover_absent_player_id_player_id_fk",
+          "tableFrom": "match",
+          "tableTo": "player",
+          "columnsFrom": [
+            "walkover_absent_player_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "cascade"
+        },
+        "match_group_edition_phase_fk": {
+          "name": "match_group_edition_phase_fk",
+          "tableFrom": "match",
+          "tableTo": "group",
+          "columnsFrom": [
+            "group_id",
+            "edition_id",
+            "phase"
+          ],
+          "columnsTo": [
+            "id",
+            "edition_id",
+            "phase"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "match_players_ordered": {
+          "name": "match_players_ordered",
+          "value": "\"match\".\"player_one_id\" < \"match\".\"player_two_id\""
+        }
+      }
+    },
+    "organizer_magic_token": {
+      "name": "organizer_magic_token",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "token_hash": {
+          "name": "token_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "used_at": {
+          "name": "used_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "organizer_magic_token_hash_unique": {
+          "name": "organizer_magic_token_hash_unique",
+          "columns": [
+            "token_hash"
+          ],
+          "isUnique": true
+        },
+        "organizer_magic_token_email_idx": {
+          "name": "organizer_magic_token_email_idx",
+          "columns": [
+            "email"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "organizer_session": {
+      "name": "organizer_session",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "token_hash": {
+          "name": "token_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "organizer_session_token_hash_unique": {
+          "name": "organizer_session_token_hash_unique",
+          "columns": [
+            "token_hash"
+          ],
+          "isUnique": true
+        },
+        "organizer_session_email_idx": {
+          "name": "organizer_session_email_idx",
+          "columns": [
+            "email"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "player": {
+      "name": "player",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "player_name_unique": {
+          "name": "player_name_unique",
+          "columns": [
+            "name"
+          ],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "standing": {
+      "name": "standing",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "group_id": {
+          "name": "group_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "player_id": {
+          "name": "player_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "sets_won": {
+          "name": "sets_won",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "set_diff": {
+          "name": "set_diff",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "matches_won": {
+          "name": "matches_won",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "rank_in_group": {
+          "name": "rank_in_group",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "standing_group_player_unique": {
+          "name": "standing_group_player_unique",
+          "columns": [
+            "group_id",
+            "player_id"
+          ],
+          "isUnique": true
+        },
+        "standing_group_rank_unique": {
+          "name": "standing_group_rank_unique",
+          "columns": [
+            "group_id",
+            "rank_in_group"
+          ],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {
+        "standing_group_id_group_id_fk": {
+          "name": "standing_group_id_group_id_fk",
+          "tableFrom": "standing",
+          "tableTo": "group",
+          "columnsFrom": [
+            "group_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "cascade"
+        },
+        "standing_player_id_player_id_fk": {
+          "name": "standing_player_id_player_id_fk",
+          "tableFrom": "standing",
+          "tableTo": "player",
+          "columnsFrom": [
+            "player_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "standing_sets_won_non_negative": {
+          "name": "standing_sets_won_non_negative",
+          "value": "\"standing\".\"sets_won\" >= 0"
+        },
+        "standing_matches_won_non_negative": {
+          "name": "standing_matches_won_non_negative",
+          "value": "\"standing\".\"matches_won\" >= 0"
+        },
+        "standing_rank_in_group_positive": {
+          "name": "standing_rank_in_group_positive",
+          "value": "\"standing\".\"rank_in_group\" > 0"
+        }
+      }
+    }
+  },
+  "views": {},
+  "enums": {},
+  "_meta": {
+    "schemas": {},
+    "tables": {},
+    "columns": {}
+  },
+  "internal": {
+    "indexes": {}
+  }
+}

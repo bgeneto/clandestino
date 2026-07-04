@@ -11,7 +11,11 @@ import { schema } from '../db/index.js';
 import { badRequest, conflict, notFound } from '../lib/errors.js';
 import { generateSecureToken } from '../lib/crypto.js';
 import { buildPlacementMatchSpecs } from '../lib/bracket-placement.js';
-import { PLACEMENT_PHASE, finalizeEditionPlacements } from '../lib/matches.js';
+import {
+  PLACEMENT_PHASE,
+  assertEditionReadyToFinalize,
+  finalizeEditionPlacements,
+} from '../lib/matches.js';
 import { mapEdition, mapFinalPlacement, mapGroupWithPlayers } from '../lib/mappers.js';
 import { emitPhasePublished } from '../lib/sse-events.js';
 
@@ -236,6 +240,8 @@ export async function registerEditionPlacementRoutes(app: FastifyInstance): Prom
       if (edition.status === 'ENCERRADA') {
         throw conflict('Esta edição já foi encerrada.');
       }
+
+      await assertEditionReadyToFinalize(app.db, edition);
 
       const [championship] = await app.db
         .select()

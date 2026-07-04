@@ -1,12 +1,52 @@
-import type { TournamentRules } from '@clandestino/shared-contracts';
-import { chooseGroupConfiguration } from '@clandestino/tournament-engine';
+import type { EditionDrawPlan, EditionRules } from '@clandestino/shared-contracts';
+import {
+  chooseGroupConfiguration,
+  partitionPlayersIntoGroups,
+  WIZARD_MIN_GROUP_SIZE,
+} from '@clandestino/tournament-engine';
 
-export function getDrawReadinessWarning(
-  playerCount: number,
-  rules: TournamentRules,
-): string | null {
+function validateExplicitDrawPlan(playerCount: number, drawPlan: EditionDrawPlan): string | null {
+  const { groupCount, groupSizes, seedPlayerIds } = drawPlan;
+
+  if (groupCount === undefined || groupSizes === undefined) {
+    return null;
+  }
+
+  if (playerCount < WIZARD_MIN_GROUP_SIZE) {
+    return `São necessários ao menos ${WIZARD_MIN_GROUP_SIZE} jogadores inscritos para o sorteio. Clique em configurar edição para fazer o check-in dos jogadores.`;
+  }
+
+  try {
+    const expectedSizes = partitionPlayersIntoGroups(playerCount, groupCount);
+    const sizesMatch =
+      groupSizes.length === expectedSizes.length &&
+      groupSizes.every((size, index) => size === expectedSizes[index]);
+
+    if (!sizesMatch || groupSizes.reduce((sum, size) => sum + size, 0) !== playerCount) {
+      return `Com ${playerCount} jogadores, a configuração de ${groupCount} grupo(s) não é mais válida. Ajuste o número de grupos ou inscreva mais jogadores em Configurar edição.`;
+    }
+  } catch {
+    return `Com ${playerCount} jogadores, não é possível formar ${groupCount} grupo(s) configurados. Ajuste o número de grupos ou inscreva mais jogadores em Configurar edição.`;
+  }
+
+  if (seedPlayerIds === undefined) {
+    return 'Seeds ainda não configurados. Continue em Configurar edição.';
+  }
+
+  if (seedPlayerIds.length !== groupCount) {
+    return `Selecione ${groupCount} cabeça(s) de chave em Configurar edição (atualmente ${seedPlayerIds.length}).`;
+  }
+
+  return null;
+}
+
+function validateAutomaticDraw(playerCount: number, rules: EditionRules): string | null {
   if (playerCount < rules.minimumGroupSize) {
     return `São necessários ao menos ${rules.minimumGroupSize} jogadores inscritos para o sorteio. Clique em configurar edição para fazer o check-in dos jogadores.`;
+  }
+
+  if (rules.protectedSeedCount <= 0) {
+    return 'Configure os grupos em Configurar edição antes de executar o sorteio.';
   }
 
   try {
@@ -19,4 +59,52 @@ export function getDrawReadinessWarning(
   } catch {
     return `Número de jogadores (${playerCount}) insuficiente para o número de grupos configurado (${rules.protectedSeedCount}).`;
   }
+}
+
+export function getDrawReadinessWarning(
+  playerCount: number,
+  rules: EditionRules,
+  drawPlan?: EditionDrawPlan | null,
+): string | null {
+  if (drawPlan?.groupCount !== undefined) {
+    return validateExplicitDrawPlan(playerCount, drawPlan);
+  }
+
+  return validateAutomaticDraw(playerCount, rules);
+}
+
+export function canExecuteExplicitDraw(
+  drawPlan?: EditionDrawPlan | null,
+): drawPlan is EditionDrawPlan & {
+  groupCount: number;
+  groupSizes: number[];
+  seedPlayerIds: string[];
+} {
+  return (
+    drawPlan?.groupCount !== undefined &&
+    drawPlan.groupSizes !== undefined &&
+    drawPlan.seedPlayerIds !== undefined &&
+    drawPlan.seedPlayerIds.length === drawPlan.groupCount
+  );
+}
+
+export function resolveEffectiveDrawPlan(
+  serverDrawPlan?: EditionDrawPlan | null,
+  draftDrawPlan?: EditionDrawPlan | null,
+): EditionDrawPlan | null {
+  if (serverDrawPlan?.groupCount !== undefined) {
+    return {
+      ...draftDrawPlan,
+      ...serverDrawPlan,
+      groupCount: serverDrawPlan.groupCount ?? draftDrawPlan?.groupCount,
+      groupSizes: serverDrawPlan.groupSizes ?? draftDrawPlan?.groupSizes,
+      seedPlayerIds: serverDrawPlan.seedPlayerIds ?? draftDrawPlan?.seedPlayerIds,
+    };
+  }
+
+  if (draftDrawPlan?.groupCount !== undefined) {
+    return draftDrawPlan;
+  }
+
+  return null;
 }

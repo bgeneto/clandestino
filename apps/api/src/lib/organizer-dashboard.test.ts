@@ -40,11 +40,26 @@ describe('deriveOrganizerEditionAction', () => {
       deriveOrganizerEditionAction({
         status: 'EM_ANDAMENTO',
         contestedMatchCount: 1,
+        pendingMatchCount: 2,
         placementGroupCount: 0,
       }),
     ).toEqual({
       needsOrganizerAction: true,
       actionLabel: 'Resolver contestação',
+    });
+  });
+
+  it('prioritizes pending results over status', () => {
+    expect(
+      deriveOrganizerEditionAction({
+        status: 'EM_ANDAMENTO',
+        contestedMatchCount: 0,
+        pendingMatchCount: 2,
+        placementGroupCount: 0,
+      }),
+    ).toEqual({
+      needsOrganizerAction: true,
+      actionLabel: 'Registrar resultados pendentes',
     });
   });
 
@@ -54,6 +69,7 @@ describe('deriveOrganizerEditionAction', () => {
         deriveOrganizerEditionAction({
           status,
           contestedMatchCount: 0,
+          pendingMatchCount: 0,
           placementGroupCount: 0,
         }),
       ).toEqual({
@@ -68,6 +84,7 @@ describe('deriveOrganizerEditionAction', () => {
       deriveOrganizerEditionAction({
         status: 'SORTEIO_PUBLICADO',
         contestedMatchCount: 0,
+        pendingMatchCount: 0,
         placementGroupCount: 0,
       }),
     ).toEqual({
@@ -81,6 +98,7 @@ describe('deriveOrganizerEditionAction', () => {
       deriveOrganizerEditionAction({
         status: 'FASE_COLOCACAO',
         contestedMatchCount: 0,
+        pendingMatchCount: 0,
         placementGroupCount: 2,
       }),
     ).toEqual({
@@ -92,6 +110,7 @@ describe('deriveOrganizerEditionAction', () => {
       deriveOrganizerEditionAction({
         status: 'FASE_COLOCACAO',
         contestedMatchCount: 0,
+        pendingMatchCount: 0,
         placementGroupCount: 0,
       }),
     ).toEqual({
@@ -105,6 +124,7 @@ describe('deriveOrganizerEditionAction', () => {
       deriveOrganizerEditionAction({
         status: 'EM_ANDAMENTO',
         contestedMatchCount: 0,
+        pendingMatchCount: 0,
         placementGroupCount: 0,
       }),
     ).toEqual({

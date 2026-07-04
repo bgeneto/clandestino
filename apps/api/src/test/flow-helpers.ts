@@ -295,6 +295,18 @@ export class EditionFlowClient {
     return this.org('POST', `/editions/${editionId}/placement/publish`);
   }
 
+  async officializeMatch(
+    matchId: string,
+    body: {
+      outcome?: 'PLAYED' | 'WALKOVER';
+      absentPlayerId?: string;
+      setsWonByPlayerOne?: number;
+      setsWonByPlayerTwo?: number;
+    },
+  ): Promise<InjectResponse> {
+    return this.org('PUT', `/matches/${matchId}/result`, body);
+  }
+
   async withdrawPlayer(editionId: string, playerId: string): Promise<InjectResponse> {
     return this.org('POST', `/editions/${editionId}/withdrawals`, { playerId });
   }

@@ -78,6 +78,7 @@ export function mapEdition(row: EditionRow): Edition {
     name: row.name,
     date: toIsoDate(row.date),
     rules: row.rules,
+    ...(row.drawPlan ? { drawPlan: row.drawPlan } : {}),
     status: row.status,
     autoConfirmMinutes: row.autoConfirmMinutes,
     createdAt: toIsoDateTime(row.createdAt),

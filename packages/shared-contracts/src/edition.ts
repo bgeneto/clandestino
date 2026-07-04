@@ -1,5 +1,6 @@
 import { type Static, Type } from '@sinclair/typebox';
 import { IsoDateSchema, IsoDateTimeSchema, UuidSchema } from './common.js';
+import { EditionDrawPlanSchema } from './draw-snapshot.js';
 import { EditionRulesSchema } from './edition-rules.js';
 import { EditionRecurrenceSchema } from './edition-recurrence.js';
 
@@ -24,6 +25,7 @@ export const EditionSchema = Type.Object(
     name: Type.String({ minLength: 1, maxLength: 120 }),
     date: IsoDateSchema,
     rules: EditionRulesSchema,
+    drawPlan: Type.Optional(EditionDrawPlanSchema),
     status: EditionStatusSchema,
     autoConfirmMinutes: Type.Integer({ minimum: 1 }),
     createdAt: IsoDateTimeSchema,
@@ -123,3 +125,13 @@ export const DeleteEditionResponseSchema = Type.Object(
 );
 
 export type DeleteEditionResponse = Static<typeof DeleteEditionResponseSchema>;
+
+export const UpdateEditionBodySchema = Type.Object(
+  {
+    drawPlan: Type.Optional(Type.Union([EditionDrawPlanSchema, Type.Null()])),
+    rules: Type.Optional(EditionRulesSchema),
+  },
+  { $id: 'UpdateEditionBody' },
+);
+
+export type UpdateEditionBody = Static<typeof UpdateEditionBodySchema>;

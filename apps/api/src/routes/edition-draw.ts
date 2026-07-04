@@ -10,6 +10,7 @@ import {
 import { Type } from '@sinclair/typebox';
 import { and, asc, eq } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
+import { WIZARD_MIN_GROUP_SIZE } from '@clandestino/tournament-engine';
 import { schema } from '../db/index.js';
 import { generateSecureToken } from '../lib/crypto.js';
 import {
@@ -131,7 +132,7 @@ export async function registerEditionDrawRoutes(app: FastifyInstance): Promise<v
 
         updatedRules = {
           ...edition.rules,
-          minimumGroupSize: 3,
+          minimumGroupSize: WIZARD_MIN_GROUP_SIZE,
           protectedSeedCount: groupCount,
         };
 

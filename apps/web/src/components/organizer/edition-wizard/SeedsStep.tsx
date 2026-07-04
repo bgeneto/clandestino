@@ -38,11 +38,15 @@ export function SeedsStep({ draft, onChange, onContinue, onBack }: SeedsStepProp
     [draft.checkedInPlayers, draft.seedPlayerIds, groupCount],
   );
 
-  const playersAlphabetical = useMemo(
+  const playersByPoints = useMemo(
     () =>
-      [...draft.checkedInPlayers].sort((left, right) =>
-        left.playerName.localeCompare(right.playerName, 'pt-BR'),
-      ),
+      [...draft.checkedInPlayers].sort((left, right) => {
+        if (right.accumulatedPoints !== left.accumulatedPoints) {
+          return right.accumulatedPoints - left.accumulatedPoints;
+        }
+
+        return left.playerName.localeCompare(right.playerName, 'pt-BR');
+      }),
     [draft.checkedInPlayers],
   );
 
@@ -76,7 +80,7 @@ export function SeedsStep({ draft, onChange, onContinue, onBack }: SeedsStepProp
       ) : null}
 
       <div className="space-y-2">
-        {playersAlphabetical.map((player) => {
+        {playersByPoints.map((player) => {
           const selected = selectedSeedIds.has(player.playerId);
           const disabled = !selected && selectedSeedIds.size >= groupCount;
 

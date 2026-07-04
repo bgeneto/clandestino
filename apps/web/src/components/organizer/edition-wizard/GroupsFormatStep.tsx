@@ -12,7 +12,7 @@ import {
 type GroupsFormatStepProps = {
   draft: EditionWizardDraft;
   onChange: (patch: Partial<EditionWizardDraft>) => void;
-  onContinue: () => void;
+  onContinue: (config: { groupCount: number; groupSizes: number[] }) => void;
   onBack: () => void;
 };
 
@@ -114,7 +114,7 @@ export function GroupsFormatStep({ draft, onChange, onContinue, onBack }: Groups
           disabled={!canContinue}
           onClick={() => {
             onChange({ groupCount, groupSizes });
-            onContinue();
+            onContinue({ groupCount, groupSizes });
           }}
           className="flex-1 rounded-lg bg-brand px-4 py-2.5 text-sm font-medium text-white disabled:opacity-50"
         >

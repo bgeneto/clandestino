@@ -41,7 +41,7 @@ export function HomePage() {
       <div className="rounded-2xl border border-line bg-card p-6">
         <h2 className="text-xl font-semibold text-foreground">🏓 Clandestino</h2>
         <p className="mt-2 text-sm leading-6 text-muted">
-          Acompanhe edições ao vivo, grupos, placares e ranking do campeonato.
+          Acompanhe partidas ao vivo, grupos, placares e ranking do campeonato.
         </p>
       </div>
 

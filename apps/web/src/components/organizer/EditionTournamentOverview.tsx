@@ -89,11 +89,15 @@ export function EditionTournamentOverview({ edition }: EditionTournamentOverview
       return [];
     }
 
-    const groupStageGroups = groups.filter((entry) => entry.group.phase === GROUP_STAGE_PHASE);
-
+    // Consolida os standings de TODAS as fases (fase de grupos + fase de
+    // colocação) em uma linha por jogador, somando setsWon/matchesWon.
+    // A "Classificação Final" oficial (uma linha por jogador, baseada em
+    // `final_placement`) só aparece após encerrar a edição; esta prévia
+    // evita a duplicação visível (ex.: 12 linhas para 6 jogadores) que
+    // ocorria ao renderizar cada `standing` por grupo/fase.
     return buildCombinedStandingsRows({
       standings: standingsQuery.data.groups,
-      groups: groupStageGroups,
+      groupIds: groups.map((entry) => entry.group.id),
       playerNames,
     });
   }, [standingsQuery.data, groups, playerNames]);

@@ -46,7 +46,7 @@ export function PublicEditionPage() {
 
     return buildCombinedStandingsRows({
       standings: standingsQuery.data.groups,
-      groups: groupsQuery.data.groups,
+      groupIds: groupsQuery.data.groups.map((entry) => entry.group.id),
       playerNames,
     });
   }, [standingsQuery.data, groupsQuery.data, playerNames]);

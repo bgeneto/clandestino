@@ -76,7 +76,7 @@ export function LiveEditionCard({ edition, enableSse = false }: LiveEditionCardP
 
     return buildCombinedStandingsRows({
       standings: standingsQuery.data.groups,
-      groups: groupsQuery.data.groups,
+      groupIds: groupsQuery.data.groups.map((entry) => entry.group.id),
       playerNames,
     }).slice(0, PREVIEW_STANDINGS_LIMIT);
   }, [standingsQuery.data, groupsQuery.data, playerNames]);

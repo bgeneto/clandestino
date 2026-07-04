@@ -11,6 +11,7 @@ import {
   formatPhaseMatchProgress,
   getEditionFinalizeBlockers,
   getPendingMatches,
+  getMatchesAwaitingPlayerConfirmation,
   shouldShowFinalizeSection,
 } from './edition-progress.js';
 
@@ -94,7 +95,7 @@ describe('edition-progress', () => {
     expect(formatPhaseMatchProgress('grupos', 0, 0)).toBe('grupos');
   });
 
-  it('lists pending organizer matches', () => {
+  it('lists matches without player submission as pending', () => {
     const matches = [
       match('m1', 'group-a', 'AGENDADA'),
       match('m2', 'group-a', 'AGUARDANDO_CONFIRMACAO'),
@@ -102,7 +103,8 @@ describe('edition-progress', () => {
       match('m4', 'group-a', 'CONTESTADA'),
     ];
 
-    expect(getPendingMatches(matches).map((entry) => entry.id)).toEqual(['m1', 'm2']);
+    expect(getPendingMatches(matches).map((entry) => entry.id)).toEqual(['m1']);
+    expect(getMatchesAwaitingPlayerConfirmation(matches).map((entry) => entry.id)).toEqual(['m2']);
   });
 
   it('hides finalize section before tournament starts', () => {

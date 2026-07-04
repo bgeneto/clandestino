@@ -95,7 +95,7 @@ export function toStandingMatch(
 }
 
 export function parsePlacementGroupRange(groupName: string): { from: number; to: number } | null {
-  const match = /^Placement (\d+)-(\d+)$/.exec(groupName);
+  const match = /^Colocação (\d+)º-(\d+)º$/.exec(groupName);
   if (!match) {
     return null;
   }

@@ -322,9 +322,11 @@ describe('generatePlacementStage', () => {
 
     expect(knockoutStage).toHaveLength(2);
     expect(knockoutStage[0]!.format).toBe('knockout');
+    expect(knockoutStage[0]!.name).toBe('Colocação 1º-2º');
     expect(knockoutStage[0]!.playerIds).toEqual([playerId(1), playerId(2)]);
     expect(knockoutStage[0]!.positionRange).toEqual({ from: 1, to: 2 });
     expect(knockoutStage[1]!.format).toBe('knockout');
+    expect(knockoutStage[1]!.name).toBe('Colocação 3º-4º');
     expect(knockoutStage[1]!.playerIds).toEqual([playerId(3), playerId(4)]);
     expect(knockoutStage[1]!.positionRange).toEqual({ from: 3, to: 4 });
   });

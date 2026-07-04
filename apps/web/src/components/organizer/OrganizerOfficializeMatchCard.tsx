@@ -13,7 +13,7 @@ type OrganizerOfficializeMatchCardProps = {
   match: Match;
   playerNames: Map<string, string>;
   editionId: string;
-  variant: 'contested' | 'pending';
+  variant: 'contested' | 'pending' | 'awaiting-player';
   contestReason?: string | null;
 };
 
@@ -37,6 +37,7 @@ export function OrganizerOfficializeMatchCard({
   const playerOneId = getPlayerOneId(match);
   const playerTwoId = getPlayerTwoId(match);
   const [confirmedOfficial, setConfirmedOfficial] = useState(false);
+  const [showManualOfficialize, setShowManualOfficialize] = useState(false);
   const submittedPlayerOneSets =
     match.participants.find((participant) => participant.playerId === playerOneId)?.setsWon ?? 0;
   const submittedPlayerTwoSets =
@@ -79,10 +80,21 @@ export function OrganizerOfficializeMatchCard({
   });
 
   const isContested = variant === 'contested';
+  const isAwaitingPlayer = variant === 'awaiting-player';
   const cardClass = isContested
     ? 'border-danger-surface bg-danger-surface'
-    : 'border-warning-surface bg-warning-surface';
-  const metaTextClass = isContested ? 'text-danger-foreground' : 'text-warning-foreground';
+    : isAwaitingPlayer
+      ? 'border-line bg-card-muted'
+      : 'border-warning-surface bg-warning-surface';
+  const metaTextClass = isContested
+    ? 'text-danger-foreground'
+    : isAwaitingPlayer
+      ? 'text-muted'
+      : 'text-warning-foreground';
+
+  const reportedScore = formatMatchScore(match.participants, playerOneId, playerTwoId);
+  const hasReportedScore =
+    isContested || (!isContested && match.status === 'AGUARDANDO_CONFIRMACAO');
 
   return (
     <article className={`rounded-lg border p-4 ${cardClass}`}>
@@ -90,16 +102,19 @@ export function OrganizerOfficializeMatchCard({
         {playerNames.get(playerOneId) ?? 'Jogador 1'} vs{' '}
         {playerNames.get(playerTwoId) ?? 'Jogador 2'}
       </p>
-      {isContested ? (
-        <p className={`mt-1 text-xs ${metaTextClass}`}>
-          Placar contestado: {formatMatchScore(match.participants, playerOneId, playerTwoId)}
-        </p>
-      ) : null}
-      {!isContested && match.status === 'AGUARDANDO_CONFIRMACAO' ? (
-        <p className={`mt-1 text-xs ${metaTextClass}`}>
-          Resultado registrado por jogador, aguardando confirmação:{' '}
-          {formatMatchScore(match.participants, playerOneId, playerTwoId)}
-        </p>
+      {hasReportedScore ? (
+        <>
+          <p className="mt-2 text-2xl font-bold tabular-nums tracking-wide text-foreground">
+            {reportedScore}
+          </p>
+          <p className={`mt-1 text-xs ${metaTextClass}`}>
+            {isContested
+              ? 'Placar contestado'
+              : isAwaitingPlayer
+                ? 'Placar aguardando confirmação do adversário'
+                : 'Placar informado'}
+          </p>
+        </>
       ) : null}
       {!isContested && match.status === 'AGENDADA' ? (
         <p className={`mt-1 text-xs ${metaTextClass}`}>
@@ -113,37 +128,49 @@ export function OrganizerOfficializeMatchCard({
       ) : null}
 
       <div className="mt-4">
-        <MatchResultForm
-          organizerMode
-          playerOneId={playerOneId}
-          playerTwoId={playerTwoId}
-          playerOneLabel={playerNames.get(playerOneId) ?? 'Jogador 1'}
-          playerTwoLabel={playerNames.get(playerTwoId) ?? 'Jogador 2'}
-          reporterLabel={playerNames.get(playerOneId) ?? 'Jogador 1'}
-          opponentLabel={playerNames.get(playerTwoId) ?? 'Jogador 2'}
-          opponentId={playerTwoId}
-          initialPlayerOneSets={hasPlayerSubmittedScore ? submittedPlayerOneSets : undefined}
-          initialPlayerTwoSets={hasPlayerSubmittedScore ? submittedPlayerTwoSets : undefined}
-          disabled={!confirmedOfficial}
-          pending={officializeMutation.isPending}
-          submitLabel={isContested ? 'Oficializar resultado corrigido' : 'Oficializar resultado'}
-          onSubmit={(payload) => void officializeMutation.mutateAsync(payload)}
-        />
+        {isAwaitingPlayer && !showManualOfficialize ? (
+          <button
+            type="button"
+            onClick={() => setShowManualOfficialize(true)}
+            className="w-full rounded-lg border border-line bg-card px-4 py-2.5 text-sm font-medium text-foreground"
+          >
+            Oficializar manualmente
+          </button>
+        ) : (
+          <MatchResultForm
+            organizerMode
+            playerOneId={playerOneId}
+            playerTwoId={playerTwoId}
+            playerOneLabel={playerNames.get(playerOneId) ?? 'Jogador 1'}
+            playerTwoLabel={playerNames.get(playerTwoId) ?? 'Jogador 2'}
+            reporterLabel={playerNames.get(playerOneId) ?? 'Jogador 1'}
+            opponentLabel={playerNames.get(playerTwoId) ?? 'Jogador 2'}
+            opponentId={playerTwoId}
+            initialPlayerOneSets={hasPlayerSubmittedScore ? submittedPlayerOneSets : undefined}
+            initialPlayerTwoSets={hasPlayerSubmittedScore ? submittedPlayerTwoSets : undefined}
+            disabled={!confirmedOfficial}
+            pending={officializeMutation.isPending}
+            submitLabel={isContested ? 'Oficializar resultado corrigido' : 'Oficializar resultado'}
+            onSubmit={(payload) => void officializeMutation.mutateAsync(payload)}
+          />
+        )}
       </div>
 
-      <label className={`mt-4 flex items-start gap-2 text-sm ${metaTextClass}`}>
-        <input
-          type="checkbox"
-          checked={confirmedOfficial}
-          onChange={(event) => setConfirmedOfficial(event.target.checked)}
-          className="mt-1"
-        />
-        <span>
-          {isContested
-            ? 'Confirmo que o resultado corrigido é oficial e substitui o placar contestado.'
-            : 'Confirmo que o resultado informado é oficial.'}
-        </span>
-      </label>
+      {!isAwaitingPlayer || showManualOfficialize ? (
+        <label className={`mt-4 flex items-start gap-2 text-sm text-muted`}>
+          <input
+            type="checkbox"
+            checked={confirmedOfficial}
+            onChange={(event) => setConfirmedOfficial(event.target.checked)}
+            className="mt-1"
+          />
+          <span>
+            {isContested
+              ? 'Confirmo que o resultado corrigido é oficial e substitui o placar contestado.'
+              : 'Confirmo que o resultado informado é oficial.'}
+          </span>
+        </label>
+      ) : null}
     </article>
   );
 }

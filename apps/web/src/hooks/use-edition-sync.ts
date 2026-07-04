@@ -19,11 +19,11 @@ const SSE_EVENTS: SseEventType[] = [
   'player_withdrawn',
 ];
 
-const POLL_INTERVAL_SSE_CONNECTED_MS = 45_000;
-const POLL_INTERVAL_SSE_DISCONNECTED_MS = 12_000;
+const POLL_INTERVAL_SSE_CONNECTED_MS = 8_000;
+const POLL_INTERVAL_SSE_DISCONNECTED_MS = 3_000;
 const SSE_RECONNECT_BASE_MS = 1_000;
 const SSE_RECONNECT_MAX_MS = 30_000;
-const POLL_TICK_MS = 3_000;
+const POLL_TICK_MS = 2_000;
 
 function isSseEventType(value: string): value is SseEventType {
   return (SSE_EVENTS as readonly string[]).includes(value);

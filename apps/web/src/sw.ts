@@ -7,7 +7,7 @@ import {
   precacheAndRoute,
 } from 'workbox-precaching';
 import { registerRoute } from 'workbox-routing';
-import { CacheFirst, NetworkFirst } from 'workbox-strategies';
+import { CacheFirst, NetworkFirst, NetworkOnly } from 'workbox-strategies';
 import { processOutbox } from './offline/process-outbox.js';
 
 declare let self: ServiceWorkerGlobalScope;
@@ -29,6 +29,19 @@ registerRoute(
     cacheName: 'static-assets',
   }),
 );
+
+// SSE e sync-state: sempre rede direta — NetworkFirst quebra EventSource e atrasa polling.
+registerRoute(({ url, request }) => {
+  if (!url.pathname.startsWith('/api/')) {
+    return false;
+  }
+
+  if (url.pathname.endsWith('/events') || url.pathname.endsWith('/sync-state')) {
+    return true;
+  }
+
+  return request.headers.get('accept')?.includes('text/event-stream') ?? false;
+}, new NetworkOnly());
 
 registerRoute(
   ({ url }) => url.pathname.startsWith('/api/'),

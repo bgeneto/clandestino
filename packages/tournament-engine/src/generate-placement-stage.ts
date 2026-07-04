@@ -35,7 +35,7 @@ export function generatePlacementStage(
     const positionTo = positionFrom + playersAtRank.length - 1;
 
     placementGroups.push({
-      name: `Placement ${positionFrom}-${positionTo}`,
+      name: `Colocação ${positionFrom}º-${positionTo}º`,
       format,
       playerIds: playersAtRank,
       positionRange: { from: positionFrom, to: positionTo },

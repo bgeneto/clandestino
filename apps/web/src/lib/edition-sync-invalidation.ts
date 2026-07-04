@@ -64,7 +64,12 @@ export async function invalidateEditionSyncQueries(
   editionId: string,
   keys: readonly (readonly unknown[])[],
 ): Promise<void> {
-  await Promise.all(keys.map((queryKey) => queryClient.invalidateQueries({ queryKey })));
+  await Promise.all(
+    keys.map(async (queryKey) => {
+      await queryClient.invalidateQueries({ queryKey, refetchType: 'active' });
+      await queryClient.refetchQueries({ queryKey, type: 'active' });
+    }),
+  );
 }
 
 const REVISION_STORAGE_PREFIX = 'clandestino:sync-revision:';

@@ -47,9 +47,13 @@ export async function registerSsePlugin(app: FastifyInstance): Promise<void> {
       reply.hijack();
       reply.raw.writeHead(200, {
         'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache',
+        'Cache-Control': 'no-cache, no-transform',
         Connection: 'keep-alive',
+        'X-Accel-Buffering': 'no',
       });
+      if (typeof reply.raw.flushHeaders === 'function') {
+        reply.raw.flushHeaders();
+      }
 
       const lastRevision = parseLastEventId(request.headers['last-event-id']);
       if (lastRevision > 0) {

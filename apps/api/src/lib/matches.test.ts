@@ -171,7 +171,7 @@ describe('attachScoringPoints', () => {
 
 describe('parsePlacementGroupRange', () => {
   it('parses placement group names', () => {
-    expect(parsePlacementGroupRange('Placement 1-3')).toEqual({ from: 1, to: 3 });
+    expect(parsePlacementGroupRange('Colocação 1º-3º')).toEqual({ from: 1, to: 3 });
     expect(parsePlacementGroupRange('Grupo A')).toBeNull();
   });
 });

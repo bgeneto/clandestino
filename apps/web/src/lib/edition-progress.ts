@@ -5,7 +5,8 @@ export const GROUP_STAGE_PHASE = 'GROUP_STAGE';
 export const PLACEMENT_STAGE_PHASE = 'PLACEMENT_STAGE';
 
 const CONFIRMED_MATCH_STATUSES = new Set<Match['status']>(['CONFIRMADA', 'CORRIGIDA']);
-const PENDING_ORGANIZER_STATUSES = new Set<Match['status']>(['AGENDADA', 'AGUARDANDO_CONFIRMACAO']);
+const PENDING_ORGANIZER_STATUSES = new Set<Match['status']>(['AGENDADA']);
+const AWAITING_PLAYER_CONFIRMATION_STATUSES = new Set<Match['status']>(['AGUARDANDO_CONFIRMACAO']);
 
 const HIDE_FINALIZE_STATUSES: Edition['status'][] = [
   'RASCUNHO',
@@ -49,6 +50,19 @@ export function formatPhaseMatchProgress(label: string, confirmed: number, total
 
 export function getPendingMatches(matches: Match[]): Match[] {
   return matches.filter((match) => PENDING_ORGANIZER_STATUSES.has(match.status));
+}
+
+export function getMatchesAwaitingPlayerConfirmation(matches: Match[]): Match[] {
+  return matches.filter((match) => AWAITING_PLAYER_CONFIRMATION_STATUSES.has(match.status));
+}
+
+/** Partidas que o organizador pode oficializar (sem placar ou aguardando jogadores). */
+export function getOrganizerOfficializableMatches(matches: Match[]): Match[] {
+  return matches.filter(
+    (match) =>
+      PENDING_ORGANIZER_STATUSES.has(match.status) ||
+      AWAITING_PLAYER_CONFIRMATION_STATUSES.has(match.status),
+  );
 }
 
 export function shouldShowFinalizeSection(status: Edition['status']): boolean {

@@ -35,6 +35,7 @@ import { formatEditionStatus, formatEditionTitle } from '../../lib/format.js';
 import {
   getEditionFinalizeBlockers,
   getPendingMatches,
+  getMatchesAwaitingPlayerConfirmation,
   shouldShowFinalizeSection,
 } from '../../lib/edition-progress.js';
 import {
@@ -464,27 +465,53 @@ function PendingMatchesSection({ edition }: { edition: Edition }) {
     [matchesQuery.data],
   );
 
-  if (pendingMatches.length === 0) {
+  const awaitingPlayerConfirmation = useMemo(
+    () => getMatchesAwaitingPlayerConfirmation(matchesQuery.data ?? []),
+    [matchesQuery.data],
+  );
+
+  if (pendingMatches.length === 0 && awaitingPlayerConfirmation.length === 0) {
     return null;
   }
 
   return (
     <section className="space-y-4 rounded-xl bg-card p-4 shadow-sm">
       <h3 className="text-sm font-bold uppercase tracking-wide text-subtle">Partidas pendentes</h3>
-      <p className="text-sm text-muted">
-        Registre oficialmente o resultado das partidas sem placar confirmado.
-      </p>
-      <div className="space-y-4">
-        {pendingMatches.map((match) => (
-          <OrganizerOfficializeMatchCard
-            key={match.id}
-            match={match}
-            playerNames={playerNames}
-            editionId={edition.id}
-            variant="pending"
-          />
-        ))}
-      </div>
+
+      {pendingMatches.length > 0 ? (
+        <div className="space-y-4">
+          <p className="text-sm text-muted">
+            Registre oficialmente o resultado das partidas sem placar informado pelos jogadores.
+          </p>
+          {pendingMatches.map((match) => (
+            <OrganizerOfficializeMatchCard
+              key={match.id}
+              match={match}
+              playerNames={playerNames}
+              editionId={edition.id}
+              variant="pending"
+            />
+          ))}
+        </div>
+      ) : null}
+
+      {awaitingPlayerConfirmation.length > 0 ? (
+        <div className="space-y-4">
+          <p className="text-sm text-muted">
+            Placar informado por um jogador, aguardando confirmação do adversário. Use
+            &quot;Oficializar manualmente&quot; para confirmar o resultado já informado.
+          </p>
+          {awaitingPlayerConfirmation.map((match) => (
+            <OrganizerOfficializeMatchCard
+              key={match.id}
+              match={match}
+              playerNames={playerNames}
+              editionId={edition.id}
+              variant="awaiting-player"
+            />
+          ))}
+        </div>
+      ) : null}
     </section>
   );
 }
@@ -533,7 +560,8 @@ function PlacementSection({ edition }: { edition: Edition }) {
     <section className="space-y-4 rounded-xl bg-card p-4 shadow-sm">
       <h3 className="text-sm font-bold uppercase tracking-wide text-subtle">Fase de colocação</h3>
       <p className="text-sm text-muted">
-        Revise os grupos gerados automaticamente e publique para liberar as partidas de colocação.
+        Revise os grupos gerados automaticamente e <b>publique</b> para liberar as novas partidas de
+        colocação.
       </p>
       <GroupsView groups={placementGroups} playerNames={playerNames} emptyVariant="placement" />
       <button

@@ -23,7 +23,7 @@ export function getPlacementGroupRange(group: GroupRow): { from: number; to: num
     return { from: group.positionFrom, to: group.positionTo };
   }
 
-  const match = /^Placement (\d+)-(\d+)$/.exec(group.name);
+  const match = /^Colocação (\d+)º-(\d+)º$/.exec(group.name);
   if (!match) {
     return null;
   }

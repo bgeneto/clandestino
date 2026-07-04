@@ -11,14 +11,31 @@ export type FoundPlayer = {
   name: string;
 };
 
-async function findPlayerWithNormalizedName(
+/**
+ * Localiza um jogador cuja forma canônica, passada pela chave de
+ * comparação `normalizePlayerName` (sem acentos/cedilha/tilde, caixa alta),
+ * é igual ao argumento `normalizedKey`.
+ *
+ * O índice único `player_name_unique` é case-sensitive binário, então não
+ * cobre sozinho casos como `JOSE` vs `JOSÉ`. Por isso a busca sempre
+ * combina:
+ *  1. `eq(schema.players.name, normalizedKey)` — bate no caso comum
+ *     (mesma grafia, já em maiúsculas);
+ *  2. fallback em memória aplicando `normalizePlayerName` a cada linha,
+ *     cobrindo `JOSÉ` (com acento) quando se busca por `JOSE` (sem acento)
+ *     e vice-versa.
+ *
+ * O **nome armazenado** na coluna preserva a grafia original (acentos,
+ * cedilha); a comparação é que é feita sem eles.
+ */
+async function findPlayerWithNormalizedKey(
   db: PlayerDb,
-  normalizedName: string,
+  normalizedKey: string,
 ): Promise<FoundPlayer | null> {
   const [exact] = await db
     .select({ id: schema.players.id, name: schema.players.name })
     .from(schema.players)
-    .where(eq(schema.players.name, normalizedName))
+    .where(eq(schema.players.name, normalizedKey))
     .limit(1);
 
   if (exact) {
@@ -30,7 +47,7 @@ async function findPlayerWithNormalizedName(
     .from(schema.players);
 
   for (const row of rows) {
-    if (normalizePlayerName(row.name) === normalizedName) {
+    if (normalizePlayerName(row.name) === normalizedKey) {
       return row;
     }
   }
@@ -47,7 +64,7 @@ export async function findPlayerByNormalizedName(
     return null;
   }
 
-  return findPlayerWithNormalizedName(db, validation.name);
+  return findPlayerWithNormalizedKey(db, normalizePlayerName(validation.name));
 }
 
 export async function findOrCreatePlayerByName(
@@ -64,8 +81,12 @@ export async function findOrCreatePlayerByName(
     );
   }
 
-  const normalized = nameValidation.name;
-  const existing = await findPlayerWithNormalizedName(db, normalized);
+  // O nome persistido preserva a grafia original (JOSÉ, FÁTIMA, CONCEIÇÃO).
+  const canonical = nameValidation.name;
+  // A chave de comparação é sem acentos, cedilha ou til.
+  const key = normalizePlayerName(canonical);
+
+  const existing = await findPlayerWithNormalizedKey(db, key);
   if (existing) {
     return { player: existing, created: false };
   }
@@ -73,14 +94,14 @@ export async function findOrCreatePlayerByName(
   try {
     const [created] = await db
       .insert(schema.players)
-      .values({ name: normalized })
+      .values({ name: canonical })
       .returning({ id: schema.players.id, name: schema.players.name });
 
     if (!created) {
       throw badRequest(
         lineNumber !== undefined
-          ? `Linha ${lineNumber}: não foi possível cadastrar "${normalized}".`
-          : `Não foi possível cadastrar "${normalized}".`,
+          ? `Linha ${lineNumber}: não foi possível cadastrar "${canonical}".`
+          : `Não foi possível cadastrar "${canonical}".`,
       );
     }
 
@@ -90,7 +111,7 @@ export async function findOrCreatePlayerByName(
       throw error;
     }
 
-    const recovered = await findPlayerWithNormalizedName(db, normalized);
+    const recovered = await findPlayerWithNormalizedKey(db, key);
     if (!recovered) {
       throw error;
     }

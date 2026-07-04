@@ -7,6 +7,7 @@ export {
   PLAYER_NAME_MIN_LENGTH,
   PLAYER_NAME_MAX_LENGTH,
   PLAYER_NAME_DUPLICATE_MESSAGE,
+  canonicalizePlayerName,
   normalizePlayerName,
   validatePlayerName,
   findDuplicateNormalizedPlayerName,

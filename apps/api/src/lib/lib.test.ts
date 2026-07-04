@@ -24,8 +24,19 @@ Bruno Lima,89`);
     expect(rows).toEqual([
       { playerName: 'LUCAS LIMA', accumulatedPoints: 3947, lineNumber: 2 },
       { playerName: 'FERNANDO', accumulatedPoints: 2850, lineNumber: 3 },
+      // Acentos são preservados no nome canônico (o que vai persistido).
       { playerName: 'FÁTIMA', accumulatedPoints: 135, lineNumber: 4 },
     ]);
+  });
+
+  it('ignores duplicate player names that differ only by diacritics', () => {
+    // A 2ª linha colide com a 1ª via chave de comparação (sem acento);
+    // a 1ª ocorrência vence, com a grafia original preservada.
+    const rows = parseImportScoresCsv(`player_name,accumulated_points
+José Souza,10
+JOSÉ SOUZA,20`);
+
+    expect(rows).toEqual([{ playerName: 'JOSÉ SOUZA', accumulatedPoints: 10, lineNumber: 2 }]);
   });
 
   it('accepts nome,pontos alias pair', () => {

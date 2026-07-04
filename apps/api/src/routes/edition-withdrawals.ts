@@ -7,6 +7,7 @@ import {
 import { Type } from '@sinclair/typebox';
 import type { FastifyInstance } from 'fastify';
 import { withdrawPlayerFromEdition } from '../lib/withdrawals.js';
+import { emitPlayerWithdrawn } from '../lib/sse-events.js';
 
 const editionIdParams = Type.Object({ id: Type.String({ format: 'uuid' }) });
 
@@ -36,6 +37,8 @@ export async function registerEditionWithdrawalRoutes(app: FastifyInstance): Pro
         request.body.playerId,
         organizer,
       );
+
+      await emitPlayerWithdrawn(app, request.params.id, { playerId: result.playerId });
 
       return {
         playerId: result.playerId,

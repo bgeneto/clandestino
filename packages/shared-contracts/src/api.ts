@@ -38,26 +38,39 @@ export type ImportScoresResponse = Static<typeof ImportScoresResponseSchema>;
 
 export const SseEventTypeSchema = Type.Union(
   [
-    Type.Literal('standing_updated'),
     Type.Literal('match_confirmed'),
+    Type.Literal('match_result_submitted'),
     Type.Literal('phase_published'),
     Type.Literal('match_contested'),
+    Type.Literal('player_withdrawn'),
   ],
   { $id: 'SseEventType' },
 );
 
 export type SseEventType = Static<typeof SseEventTypeSchema>;
 
-export const SseEventSchema = Type.Object(
+/** Campos abreviados no wire SSE: m=matchId, g=groupId, p=playerId, n=count */
+export const SseWireDataSchema = Type.Object(
   {
-    event: SseEventTypeSchema,
-    editionId: Type.String({ format: 'uuid' }),
-    payload: JsonValueSchema,
+    m: Type.Optional(Type.String({ format: 'uuid' })),
+    g: Type.Optional(Type.String({ format: 'uuid' })),
+    p: Type.Optional(Type.String({ format: 'uuid' })),
+    n: Type.Optional(Type.Integer({ minimum: 0 })),
   },
-  { $id: 'SseEvent' },
+  { $id: 'SseWireData' },
 );
 
-export type SseEvent = Static<typeof SseEventSchema>;
+export type SseWireData = Static<typeof SseWireDataSchema>;
+
+export const EditionSyncStateSchema = Type.Object(
+  {
+    editionId: UuidSchema,
+    syncRevision: Type.Integer({ minimum: 0 }),
+  },
+  { $id: 'EditionSyncState' },
+);
+
+export type EditionSyncState = Static<typeof EditionSyncStateSchema>;
 
 export const EditionQrResponseSchema = Type.Object(
   {

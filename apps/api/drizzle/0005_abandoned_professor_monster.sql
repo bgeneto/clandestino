@@ -1,0 +1,1 @@
+ALTER TABLE `edition` ADD `sync_revision` integer DEFAULT 0 NOT NULL;

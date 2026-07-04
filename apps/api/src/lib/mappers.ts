@@ -81,6 +81,7 @@ export function mapEdition(row: EditionRow): Edition {
     ...(row.drawPlan ? { drawPlan: row.drawPlan } : {}),
     status: row.status,
     autoConfirmMinutes: row.autoConfirmMinutes,
+    syncRevision: row.syncRevision,
     createdAt: toIsoDateTime(row.createdAt),
   };
 }

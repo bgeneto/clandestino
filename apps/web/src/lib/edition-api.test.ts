@@ -19,6 +19,7 @@ const editionFixture: Edition = {
   date: '2026-06-28',
   status: 'EM_ANDAMENTO',
   autoConfirmMinutes: 60,
+  syncRevision: 0,
   rules: DEFAULT_EDITION_RULES,
   createdAt: '2026-06-28T00:00:00.000Z',
 };

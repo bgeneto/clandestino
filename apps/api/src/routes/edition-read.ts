@@ -6,6 +6,7 @@ import {
   EditionMatchesResponseSchema,
   EditionParticipantsResponseSchema,
   EditionStandingsResponseSchema,
+  EditionSyncStateSchema,
   ErrorResponseSchema,
   PlayerMatchesResponseSchema,
 } from '@clandestino/shared-contracts';
@@ -14,6 +15,7 @@ import { and, asc, desc, eq, inArray, or } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import { schema } from '../db/index.js';
 import { notFound } from '../lib/errors.js';
+import { getEditionSyncState } from '../lib/edition-sync.js';
 import { getResultSubmitter } from '../lib/matches.js';
 import { mapDrawSnapshot, mapFinalPlacement, mapMatch, mapStanding } from '../lib/mappers.js';
 
@@ -419,6 +421,24 @@ export async function registerEditionReadRoutes(app: FastifyInstance): Promise<v
       );
 
       return { contests };
+    },
+  );
+
+  typed.get(
+    '/editions/:id/sync-state',
+    {
+      schema: {
+        params: editionIdParams,
+        response: {
+          200: EditionSyncStateSchema,
+          404: ErrorResponseSchema,
+        },
+      },
+    },
+    async (request, reply) => {
+      const state = await getEditionSyncState(app.db, request.params.id);
+      void reply.header('Cache-Control', 'no-store');
+      return state;
     },
   );
 }

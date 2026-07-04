@@ -99,6 +99,7 @@ export const editions = sqliteTable(
     drawPlan: text('draw_plan', { mode: 'json' }).$type<EditionDrawPlan | null>(),
     status: text('status', { enum: EDITION_STATUSES }).notNull().default('RASCUNHO'),
     autoConfirmMinutes: integer('auto_confirm_minutes').notNull().default(15),
+    syncRevision: integer('sync_revision').notNull().default(0),
     createdAt,
   },
   (table) => [

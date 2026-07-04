@@ -49,7 +49,7 @@ export async function runAutoConfirmCycle(app: FastifyInstance): Promise<number>
         'AUTO_CONFIRMED',
       );
 
-      emitMatchConfirmed(app, result.editionId, {
+      await emitMatchConfirmed(app, result.editionId, {
         matchId: result.match.id,
         groupId: result.groupId,
       });

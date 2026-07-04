@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { EventEmitter } from 'node:events';
 import type { ServerResponse } from 'node:http';
-import { SseHub, formatSseMessage } from './sse.js';
+import { SseHub, formatSseMessage, parseLastEventId } from './sse.js';
 
 function createMockResponse(): ServerResponse {
   const emitter = new EventEmitter();
@@ -28,17 +28,29 @@ function createMockResponse(): ServerResponse {
 }
 
 describe('formatSseMessage', () => {
-  it('formats event name and JSON payload', () => {
+  it('formats slim id, event and data payload', () => {
     const message = formatSseMessage({
+      revision: 7,
       event: 'match_confirmed',
-      editionId: '550e8400-e29b-41d4-a716-446655440000',
-      payload: { matchId: '550e8400-e29b-41d4-a716-446655440001' },
+      data: {
+        m: '550e8400-e29b-41d4-a716-446655440001',
+        g: '550e8400-e29b-41d4-a716-446655440002',
+      },
     });
 
     expect(message).toBe(
-      'event: match_confirmed\n' +
-        'data: {"event":"match_confirmed","editionId":"550e8400-e29b-41d4-a716-446655440000","payload":{"matchId":"550e8400-e29b-41d4-a716-446655440001"}}\n\n',
+      'id: 7\n' +
+        'event: match_confirmed\n' +
+        'data: {"m":"550e8400-e29b-41d4-a716-446655440001","g":"550e8400-e29b-41d4-a716-446655440002"}\n\n',
     );
+  });
+});
+
+describe('parseLastEventId', () => {
+  it('parses numeric header', () => {
+    expect(parseLastEventId('12')).toBe(12);
+    expect(parseLastEventId(undefined)).toBe(0);
+    expect(parseLastEventId('invalid')).toBe(0);
   });
 });
 
@@ -50,19 +62,46 @@ describe('SseHub', () => {
     const client = hub.addClient(editionId, response);
 
     hub.emit(editionId, {
-      event: 'standing_updated',
-      editionId,
-      payload: { groupId: '550e8400-e29b-41d4-a716-446655440011' },
+      revision: 3,
+      event: 'match_result_submitted',
+      data: { m: '550e8400-e29b-41d4-a716-446655440011' },
     });
 
     const chunks = (
       response as ServerResponse & { getWrittenChunks(): string[] }
     ).getWrittenChunks();
     expect(chunks).toHaveLength(1);
-    expect(chunks[0]).toContain('event: standing_updated');
+    expect(chunks[0]).toContain('event: match_result_submitted');
+    expect(chunks[0]).toContain('id: 3');
 
     hub.removeClient(editionId, client);
     expect(hub.clientCount(editionId)).toBe(0);
+  });
+
+  it('replays buffered events after last revision', () => {
+    const hub = new SseHub();
+    const editionId = '550e8400-e29b-41d4-a716-446655440012';
+    const response = createMockResponse();
+
+    hub.emit(editionId, {
+      revision: 1,
+      event: 'match_result_submitted',
+      data: { m: '550e8400-e29b-41d4-a716-446655440013' },
+    });
+    hub.emit(editionId, {
+      revision: 2,
+      event: 'player_withdrawn',
+      data: { p: '550e8400-e29b-41d4-a716-446655440014' },
+    });
+
+    hub.replayAfter(editionId, 1, response);
+
+    const chunks = (
+      response as ServerResponse & { getWrittenChunks(): string[] }
+    ).getWrittenChunks();
+    expect(chunks).toHaveLength(1);
+    expect(chunks[0]).toContain('player_withdrawn');
+    expect(chunks[0]).toContain('id: 2');
   });
 
   it('ignores disconnected clients without throwing', () => {
@@ -74,9 +113,9 @@ describe('SseHub', () => {
 
     expect(() => {
       hub.emit(editionId, {
+        revision: 1,
         event: 'match_contested',
-        editionId,
-        payload: { matchId: '550e8400-e29b-41d4-a716-446655440021' },
+        data: { m: '550e8400-e29b-41d4-a716-446655440021' },
       });
     }).not.toThrow();
 
@@ -95,9 +134,9 @@ describe('SseHub', () => {
     hub.addClient(editionB, responseB);
 
     hub.emit(editionA, {
+      revision: 1,
       event: 'phase_published',
-      editionId: editionA,
-      payload: { matchesGenerated: 3 },
+      data: { n: 3 },
     });
 
     const chunksA = (

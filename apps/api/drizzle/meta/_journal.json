@@ -36,6 +36,13 @@
       "when": 1783175264953,
       "tag": "0004_busy_bloodaxe",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1783186328289,
+      "tag": "0005_abandoned_professor_monster",
+      "breakpoints": true
     }
   ]
 }

@@ -53,6 +53,7 @@ function edition(status: Edition['status']): Edition {
     rules: DEFAULT_EDITION_RULES,
     status,
     autoConfirmMinutes: 15,
+    syncRevision: 0,
     createdAt: '2026-06-28T00:00:00.000Z',
   };
 }

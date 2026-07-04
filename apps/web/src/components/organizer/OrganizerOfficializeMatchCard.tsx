@@ -37,6 +37,12 @@ export function OrganizerOfficializeMatchCard({
   const playerOneId = getPlayerOneId(match);
   const playerTwoId = getPlayerTwoId(match);
   const [confirmedOfficial, setConfirmedOfficial] = useState(false);
+  const submittedPlayerOneSets =
+    match.participants.find((participant) => participant.playerId === playerOneId)?.setsWon ?? 0;
+  const submittedPlayerTwoSets =
+    match.participants.find((participant) => participant.playerId === playerTwoId)?.setsWon ?? 0;
+  const hasPlayerSubmittedScore =
+    match.status === 'AGUARDANDO_CONFIRMACAO' || match.status === 'CONTESTADA';
 
   const officializeMutation = useMutation({
     mutationFn: (payload: MatchResultSubmitPayload) => {
@@ -116,6 +122,8 @@ export function OrganizerOfficializeMatchCard({
           reporterLabel={playerNames.get(playerOneId) ?? 'Jogador 1'}
           opponentLabel={playerNames.get(playerTwoId) ?? 'Jogador 2'}
           opponentId={playerTwoId}
+          initialPlayerOneSets={hasPlayerSubmittedScore ? submittedPlayerOneSets : undefined}
+          initialPlayerTwoSets={hasPlayerSubmittedScore ? submittedPlayerTwoSets : undefined}
           disabled={!confirmedOfficial}
           pending={officializeMutation.isPending}
           submitLabel={isContested ? 'Oficializar resultado corrigido' : 'Oficializar resultado'}

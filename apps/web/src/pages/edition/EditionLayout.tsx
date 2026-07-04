@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { Outlet, useNavigate, useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { Alert } from '../../components/ui/Alert.js';
-import { useEditionSse } from '../../hooks/use-edition-sse.js';
+import { useEditionSync } from '../../hooks/use-edition-sync.js';
 import { useEdition } from '../../hooks/use-edition.js';
 import { isEditionGone } from '../../lib/api-errors.js';
 import { purgeEditionLocalState } from '../../lib/purge-edition-state.js';
@@ -15,7 +15,7 @@ export function EditionLayout() {
 
   const editionGone = editionQuery.isError && isEditionGone(editionQuery.error);
 
-  useEditionSse(editionId, editionQuery.isSuccess);
+  useEditionSync(editionId, editionQuery.isSuccess);
 
   useEffect(() => {
     if (!editionGone || !editionId) {

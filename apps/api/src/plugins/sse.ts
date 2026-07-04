@@ -5,7 +5,7 @@ import { eq } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import { schema } from '../db/index.js';
 import { notFound } from '../lib/errors.js';
-import { SseHub, writeSseConnected, writeSseKeepAlive } from '../lib/sse.js';
+import { SseHub, parseLastEventId, writeSseConnected, writeSseKeepAlive } from '../lib/sse.js';
 
 const KEEP_ALIVE_INTERVAL_MS = 30_000;
 
@@ -50,6 +50,11 @@ export async function registerSsePlugin(app: FastifyInstance): Promise<void> {
         'Cache-Control': 'no-cache',
         Connection: 'keep-alive',
       });
+
+      const lastRevision = parseLastEventId(request.headers['last-event-id']);
+      if (lastRevision > 0) {
+        hub.replayAfter(editionId, lastRevision, reply.raw);
+      }
 
       const client = hub.addClient(editionId, reply.raw);
       writeSseConnected(reply.raw);

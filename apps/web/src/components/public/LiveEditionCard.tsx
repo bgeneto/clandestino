@@ -9,7 +9,7 @@ import {
   useEditionParticipants,
   useEditionStandings,
 } from '../../hooks/use-edition-data.js';
-import { useEditionSse } from '../../hooks/use-edition-sse.js';
+import { useEditionSync } from '../../hooks/use-edition-sync.js';
 import { formatEditionDate, formatEditionStatus } from '../../lib/format.js';
 import { isLiveEdition } from '../../lib/public-editions.js';
 
@@ -48,7 +48,7 @@ export function LiveEditionCard({ edition, enableSse = false }: LiveEditionCardP
   const editionId = edition.id;
   const live = isLiveEdition(edition.status);
 
-  useEditionSse(editionId, enableSse);
+  useEditionSync(editionId, enableSse);
 
   const groupsQuery = useEditionGroups(editionId);
   const standingsQuery = useEditionStandings(editionId);

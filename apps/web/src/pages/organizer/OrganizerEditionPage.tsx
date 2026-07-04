@@ -22,7 +22,7 @@ import {
 import { useEdition } from '../../hooks/use-edition.js';
 import { Alert } from '../../components/ui/Alert.js';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog.js';
-import { useEditionSse } from '../../hooks/use-edition-sse.js';
+import { useEditionSync } from '../../hooks/use-edition-sync.js';
 import { useEditionWizardDraft } from '../../hooks/use-edition-wizard-draft.js';
 import { buildDrawPlanFromDraft } from '../../offline/sync-wizard-draw-plan.js';
 import {
@@ -671,7 +671,7 @@ export function OrganizerEditionPage() {
   const groupsQuery = useEditionGroups(editionId);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
-  useEditionSse(editionId);
+  useEditionSync(editionId, editionQuery.isSuccess);
 
   const deleteMutation = useMutation({
     mutationFn: () => deleteEdition(editionId!),

@@ -1,42 +1,75 @@
 import type { FastifyInstance } from 'fastify';
+import { bumpEditionSyncRevision } from './edition-sync.js';
 
-export function emitMatchConfirmed(
+export async function emitMatchConfirmed(
   app: FastifyInstance,
   editionId: string,
   payload: { matchId: string; groupId: string },
-): void {
+): Promise<void> {
+  const revision = await bumpEditionSyncRevision(app.db, editionId);
   app.sse.emit(editionId, {
+    revision,
     event: 'match_confirmed',
-    editionId,
-    payload,
-  });
-  app.sse.emit(editionId, {
-    event: 'standing_updated',
-    editionId,
-    payload: { groupId: payload.groupId },
+    data: { m: payload.matchId, g: payload.groupId },
   });
 }
 
-export function emitMatchContested(
+export async function emitMatchResultSubmitted(
   app: FastifyInstance,
   editionId: string,
   payload: { matchId: string },
-): void {
+): Promise<void> {
+  const revision = await bumpEditionSyncRevision(app.db, editionId);
   app.sse.emit(editionId, {
-    event: 'match_contested',
-    editionId,
-    payload,
+    revision,
+    event: 'match_result_submitted',
+    data: { m: payload.matchId },
   });
 }
 
-export function emitPhasePublished(
+export async function emitMatchContested(
+  app: FastifyInstance,
+  editionId: string,
+  payload: { matchId: string },
+): Promise<void> {
+  const revision = await bumpEditionSyncRevision(app.db, editionId);
+  app.sse.emit(editionId, {
+    revision,
+    event: 'match_contested',
+    data: { m: payload.matchId },
+  });
+}
+
+export async function emitPhasePublished(
   app: FastifyInstance,
   editionId: string,
   payload: { matchesGenerated: number },
-): void {
+): Promise<void> {
+  const revision = await bumpEditionSyncRevision(app.db, editionId);
   app.sse.emit(editionId, {
+    revision,
     event: 'phase_published',
-    editionId,
-    payload,
+    data: { n: payload.matchesGenerated },
   });
+}
+
+export async function emitPlayerWithdrawn(
+  app: FastifyInstance,
+  editionId: string,
+  payload: { playerId: string },
+): Promise<void> {
+  const revision = await bumpEditionSyncRevision(app.db, editionId);
+  app.sse.emit(editionId, {
+    revision,
+    event: 'player_withdrawn',
+    data: { p: payload.playerId },
+  });
+}
+
+/** Incrementa revisão sem SSE — polling cobre mutações sem evento dedicado. */
+export async function bumpEditionSyncOnly(
+  app: FastifyInstance,
+  editionId: string,
+): Promise<number> {
+  return bumpEditionSyncRevision(app.db, editionId);
 }

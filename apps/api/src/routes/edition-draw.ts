@@ -23,6 +23,7 @@ import {
   rankEditionPlayersWithSeeds,
 } from '../lib/draw.js';
 import { badRequest, conflict, notFound } from '../lib/errors.js';
+import { bumpEditionSyncOnly } from '../lib/sse-events.js';
 import { mapEdition, mapGroupPlayer, mapGroupWithPlayers } from '../lib/mappers.js';
 
 const editionIdParams = Type.Object({ id: Type.String({ format: 'uuid' }) });
@@ -237,6 +238,8 @@ export async function registerEditionDrawRoutes(app: FastifyInstance): Promise<v
         });
       });
 
+      await bumpEditionSyncOnly(app, editionId);
+
       reply.code(201);
       return loadEditionGroups(app, editionId);
     },
@@ -312,6 +315,8 @@ export async function registerEditionDrawRoutes(app: FastifyInstance): Promise<v
       if (!updatedEdition) {
         throw badRequest('Não foi possível cancelar o sorteio.');
       }
+
+      await bumpEditionSyncOnly(app, editionId);
 
       return mapEdition(updatedEdition);
     },
@@ -445,6 +450,8 @@ export async function registerEditionDrawRoutes(app: FastifyInstance): Promise<v
       if (!updatedEdition) {
         throw badRequest('Não foi possível gerar as partidas.');
       }
+
+      await bumpEditionSyncOnly(app, editionId);
 
       return {
         edition: mapEdition(updatedEdition),

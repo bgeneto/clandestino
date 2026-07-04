@@ -19,7 +19,11 @@ import {
 } from '../lib/matches.js';
 import { parseOrganizerMatchCorrection, parsePlayerMatchSubmission } from '../lib/match-result.js';
 import { mapMatch } from '../lib/mappers.js';
-import { emitMatchConfirmed, emitMatchContested } from '../lib/sse-events.js';
+import {
+  emitMatchConfirmed,
+  emitMatchContested,
+  emitMatchResultSubmitted,
+} from '../lib/sse-events.js';
 
 const matchIdParams = Type.Object({ id: Type.String({ format: 'uuid' }) });
 
@@ -94,7 +98,7 @@ export async function registerMatchRoutes(app: FastifyInstance): Promise<void> {
           createdBy: playerId,
         });
 
-        emitMatchConfirmed(app, confirmed.editionId, {
+        await emitMatchConfirmed(app, confirmed.editionId, {
           matchId: confirmed.match.id,
           groupId: confirmed.groupId,
         });
@@ -155,6 +159,8 @@ export async function registerMatchRoutes(app: FastifyInstance): Promise<void> {
         throw badRequest('Não foi possível registrar o resultado.');
       }
 
+      await emitMatchResultSubmitted(app, match.editionId, { matchId: match.id });
+
       return { match: mapMatch(updated.match, updated.participants) };
     },
   );
@@ -206,7 +212,7 @@ export async function registerMatchRoutes(app: FastifyInstance): Promise<void> {
       }
 
       const confirmed = await confirmMatchResult(app.db, match.id, playerId, 'MATCH_CONFIRMED');
-      emitMatchConfirmed(app, confirmed.editionId, {
+      await emitMatchConfirmed(app, confirmed.editionId, {
         matchId: confirmed.match.id,
         groupId: confirmed.groupId,
       });
@@ -282,7 +288,7 @@ export async function registerMatchRoutes(app: FastifyInstance): Promise<void> {
         });
       });
 
-      emitMatchContested(app, match.editionId, { matchId: match.id });
+      await emitMatchContested(app, match.editionId, { matchId: match.id });
 
       const updated = await loadMatch(app.db, match.id);
       if (!updated) {
@@ -351,7 +357,7 @@ export async function registerMatchRoutes(app: FastifyInstance): Promise<void> {
           overwrotePlayerSubmission: previousStatus === 'AGUARDANDO_CONFIRMACAO',
         },
       });
-      emitMatchConfirmed(app, confirmed.editionId, {
+      await emitMatchConfirmed(app, confirmed.editionId, {
         matchId: confirmed.match.id,
         groupId: confirmed.groupId,
       });

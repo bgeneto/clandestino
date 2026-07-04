@@ -21,6 +21,7 @@ export {
 export { queryKeys } from './lib/query-keys.js';
 export { db } from './db/clandestino-db.js';
 export { usePlayerSession } from './hooks/use-player-session.js';
+export { useEditionSync } from './hooks/use-edition-sync.js';
 export { useEditionSse } from './hooks/use-edition-sse.js';
 export { useOnlineStatus } from './hooks/use-online-status.js';
 export { useOutboxCount } from './hooks/use-outbox-count.js';

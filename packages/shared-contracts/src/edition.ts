@@ -28,6 +28,7 @@ export const EditionSchema = Type.Object(
     drawPlan: Type.Optional(EditionDrawPlanSchema),
     status: EditionStatusSchema,
     autoConfirmMinutes: Type.Integer({ minimum: 1 }),
+    syncRevision: Type.Integer({ minimum: 0 }),
     createdAt: IsoDateTimeSchema,
   },
   { $id: 'Edition' },

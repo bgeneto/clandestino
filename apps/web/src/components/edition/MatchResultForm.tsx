@@ -1,5 +1,5 @@
 import { MAX_SETS_SCORE } from '@clandestino/shared-contracts';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ScoreCounter } from './ScoreCounter.js';
 import { Alert } from '../ui/Alert.js';
 import { validateScoreInput } from '../../lib/match-utils.js';
@@ -29,6 +29,8 @@ type MatchResultFormProps = {
   playerTwoId?: string;
   playerOneLabel?: string;
   playerTwoLabel?: string;
+  initialPlayerOneSets?: number;
+  initialPlayerTwoSets?: number;
   onSubmit: (payload: MatchResultSubmitPayload) => void;
 };
 
@@ -44,14 +46,25 @@ export function MatchResultForm({
   playerTwoId,
   playerOneLabel,
   playerTwoLabel,
+  initialPlayerOneSets,
+  initialPlayerTwoSets,
   onSubmit,
 }: MatchResultFormProps) {
   const [mode, setMode] = useState<MatchResultMode>('score');
   const [reporterSets, setReporterSets] = useState(0);
   const [opponentSets, setOpponentSets] = useState(0);
-  const [playerOneSets, setPlayerOneSets] = useState(0);
-  const [playerTwoSets, setPlayerTwoSets] = useState(0);
+  const [playerOneSets, setPlayerOneSets] = useState(initialPlayerOneSets ?? 0);
+  const [playerTwoSets, setPlayerTwoSets] = useState(initialPlayerTwoSets ?? 0);
   const [absentPlayerId, setAbsentPlayerId] = useState(playerTwoId ?? opponentId);
+
+  useEffect(() => {
+    if (!organizerMode) {
+      return;
+    }
+
+    setPlayerOneSets(initialPlayerOneSets ?? 0);
+    setPlayerTwoSets(initialPlayerTwoSets ?? 0);
+  }, [organizerMode, initialPlayerOneSets, initialPlayerTwoSets]);
 
   const validation = useMemo(() => {
     if (mode === 'walkover') {

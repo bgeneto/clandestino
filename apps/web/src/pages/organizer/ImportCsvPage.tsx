@@ -198,7 +198,7 @@ export function ImportCsvPage() {
         >
           ← Voltar ao campeonato
         </Link>
-        <h2 className="mt-3 text-xl font-semibold text-foreground">Importar pontuação CSV</h2>
+        <h2 className="mt-3 text-xl font-semibold text-foreground">Importar pontuação</h2>
         <p className="mt-2 text-sm text-muted">
           {championshipQuery.data
             ? `Campeonato: ${championshipQuery.data.name}`

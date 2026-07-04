@@ -185,6 +185,25 @@ export const CreatePlayerBodySchema = Type.Object(
 
 export type CreatePlayerBody = Static<typeof CreatePlayerBodySchema>;
 
+export const UpdatePlayerBodySchema = Type.Object(
+  {
+    name: Type.String({ minLength: PLAYER_NAME_MIN_LENGTH, maxLength: PLAYER_NAME_MAX_LENGTH }),
+  },
+  { $id: 'UpdatePlayerBody' },
+);
+
+export type UpdatePlayerBody = Static<typeof UpdatePlayerBodySchema>;
+
+export const DeletePlayerResponseSchema = Type.Object(
+  {
+    id: UuidSchema,
+    deletedAt: IsoDateTimeSchema,
+  },
+  { $id: 'DeletePlayerResponse' },
+);
+
+export type DeletePlayerResponse = Static<typeof DeletePlayerResponseSchema>;
+
 export const PlayerListResponseSchema = Type.Object(
   {
     players: Type.Array(PlayerSchema),

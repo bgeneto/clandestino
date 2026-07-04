@@ -8,6 +8,7 @@ import type {
   CreateEditionsResponse,
   DeleteChampionshipResponse,
   DeleteEditionResponse,
+  DeletePlayerResponse,
   DrawSnapshotListResponse,
   Edition,
   EditionContestedMatchesResponse,
@@ -31,6 +32,7 @@ import type {
   RequestOrganizerMagicLinkResponse,
   UnarchiveChampionshipResponse,
   UpdateEditionBody,
+  UpdatePlayerBody,
   UpdateScoringTableBody,
   VerifyOrganizerMagicLinkBody,
   WithdrawPlayerResponse,
@@ -139,6 +141,21 @@ export async function createPlayer(body: CreatePlayerBody): Promise<Player> {
   return apiRequest<Player>('/players', {
     method: 'POST',
     body,
+    ...organizer,
+  });
+}
+
+export async function updatePlayer(playerId: string, body: UpdatePlayerBody): Promise<Player> {
+  return apiRequest<Player>(`/players/${playerId}`, {
+    method: 'PATCH',
+    body,
+    ...organizer,
+  });
+}
+
+export async function deletePlayer(playerId: string): Promise<DeletePlayerResponse> {
+  return apiRequest<DeletePlayerResponse>(`/players/${playerId}`, {
+    method: 'DELETE',
     ...organizer,
   });
 }

@@ -169,7 +169,7 @@ export function ChampionshipPage() {
           até que seja desarquivado.
         </Alert>
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-3 sm:grid-cols-3">
           <Link
             to={`/organizador/campeonato/${championship.id}/edicao/nova`}
             className="rounded-2xl border border-line bg-card px-5 py-4 text-foreground transition hover:border-brand"
@@ -178,10 +178,17 @@ export function ChampionshipPage() {
             <p className="mt-1 text-sm text-subtle">Criar rodada neste campeonato</p>
           </Link>
           <Link
+            to={`/organizador/campeonato/${championship.id}/jogadores`}
+            className="rounded-2xl border border-line bg-card px-5 py-4 text-foreground transition hover:border-brand"
+          >
+            <p className="font-medium">Gerenciar jogadores</p>
+            <p className="mt-1 text-sm text-subtle">Editar nomes ou remover jogadores</p>
+          </Link>
+          <Link
             to={`/organizador/campeonato/${championship.id}/importar`}
             className="rounded-2xl border border-line bg-card px-5 py-4 text-foreground transition hover:border-brand"
           >
-            <p className="font-medium">Importar pontuação CSV</p>
+            <p className="font-medium">Importar pontuação</p>
             <p className="mt-1 text-sm text-subtle">Utilizar pontuação já existente</p>
           </Link>
         </div>

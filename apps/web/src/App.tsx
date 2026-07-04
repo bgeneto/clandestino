@@ -11,6 +11,7 @@ import { PublicEditionPage } from './pages/edition/PublicEditionPage.js';
 import { RegisterResultPage } from './pages/edition/RegisterResultPage.js';
 import { RequirePlayerSession } from './pages/edition/RequirePlayerSession.js';
 import { ChampionshipPage } from './pages/organizer/ChampionshipPage.js';
+import { ChampionshipPlayersPage } from './pages/organizer/ChampionshipPlayersPage.js';
 import { CreateChampionshipPage } from './pages/organizer/CreateChampionshipPage.js';
 import { CreateEditionPage } from './pages/organizer/CreateEditionPage.js';
 import { EditionPreparePage } from './pages/organizer/EditionPreparePage.js';
@@ -50,7 +51,10 @@ export function App() {
               element={<EditionPreparePage />}
             />
             <Route path="edicao/:editionId/preparar" element={<EditionPreparePage />} />
-            <Route path="campeonato/:championshipId/importar" element={<ImportCsvPage />} />
+            <Route
+              path="campeonato/:championshipId/jogadores"
+              element={<ChampionshipPlayersPage />}
+            />
             <Route path="edicao/:editionId" element={<OrganizerEditionPage />} />
           </Route>
         </Route>

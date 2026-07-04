@@ -9,6 +9,7 @@ import {
   CreateChampionshipBodySchema,
   CreatePlayerBodySchema,
   DeleteChampionshipResponseSchema,
+  DeletePlayerResponseSchema,
   ErrorResponseSchema,
   ImportScoresResponseSchema,
   OrganizerSessionResponseSchema,
@@ -18,6 +19,7 @@ import {
   RequestOrganizerMagicLinkBodySchema,
   RequestOrganizerMagicLinkResponseSchema,
   UnarchiveChampionshipResponseSchema,
+  UpdatePlayerBodySchema,
   UpdateScoringTableBodySchema,
   validatePlayerName,
   PLAYER_NAME_DUPLICATE_MESSAGE,
@@ -45,7 +47,12 @@ import {
 import { mapChampionship, mapEditionSummary, mapPlayer } from '../lib/mappers.js';
 import { parseImportScoresCsv } from '../lib/csv.js';
 import { listChampionshipRoster } from '../lib/championship-roster.js';
-import { findOrCreatePlayerByName, findPlayerByNormalizedName } from '../lib/players.js';
+import {
+  deletePlayer,
+  findOrCreatePlayerByName,
+  findPlayerByNormalizedName,
+  updatePlayerName,
+} from '../lib/players.js';
 import { consumeMagicToken, resolveOrganizerSession } from '../plugins/auth.js';
 
 export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
@@ -288,6 +295,49 @@ export async function registerPlayerRoutes(app: FastifyInstance): Promise<void> 
 
         throw error;
       }
+    },
+  );
+
+  typed.patch(
+    '/players/:id',
+    {
+      preHandler: app.requireOrganizer,
+      schema: {
+        params: Type.Object({ id: Type.String({ format: 'uuid' }) }),
+        body: UpdatePlayerBodySchema,
+        response: {
+          200: PlayerSchema,
+          400: ErrorResponseSchema,
+          401: ErrorResponseSchema,
+          404: ErrorResponseSchema,
+          409: ErrorResponseSchema,
+        },
+      },
+    },
+    async (request) => {
+      const playerId = request.params.id;
+      const updated = await updatePlayerName(app.db, playerId, request.body.name);
+      return mapPlayer(updated);
+    },
+  );
+
+  typed.delete(
+    '/players/:id',
+    {
+      preHandler: app.requireOrganizer,
+      schema: {
+        params: Type.Object({ id: Type.String({ format: 'uuid' }) }),
+        response: {
+          200: DeletePlayerResponseSchema,
+          401: ErrorResponseSchema,
+          404: ErrorResponseSchema,
+          409: ErrorResponseSchema,
+        },
+      },
+    },
+    async (request) => {
+      const playerId = request.params.id;
+      return deletePlayer(app.db, playerId);
     },
   );
 }

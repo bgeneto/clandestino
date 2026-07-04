@@ -11,10 +11,14 @@ export {
   normalizePlayerName,
   validatePlayerName,
   findDuplicateNormalizedPlayerName,
+  UpdatePlayerBodySchema,
+  DeletePlayerResponseSchema,
   type Player,
   type CreatePlayerBody,
   type PlayerListResponse,
   type PlayerNameValidationResult,
+  type UpdatePlayerBody,
+  type DeletePlayerResponse,
 } from './player.js';
 
 export {

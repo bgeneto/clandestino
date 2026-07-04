@@ -91,4 +91,23 @@ describe('executeExplicitDraw', () => {
     const second = executeExplicitDraw(input);
     expect(first).toEqual(second);
   });
+
+  it('produces the same groups regardless of player id order', () => {
+    const players = [playerId(1), playerId(2), playerId(3), playerId(4), playerId(5), playerId(6)];
+    const input = {
+      seedPlayerIds: [playerId(1), playerId(2)],
+      groupSizes: [3, 3] as const,
+      randomSeed: 'order-independent-seed',
+    };
+
+    const forward = executeExplicitDraw({ ...input, playerIds: players });
+    const reversed = executeExplicitDraw({ ...input, playerIds: [...players].reverse() });
+    const shuffled = executeExplicitDraw({
+      ...input,
+      playerIds: [playerId(4), playerId(1), playerId(6), playerId(2), playerId(5), playerId(3)],
+    });
+
+    expect(reversed).toEqual(forward);
+    expect(shuffled).toEqual(forward);
+  });
 });

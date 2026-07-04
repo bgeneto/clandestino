@@ -17,13 +17,18 @@ export function buildGroupName(index: number): string {
   return `Grupo ${String.fromCharCode(65 + index)}`;
 }
 
+function canonicalPlayerOrder(playerIds: readonly string[]): string[] {
+  return [...playerIds].sort((left, right) => left.localeCompare(right));
+}
+
 export function executeExplicitDraw(input: {
   playerIds: readonly string[];
   seedPlayerIds: readonly string[];
   groupSizes: readonly number[];
   randomSeed: string;
 }): ExplicitDrawResult {
-  const { playerIds, seedPlayerIds, groupSizes, randomSeed } = input;
+  const { seedPlayerIds, groupSizes, randomSeed } = input;
+  const playerIds = canonicalPlayerOrder(input.playerIds);
   const groupCount = groupSizes.length;
 
   if (groupCount < 1) {

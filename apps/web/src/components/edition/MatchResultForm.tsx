@@ -210,7 +210,7 @@ export function MatchResultForm({
             setsWonByOpponent: opponentSets,
           });
         }}
-        className="w-full rounded-xl bg-header px-4 py-3.5 text-base font-bold text-header-foreground disabled:opacity-40"
+        className="w-full rounded-xl bg-header px-4 py-3.5 text-base font-bold text-header-foreground disabled:cursor-not-allowed disabled:bg-line disabled:text-muted"
       >
         {pending ? 'Enviando…' : mode === 'walkover' ? 'Registrar vitória por WO' : submitLabel}
       </button>

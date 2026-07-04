@@ -73,32 +73,35 @@ export function OrganizerOfficializeMatchCard({
   });
 
   const isContested = variant === 'contested';
-  const borderClass = isContested
-    ? 'border-rose-200 bg-rose-50/50'
-    : 'border-amber-200 bg-amber-50/50';
+  const cardClass = isContested
+    ? 'border-danger-surface bg-danger-surface'
+    : 'border-warning-surface bg-warning-surface';
+  const metaTextClass = isContested ? 'text-danger-foreground' : 'text-warning-foreground';
 
   return (
-    <article className={`rounded-lg border p-4 ${borderClass}`}>
+    <article className={`rounded-lg border p-4 ${cardClass}`}>
       <p className="text-sm font-semibold text-foreground">
         {playerNames.get(playerOneId) ?? 'Jogador 1'} vs{' '}
         {playerNames.get(playerTwoId) ?? 'Jogador 2'}
       </p>
       {isContested ? (
-        <p className="mt-1 text-xs text-subtle">
+        <p className={`mt-1 text-xs ${metaTextClass}`}>
           Placar contestado: {formatMatchScore(match.participants, playerOneId, playerTwoId)}
         </p>
       ) : null}
       {!isContested && match.status === 'AGUARDANDO_CONFIRMACAO' ? (
-        <p className="mt-1 text-xs text-subtle">
+        <p className={`mt-1 text-xs ${metaTextClass}`}>
           Resultado registrado por jogador, aguardando confirmação:{' '}
           {formatMatchScore(match.participants, playerOneId, playerTwoId)}
         </p>
       ) : null}
       {!isContested && match.status === 'AGENDADA' ? (
-        <p className="mt-1 text-xs text-subtle">Nenhum resultado registrado pelos jogadores.</p>
+        <p className={`mt-1 text-xs ${metaTextClass}`}>
+          Nenhum resultado registrado pelos jogadores.
+        </p>
       ) : null}
       {contestReason ? (
-        <p className="mt-2 text-sm text-muted">
+        <p className={`mt-2 text-sm ${metaTextClass}`}>
           <span className="font-medium">Motivo:</span> {contestReason}
         </p>
       ) : null}
@@ -120,7 +123,7 @@ export function OrganizerOfficializeMatchCard({
         />
       </div>
 
-      <label className="mt-4 flex items-start gap-2 text-sm text-muted">
+      <label className={`mt-4 flex items-start gap-2 text-sm ${metaTextClass}`}>
         <input
           type="checkbox"
           checked={confirmedOfficial}

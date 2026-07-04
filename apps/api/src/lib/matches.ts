@@ -434,6 +434,18 @@ export async function maybeGeneratePlacementStage(
       }));
     });
 
+    const placementPlayerIds = [...new Set(groupPlayers.map((entry) => entry.playerId))];
+    if (placementPlayerIds.length > 0) {
+      await tx
+        .delete(schema.groupPlayers)
+        .where(
+          and(
+            eq(schema.groupPlayers.editionId, editionId),
+            inArray(schema.groupPlayers.playerId, placementPlayerIds),
+          ),
+        );
+    }
+
     await tx.insert(schema.groupPlayers).values(groupPlayers);
   }
 

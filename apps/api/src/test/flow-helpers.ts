@@ -126,6 +126,61 @@ export class EditionFlowClient {
     return { championshipId, editionId, playerIds, playerNames, matches };
   }
 
+  async createTwoGroupSixPlayerTournament(
+    randomSeed = 'flow-six-seed',
+  ): Promise<TournamentFlowContext> {
+    const playerNames = ['Ana', 'Bruno', 'Carla', 'Daniel', 'Eduardo', 'Fernanda'] as const;
+    const championshipId = (
+      await this.org('POST', '/championships', { name: `Campeonato ${Date.now()}` })
+    ).json<{ id: string }>().id;
+
+    const playerIds: string[] = [];
+    for (const name of playerNames) {
+      const created = await this.org('POST', '/players', { name });
+      expect(created.statusCode).toBe(201);
+      playerIds.push(created.json<{ id: string }>().id);
+    }
+
+    const edition = await this.org('POST', '/editions', {
+      championshipId,
+      date: '2026-07-04',
+      rules: {
+        ...DEFAULT_TOURNAMENT_RULES,
+        minimumGroupSize: 3,
+        preferredGroupSize: 3,
+        maximumGroupSize: 3,
+        protectedSeedCount: 2,
+      },
+      autoConfirmMinutes: 15,
+    });
+    expect(edition.statusCode).toBe(201);
+    const editionId = getCreatedEditionId(edition.json());
+
+    for (const playerId of playerIds) {
+      const registration = await this.org('POST', `/editions/${editionId}/registrations`, {
+        playerId,
+      });
+      expect(registration.statusCode).toBe(201);
+    }
+
+    const draw = await this.org('POST', `/editions/${editionId}/draw`, {
+      randomSeed,
+      groupCount: 2,
+      groupSizes: [3, 3],
+      seedPlayerIds: playerIds.slice(0, 2),
+    });
+    expect(draw.statusCode).toBe(201);
+
+    const generated = await this.org('POST', `/editions/${editionId}/matches/generate`);
+    expect([200, 201]).toContain(generated.statusCode);
+
+    const matches = (await this.org('GET', `/editions/${editionId}/matches`)).json<{
+      matches: Match[];
+    }>().matches;
+
+    return { championshipId, editionId, playerIds, playerNames, matches };
+  }
+
   async createFourGroupSixteenPlayerTournament(
     randomSeed = 'flow-sixteen-seed',
   ): Promise<TournamentFlowContext> {

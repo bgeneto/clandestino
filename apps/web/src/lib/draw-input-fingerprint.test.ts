@@ -3,6 +3,7 @@ import type { EditionWizardDraft } from '../db/clandestino-db.js';
 import {
   applyDraftMutation,
   buildDrawInputFingerprint,
+  buildDrawPreview,
   canonicalSeedOrder,
   invalidateStaleDrawPreview,
   isDrawPreviewStale,
@@ -197,5 +198,20 @@ describe('draw-input-fingerprint', () => {
     expect(draft.seedPlayerIds).toEqual([playerA.playerId, playerB.playerId]);
     expect(draft.drawPreview?.length).toBeGreaterThan(0);
     expect(draft.drawInputFingerprint).toBeDefined();
+  });
+
+  it('builds the same preview regardless of checked-in player order', () => {
+    const randomSeed = 'preview-order-seed';
+    const forwardOrder = baseDraft({
+      checkedInPlayers: [playerA, playerB, playerC, playerD],
+    });
+    const reversedOrder = baseDraft({
+      checkedInPlayers: [playerD, playerC, playerB, playerA],
+    });
+
+    const forwardPreview = buildDrawPreview(forwardOrder, randomSeed);
+    const reversedPreview = buildDrawPreview(reversedOrder, randomSeed);
+
+    expect(reversedPreview).toEqual(forwardPreview);
   });
 });

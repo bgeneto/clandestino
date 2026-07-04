@@ -80,9 +80,18 @@ describe.skipIf(!hasTestDb)(
       expect(withdrawn?.withdrawnAt).toBeDefined();
     });
 
-    it.skip('publica bracket-4 na colocação e avança semifinais para a final', async () => {
-      // Requer 4 grupos (16 jogadores). Hoje falha ao gerar faixas de colocação porque
-      // group_player impõe um jogador por edição e os líderes já estão nos grupos da fase anterior.
+    it('gera fase de colocação ao concluir fase de grupos com múltiplos grupos', async () => {
+      const { editionId, matches } = await flow.createTwoGroupSixPlayerTournament();
+      await flow.completeGroupStage(editionId, matches);
+
+      const edition = await flow.org('GET', `/editions/${editionId}`);
+      expect(edition.json<{ status: string }>().status).toBe('FASE_COLOCACAO');
+
+      const groups = await flow.getGroups(editionId);
+      expect(groupIdsByPhase(groups, 'PLACEMENT_STAGE').length).toBeGreaterThan(0);
+    });
+
+    it('publica bracket-4 na colocação e avança semifinais para a final', async () => {
       const { editionId, matches } = await flow.createFourGroupSixteenPlayerTournament();
       await flow.completeGroupStage(editionId, matches);
 
@@ -90,7 +99,7 @@ describe.skipIf(!hasTestDb)(
       expect(publish.statusCode).toBe(200);
     });
 
-    it.skip('reforma faixa de colocação antes do início quando um jogador desiste (4→3 round-robin)', async () => {
+    it('reforma faixa de colocação antes do início quando um jogador desiste (4→3 round-robin)', async () => {
       const { editionId, matches } = await flow.createFourGroupSixteenPlayerTournament();
       await flow.completeGroupStage(editionId, matches);
 

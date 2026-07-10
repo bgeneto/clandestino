@@ -38,7 +38,11 @@ function parseRevision(lastEventId: string | null): number | undefined {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
 }
 
-export function useEditionSync(editionId: string | undefined, enabled = false): void {
+export function useEditionSync(
+  editionId: string | undefined,
+  enabled = false,
+  championshipId?: string,
+): void {
   const queryClient = useQueryClient();
   const lastRevisionRef = useRef(0);
   const sseConnectedRef = useRef(false);
@@ -80,7 +84,7 @@ export function useEditionSync(editionId: string | undefined, enabled = false): 
       void invalidateEditionSyncQueries(
         queryClient,
         editionId,
-        getInvalidationKeysForSseEvent(editionId, eventType),
+        getInvalidationKeysForSseEvent(editionId, eventType, championshipId),
       );
     };
 
@@ -141,7 +145,7 @@ export function useEditionSync(editionId: string | undefined, enabled = false): 
           await invalidateEditionSyncQueries(
             queryClient,
             editionId,
-            getInvalidationKeysForSyncBump(editionId),
+            getInvalidationKeysForSyncBump(editionId, championshipId),
           );
         }
       } catch {
@@ -178,5 +182,5 @@ export function useEditionSync(editionId: string | undefined, enabled = false): 
       sourceRef.current?.close();
       sourceRef.current = null;
     };
-  }, [editionId, enabled, queryClient]);
+  }, [championshipId, editionId, enabled, queryClient]);
 }

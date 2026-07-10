@@ -1,4 +1,4 @@
-const STEP_LABELS = ['Check-in', 'Grupos', 'Seeds', 'Sorteio', 'Publicar'] as const;
+const STEP_LABELS = ['Check-in', 'Grupos', 'Seeds', 'Publicar'] as const;
 
 type WizardStepNavProps = {
   currentStep: number;

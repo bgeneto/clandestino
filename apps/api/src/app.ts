@@ -26,6 +26,16 @@ export async function createApp(config: ApiConfig, options?: { emailSender?: Ema
     logger: true,
   }).withTypeProvider<TypeBoxTypeProvider>();
 
+  app.addHook('onSend', async (_request, reply, payload) => {
+    if (!reply.hasHeader('Cache-Control')) {
+      void reply.header('Cache-Control', 'no-store, max-age=0');
+    }
+    if (!reply.hasHeader('CDN-Cache-Control')) {
+      void reply.header('CDN-Cache-Control', 'no-store');
+    }
+    return payload;
+  });
+
   app.addContentTypeParser('text/csv', { parseAs: 'string' }, (_request, body, done) => {
     done(null, body);
   });

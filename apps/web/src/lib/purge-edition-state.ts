@@ -3,6 +3,7 @@ import { persistQueryClientSave } from '@tanstack/react-query-persist-client';
 import { db, SESSION_ROW_ID, type ClandestinoDatabase } from '../db/clandestino-db.js';
 import { queryClient } from '../query/query-client.js';
 import { queryPersister } from '../query/persister.js';
+import { QUERY_CACHE_BUSTER, shouldPersistOfflineQuery } from '../query/persistence-policy.js';
 
 function queryKeyIncludesEditionId(queryKey: readonly unknown[], editionId: string): boolean {
   return queryKey.some((part) => part === editionId);
@@ -56,8 +57,9 @@ async function purgeEditionQueryState(editionId: string, client: QueryClient): P
   await persistQueryClientSave({
     queryClient: client,
     persister: queryPersister,
+    buster: QUERY_CACHE_BUSTER,
     dehydrateOptions: {
-      shouldDehydrateQuery: (query) => query.state.status === 'success',
+      shouldDehydrateQuery: shouldPersistOfflineQuery,
     },
   });
 }

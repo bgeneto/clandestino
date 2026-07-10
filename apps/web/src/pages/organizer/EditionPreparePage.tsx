@@ -34,10 +34,8 @@ import {
 import { CheckInStep } from '../../components/organizer/edition-wizard/CheckInStep.js';
 import { DrawPreviewStep } from '../../components/organizer/edition-wizard/DrawPreviewStep.js';
 import { GroupsFormatStep } from '../../components/organizer/edition-wizard/GroupsFormatStep.js';
-import { ReviewStep } from '../../components/organizer/edition-wizard/ReviewStep.js';
 import { SeedsStep } from '../../components/organizer/edition-wizard/SeedsStep.js';
 import { WizardStepNav } from '../../components/organizer/edition-wizard/WizardStepNav.js';
-import { EditionAccessSection } from '../../components/organizer/EditionAccessSection.js';
 import { formatEditionDate } from '../../lib/format.js';
 import { Alert } from '../../components/ui/Alert.js';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog.js';
@@ -55,6 +53,14 @@ function createLocalPlayerId(name: string): string {
 
 function createRandomSeed(): string {
   return createClientId('seed');
+}
+
+async function normalizeLoadedDraftStep(draft: EditionWizardDraft): Promise<EditionWizardDraft> {
+  if (draft.currentStep <= 5) {
+    return draft;
+  }
+
+  return saveEditionWizardDraft({ ...draft, currentStep: 5 });
 }
 
 export function EditionPreparePage() {
@@ -107,7 +113,7 @@ export function EditionPreparePage() {
     if (draftId) {
       setLoading(true);
       const loaded = await getEditionWizardDraft(draftId);
-      setDraft(loaded ?? null);
+      setDraft(loaded ? await normalizeLoadedDraftStep(loaded) : null);
       setLoading(false);
       return;
     }
@@ -121,7 +127,7 @@ export function EditionPreparePage() {
     setLoading(true);
     const loaded = await getEditionWizardDraftByEditionId(editionId);
     if (loaded) {
-      setDraft(loaded);
+      setDraft(await normalizeLoadedDraftStep(loaded));
       setLoading(false);
       return;
     }
@@ -250,6 +256,22 @@ export function EditionPreparePage() {
     [persistDraft],
   );
 
+  const rerunAndSyncDrawPreview = useCallback(
+    async (sourceDraft: EditionWizardDraft) => {
+      const savedDraft = await runDrawPreview(sourceDraft, createRandomSeed());
+      if (!isOnline || !savedDraft.editionId) {
+        return;
+      }
+
+      try {
+        await syncWizardDrawPlan(savedDraft, queryClient);
+      } catch (error) {
+        notifyApiError(notify, error, 'Não foi possível salvar a nova prévia do sorteio.');
+      }
+    },
+    [isOnline, notify, queryClient, runDrawPreview],
+  );
+
   if (loading) {
     return <p className="text-sm text-subtle">Carregando preparação da edição…</p>;
   }
@@ -311,13 +333,6 @@ export function EditionPreparePage() {
         isLoading={deleteMutation.isPending}
         onConfirm={() => void deleteMutation.mutateAsync()}
         onCancel={() => setIsDeleteDialogOpen(false)}
-      />
-
-      <EditionAccessSection
-        editionId={draft.editionId}
-        editionName={draft.predictedEditionName}
-        editionStatus={editionQuery.data?.status}
-        offlinePending={!isOnline && !draft.editionId}
       />
 
       {draft.currentStep === 2 ? (
@@ -441,23 +456,9 @@ export function EditionPreparePage() {
       {draft.currentStep === 5 ? (
         <DrawPreviewStep
           draft={draft}
-          onBack={() => void goToStep(4)}
-          onContinue={() => void goToStep(6)}
-          onRedraw={() => {
-            void runDrawPreview(draft, createRandomSeed());
-          }}
-          onRecalculate={() => {
-            void runDrawPreview(draft, createRandomSeed());
-          }}
-        />
-      ) : null}
-
-      {draft.currentStep === 6 ? (
-        <ReviewStep
-          draft={draft}
           isOnline={isOnline}
           isPublishing={isPublishing}
-          onBack={() => void goToStep(5)}
+          onBack={() => void goToStep(4)}
           onPublish={async () => {
             if (!canPublishDraft(draft)) {
               notify.warning('Complete todos os passos antes de publicar.');
@@ -478,8 +479,14 @@ export function EditionPreparePage() {
             setIsPublishing(false);
 
             if (result.status === 'synced') {
-              await invalidateEditionAfterPublish(queryClient, result.editionId);
-              void navigate(`/organizador/edicao/${result.editionId}`);
+              await invalidateEditionAfterPublish(
+                queryClient,
+                result.editionId,
+                draft.championshipId,
+              );
+              void navigate(`/organizador/edicao/${result.editionId}?publicado=1`, {
+                replace: true,
+              });
               return;
             }
 
@@ -489,6 +496,12 @@ export function EditionPreparePage() {
             }
 
             notify.danger(result.message);
+          }}
+          onRedraw={() => {
+            void rerunAndSyncDrawPreview(draft);
+          }}
+          onRecalculate={() => {
+            void rerunAndSyncDrawPreview(draft);
           }}
         />
       ) : null}

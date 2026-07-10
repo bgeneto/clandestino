@@ -1,4 +1,4 @@
-import type { EditionDrawPlan } from '@clandestino/shared-contracts';
+import type { ApprovedDrawGroup, EditionDrawPlan } from '@clandestino/shared-contracts';
 import type { QueryClient } from '@tanstack/react-query';
 import type { EditionWizardDraft } from '../db/clandestino-db.js';
 import { ApiError } from '../lib/api-client.js';
@@ -10,11 +10,28 @@ export function buildDrawPlanFromDraft(draft: EditionWizardDraft): EditionDrawPl
     return null;
   }
 
+  const approvedGroups = buildApprovedGroupsFromDraft(draft);
+
   return {
     groupCount: draft.groupCount,
     groupSizes: draft.groupSizes,
     ...(draft.seedPlayerIds ? { seedPlayerIds: draft.seedPlayerIds } : {}),
+    ...(draft.drawRandomSeed && approvedGroups
+      ? { randomSeed: draft.drawRandomSeed, approvedGroups }
+      : {}),
   };
+}
+
+export function buildApprovedGroupsFromDraft(
+  draft: EditionWizardDraft,
+): ApprovedDrawGroup[] | undefined {
+  if (!draft.drawPreview?.length) {
+    return undefined;
+  }
+
+  return draft.drawPreview.map((group) => ({
+    playerIds: group.players.map((player) => player.playerId),
+  }));
 }
 
 export async function syncWizardDrawPlan(

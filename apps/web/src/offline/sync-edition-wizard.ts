@@ -10,6 +10,7 @@ import {
 } from '../lib/organizer-api.js';
 import type { EditionWizardDraft } from '../db/clandestino-db.js';
 import { deleteEditionWizardDraft, saveEditionWizardDraft } from './edition-wizard-draft.js';
+import { buildApprovedGroupsFromDraft } from './sync-wizard-draw-plan.js';
 
 export type WizardSyncResult =
   | { status: 'synced'; editionId: string }
@@ -61,12 +62,19 @@ export async function syncEditionWizardDraft(draft: EditionWizardDraft): Promise
       Object.assign(syncingDraft, remapDraftPlayerIds(syncingDraft, idRemap));
     }
 
-    if (isDrawPreviewStale(syncingDraft)) {
-      return {
-        status: 'error',
-        message:
-          'Jogadores sincronizados com novos IDs. Volte ao passo Seeds e recalcule o sorteio.',
-      };
+    if (
+      !syncingDraft.drawRandomSeed ||
+      !syncingDraft.drawPreview?.length ||
+      isDrawPreviewStale(syncingDraft)
+    ) {
+      throw new Error(
+        'Jogadores sincronizados com novos IDs. Volte ao passo Seeds e recalcule o sorteio.',
+      );
+    }
+
+    const approvedGroups = buildApprovedGroupsFromDraft(syncingDraft);
+    if (!approvedGroups) {
+      throw new Error('A prévia aprovada do sorteio não está disponível. Refaça o sorteio.');
     }
 
     if (!editionId) {
@@ -97,6 +105,7 @@ export async function syncEditionWizardDraft(draft: EditionWizardDraft): Promise
       groupCount: syncingDraft.groupCount,
       groupSizes: syncingDraft.groupSizes,
       seedPlayerIds: syncingDraft.seedPlayerIds,
+      approvedGroups,
     };
 
     try {

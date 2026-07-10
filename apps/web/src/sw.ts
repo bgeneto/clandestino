@@ -7,14 +7,19 @@ import {
   precacheAndRoute,
 } from 'workbox-precaching';
 import { registerRoute } from 'workbox-routing';
-import { CacheFirst, NetworkFirst, NetworkOnly } from 'workbox-strategies';
+import { CacheFirst, NetworkOnly } from 'workbox-strategies';
 import { processOutbox } from './offline/process-outbox.js';
 
 declare let self: ServiceWorkerGlobalScope;
 
+self.skipWaiting();
 clientsClaim();
 precacheAndRoute(self.__WB_MANIFEST);
 cleanupOutdatedCaches();
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil(caches.delete('api-cache'));
+});
 
 registerRoute(({ request }) => request.mode === 'navigate', createHandlerBoundToURL('/index.html'));
 
@@ -43,13 +48,7 @@ registerRoute(({ url, request }) => {
   return request.headers.get('accept')?.includes('text/event-stream') ?? false;
 }, new NetworkOnly());
 
-registerRoute(
-  ({ url }) => url.pathname.startsWith('/api/'),
-  new NetworkFirst({
-    cacheName: 'api-cache',
-    networkTimeoutSeconds: 10,
-  }),
-);
+registerRoute(({ url }) => url.pathname.startsWith('/api/'), new NetworkOnly());
 
 async function runOutboxSync(): Promise<void> {
   try {

@@ -15,7 +15,7 @@ export function EditionLayout() {
 
   const editionGone = editionQuery.isError && isEditionGone(editionQuery.error);
 
-  useEditionSync(editionId, editionQuery.isSuccess);
+  useEditionSync(editionId, editionQuery.isSuccess, editionQuery.data?.championshipId);
 
   useEffect(() => {
     if (!editionGone || !editionId) {

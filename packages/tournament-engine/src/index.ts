@@ -33,6 +33,7 @@ export {
 } from './group-planning.js';
 export {
   executeExplicitDraw,
+  drawMatchesApprovedGroups,
   buildGroupName,
   type ExplicitDrawGroupResult,
   type ExplicitDrawResult,

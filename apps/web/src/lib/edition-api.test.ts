@@ -79,6 +79,17 @@ describe('edition-api offline fallback', () => {
     await expect(fetchEdition(editionId)).resolves.toEqual(editionFixture);
   });
 
+  it('ignora o cache HTTP do navegador ao consultar a API', async () => {
+    const fetchMock = vi.fn(async () => jsonResponse(200, editionFixture));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(fetchEdition(editionId)).resolves.toEqual(editionFixture);
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ cache: 'no-store' }),
+    );
+  });
+
   it('usa cache em erro 5xx', async () => {
     await cacheEdition(editionFixture);
 

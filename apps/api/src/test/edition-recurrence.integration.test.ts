@@ -79,6 +79,8 @@ describe.skipIf(!hasTestDb)('edições recorrentes e renumeração (integração
       method: 'GET',
       url: `/championships/${championshipId}/editions`,
     });
+    expect(list.headers['cache-control']).toBe('no-store, max-age=0');
+    expect(list.headers['cdn-cache-control']).toBe('no-store');
     const editions = list.json<{ editions: Array<{ name: string; date: string }> }>().editions;
     const sortedByDate = [...editions].sort((left, right) => left.date.localeCompare(right.date));
     expect(sortedByDate.map((edition) => edition.name)).toEqual([

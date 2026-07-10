@@ -6,6 +6,7 @@ export const queryKeys = {
   standings: (editionId: string) => ['standings', editionId] as const,
   matches: (editionId: string, playerId?: string) =>
     ['matches', editionId, playerId ?? 'all'] as const,
+  matchesForEdition: (editionId: string) => ['matches', editionId] as const,
   player: (playerId: string) => ['player', playerId] as const,
   championships: () => ['championships'] as const,
   organizerActiveEditions: () => ['organizer-active-editions'] as const,

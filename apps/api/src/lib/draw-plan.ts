@@ -1,5 +1,10 @@
 import type { EditionDrawPlan, EditionRules } from '@clandestino/shared-contracts';
-import { partitionPlayersIntoGroups, WIZARD_MIN_GROUP_SIZE } from '@clandestino/tournament-engine';
+import {
+  drawMatchesApprovedGroups,
+  executeExplicitDraw,
+  partitionPlayersIntoGroups,
+  WIZARD_MIN_GROUP_SIZE,
+} from '@clandestino/tournament-engine';
 
 export function mergeDrawPlan(
   current: EditionDrawPlan | null | undefined,
@@ -14,6 +19,17 @@ export function mergeDrawPlan(
   }
 
   const merged: EditionDrawPlan = { ...(current ?? {}), ...patch };
+  const changesDrawInput =
+    patch.groupCount !== undefined ||
+    patch.groupSizes !== undefined ||
+    patch.seedPlayerIds !== undefined;
+  const includesApprovedPreview =
+    patch.randomSeed !== undefined || patch.approvedGroups !== undefined;
+
+  if (changesDrawInput && !includesApprovedPreview) {
+    delete merged.randomSeed;
+    delete merged.approvedGroups;
+  }
 
   if (Object.keys(merged).length === 0) {
     return null;
@@ -42,7 +58,7 @@ export function validateDrawPlanAgainstRegistrations(
   registrationCount: number,
   registrationIds: ReadonlySet<string>,
 ): string | null {
-  const { groupCount, groupSizes, seedPlayerIds } = drawPlan;
+  const { groupCount, groupSizes, seedPlayerIds, randomSeed, approvedGroups } = drawPlan;
 
   if (groupCount !== undefined && groupSizes !== undefined && groupSizes.length !== groupCount) {
     return 'A quantidade de tamanhos de grupo deve corresponder ao número de grupos.';
@@ -92,6 +108,35 @@ export function validateDrawPlanAgainstRegistrations(
       if (!registrationIds.has(seedPlayerId)) {
         return 'Um ou mais seeds não estão inscritos nesta edição.';
       }
+    }
+  }
+
+  const hasApprovedPreview = randomSeed !== undefined || approvedGroups !== undefined;
+  if (hasApprovedPreview) {
+    if (
+      groupCount === undefined ||
+      groupSizes === undefined ||
+      seedPlayerIds === undefined ||
+      randomSeed === undefined ||
+      approvedGroups === undefined
+    ) {
+      return 'A prévia aprovada do sorteio está incompleta.';
+    }
+
+    let generatedDraw;
+    try {
+      generatedDraw = executeExplicitDraw({
+        playerIds: [...registrationIds],
+        seedPlayerIds,
+        groupSizes,
+        randomSeed,
+      });
+    } catch (error) {
+      return error instanceof Error ? error.message : 'A prévia aprovada do sorteio é inválida.';
+    }
+
+    if (!drawMatchesApprovedGroups(generatedDraw, approvedGroups)) {
+      return 'Os grupos aprovados não correspondem ao sorteio reproduzido pelo servidor.';
     }
   }
 

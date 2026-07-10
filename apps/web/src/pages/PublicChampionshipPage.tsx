@@ -55,6 +55,7 @@ export function PublicChampionshipPage() {
             <LiveEditionCard
               key={edition.id}
               edition={edition}
+              championshipId={championship.id}
               enableSse={edition.id === featuredLiveEditionId && index === 0}
             />
           ))}

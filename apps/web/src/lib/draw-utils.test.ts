@@ -22,6 +22,8 @@ describe('getDrawReadinessWarning', () => {
       groupCount: 2,
       groupSizes: [3, 3],
       seedPlayerIds: ['a', 'b'],
+      randomSeed: 'fixed-seed',
+      approvedGroups: [{ playerIds: ['a', 'c', 'e'] }, { playerIds: ['b', 'd', 'f'] }],
     });
     expect(warning).toBeNull();
   });
@@ -40,6 +42,15 @@ describe('getDrawReadinessWarning', () => {
       groupSizes: [3, 3],
     });
     expect(warning).toContain('Seeds');
+  });
+
+  it('warns when explicit configuration lost its approved preview', () => {
+    const warning = getDrawReadinessWarning(6, DEFAULT_TOURNAMENT_RULES, {
+      groupCount: 2,
+      groupSizes: [3, 3],
+      seedPlayerIds: ['a', 'b'],
+    });
+    expect(warning).toContain('prévia');
   });
 
   it('warns when configured groups exceed feasible automatic partition', () => {
@@ -61,6 +72,8 @@ describe('canExecuteExplicitDraw', () => {
         groupCount: 2,
         groupSizes: [3, 3],
         seedPlayerIds: ['a', 'b'],
+        randomSeed: 'fixed-seed',
+        approvedGroups: [{ playerIds: ['a', 'c', 'e'] }, { playerIds: ['b', 'd', 'f'] }],
       }),
     ).toBe(true);
   });
@@ -70,6 +83,16 @@ describe('canExecuteExplicitDraw', () => {
       canExecuteExplicitDraw({
         groupCount: 2,
         groupSizes: [3, 3],
+      }),
+    ).toBe(false);
+  });
+
+  it('returns false when the approved preview is missing', () => {
+    expect(
+      canExecuteExplicitDraw({
+        groupCount: 2,
+        groupSizes: [3, 3],
+        seedPlayerIds: ['a', 'b'],
       }),
     ).toBe(false);
   });

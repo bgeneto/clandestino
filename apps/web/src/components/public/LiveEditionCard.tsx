@@ -41,14 +41,19 @@ function selectPreviewMatches(matches: Match[]): Match[] {
 
 type LiveEditionCardProps = {
   edition: EditionSummary;
+  championshipId: string;
   enableSse?: boolean;
 };
 
-export function LiveEditionCard({ edition, enableSse = false }: LiveEditionCardProps) {
+export function LiveEditionCard({
+  edition,
+  championshipId,
+  enableSse = false,
+}: LiveEditionCardProps) {
   const editionId = edition.id;
   const live = isLiveEdition(edition.status);
 
-  useEditionSync(editionId, enableSse);
+  useEditionSync(editionId, enableSse, championshipId);
 
   const groupsQuery = useEditionGroups(editionId);
   const standingsQuery = useEditionStandings(editionId);

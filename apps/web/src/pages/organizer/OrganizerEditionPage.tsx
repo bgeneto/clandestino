@@ -1,12 +1,12 @@
 import { useMemo, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { Edition } from '@clandestino/shared-contracts';
 import { GroupsView } from '../../components/edition/GroupsView.js';
 import { EditionTournamentOverview } from '../../components/organizer/EditionTournamentOverview.js';
 import { OrganizerOfficializeMatchCard } from '../../components/organizer/OrganizerOfficializeMatchCard.js';
 import { DrawAuditPanel } from '../../components/organizer/DrawAuditPanel.js';
-import { EditionQrCode } from '../../components/organizer/EditionQrCode.js';
+import { EditionAccessSection } from '../../components/organizer/EditionAccessSection.js';
 import {
   useChampionshipRoster,
   useContestedMatches,
@@ -51,7 +51,6 @@ import {
 } from '../../lib/organizer-api.js';
 import { queryKeys } from '../../lib/query-keys.js';
 import { invalidateEditionQueries } from '../../lib/invalidate-edition-queries.js';
-import { buildEditionEntryUrl } from '../../lib/edition-entry-url.js';
 import { purgeEditionLocalState } from '../../lib/purge-edition-state.js';
 import { notifyApiError } from '../../notifications/notify-api-error.js';
 import { useNotification } from '../../notifications/notification-context.js';
@@ -301,6 +300,8 @@ function DrawSection({ edition }: { edition: Edition }) {
           groupCount: effectiveDrawPlan.groupCount,
           groupSizes: effectiveDrawPlan.groupSizes,
           seedPlayerIds: effectiveDrawPlan.seedPlayerIds,
+          randomSeed: effectiveDrawPlan.randomSeed,
+          approvedGroups: effectiveDrawPlan.approvedGroups,
         });
       }
 
@@ -692,6 +693,7 @@ function FinalizeSection({ edition }: { edition: Edition }) {
 export function OrganizerEditionPage() {
   const { editionId } = useParams<{ editionId: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const queryClient = useQueryClient();
   const notify = useNotification();
   const editionQuery = useEdition(editionId);
@@ -699,7 +701,7 @@ export function OrganizerEditionPage() {
   const groupsQuery = useEditionGroups(editionId);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
-  useEditionSync(editionId, editionQuery.isSuccess);
+  useEditionSync(editionId, editionQuery.isSuccess, editionQuery.data?.championshipId);
 
   const deleteMutation = useMutation({
     mutationFn: () => deleteEdition(editionId!),
@@ -737,6 +739,8 @@ export function OrganizerEditionPage() {
   const canDelete =
     (edition.status === 'RASCUNHO' || edition.status === 'INSCRICOES_ABERTAS') &&
     (registrationsQuery.data?.length ?? 0) === 0;
+  const publicationJustCompleted =
+    searchParams.get('publicado') === '1' && edition.status === 'EM_ANDAMENTO';
 
   return (
     <div className="space-y-4">
@@ -768,36 +772,25 @@ export function OrganizerEditionPage() {
             Excluir edição
           </button>
         ) : null}
-
-        {edition.status !== 'ENCERRADA' ? (
-          <div className="mt-6 rounded-xl border border-header-foreground/15 bg-card p-4 text-foreground shadow-sm">
-            <h3 className="text-sm font-bold uppercase tracking-wide text-subtle">
-              Acesso dos jogadores
-            </h3>
-            {edition.status === 'RASCUNHO' || edition.status === 'INSCRICOES_ABERTAS' ? (
-              <p className="mt-1 text-sm text-muted">
-                Compartilhe este link ou QR code com os jogadores <strong>agora</strong> — não é
-                preciso fazer check-in nem publicar o sorteio.
-              </p>
-            ) : (
-              <p className="mt-1 text-sm text-muted">
-                Exiba ou envie para os jogadores entrarem na edição.
-              </p>
-            )}
-            <div className="mt-4">
-              <EditionQrCode
-                url={buildEditionEntryUrl(edition.id)}
-                hint={
-                  edition.status === 'RASCUNHO' || edition.status === 'INSCRICOES_ABERTAS'
-                    ? 'Os jogadores verão seus nomes após o check-in.'
-                    : undefined
-                }
-                editionName={edition.name}
-              />
-            </div>
-          </div>
-        ) : null}
       </section>
+
+      {publicationJustCompleted ? (
+        <Alert variant="success">
+          <div>
+            <p className="font-semibold">Publicação concluída.</p>
+            <p className="mt-1">
+              Os grupos e as partidas estão disponíveis. Agora compartilhe o acesso com os
+              jogadores.
+            </p>
+          </div>
+        </Alert>
+      ) : null}
+
+      <EditionAccessSection
+        editionId={edition.id}
+        editionName={edition.name}
+        editionStatus={edition.status}
+      />
 
       <ConfirmDialog
         isOpen={isDeleteDialogOpen}

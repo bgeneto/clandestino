@@ -22,6 +22,12 @@ handle @clandestino {
 
 	handle {
 		root * /srv/clandestino
+		@pwa_update_metadata path /sw.js /index.html /manifest.webmanifest
+		header @pwa_update_metadata {
+			Cache-Control "no-cache, no-store, must-revalidate"
+			CDN-Cache-Control "no-store"
+			Cloudflare-CDN-Cache-Control "no-store"
+		}
 		encode gzip
 		try_files {path} /index.html
 		file_server

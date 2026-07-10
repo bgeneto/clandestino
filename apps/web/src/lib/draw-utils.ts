@@ -6,7 +6,7 @@ import {
 } from '@clandestino/tournament-engine';
 
 function validateExplicitDrawPlan(playerCount: number, drawPlan: EditionDrawPlan): string | null {
-  const { groupCount, groupSizes, seedPlayerIds } = drawPlan;
+  const { approvedGroups, groupCount, groupSizes, randomSeed, seedPlayerIds } = drawPlan;
 
   if (groupCount === undefined || groupSizes === undefined) {
     return null;
@@ -35,6 +35,10 @@ function validateExplicitDrawPlan(playerCount: number, drawPlan: EditionDrawPlan
 
   if (seedPlayerIds.length !== groupCount) {
     return `Selecione ${groupCount} cabeça(s) de chave em Configurar edição (atualmente ${seedPlayerIds.length}).`;
+  }
+
+  if (!randomSeed || !approvedGroups?.length) {
+    return 'A prévia dos grupos ainda não foi aprovada. Conclua o sorteio em Configurar edição.';
   }
 
   return null;
@@ -79,12 +83,17 @@ export function canExecuteExplicitDraw(
   groupCount: number;
   groupSizes: number[];
   seedPlayerIds: string[];
+  randomSeed: string;
+  approvedGroups: Array<{ playerIds: string[] }>;
 } {
   return (
     drawPlan?.groupCount !== undefined &&
     drawPlan.groupSizes !== undefined &&
     drawPlan.seedPlayerIds !== undefined &&
-    drawPlan.seedPlayerIds.length === drawPlan.groupCount
+    drawPlan.seedPlayerIds.length === drawPlan.groupCount &&
+    drawPlan.randomSeed !== undefined &&
+    drawPlan.approvedGroups !== undefined &&
+    drawPlan.approvedGroups.length === drawPlan.groupCount
   );
 }
 

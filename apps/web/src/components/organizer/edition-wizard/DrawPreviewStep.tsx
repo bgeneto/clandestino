@@ -5,16 +5,20 @@ import { Alert } from '../../ui/Alert.js';
 
 type DrawPreviewStepProps = {
   draft: EditionWizardDraft;
+  isOnline: boolean;
+  isPublishing: boolean;
   onBack: () => void;
-  onContinue: () => void;
+  onPublish: () => void;
   onRedraw?: () => void;
   onRecalculate?: () => void;
 };
 
 export function DrawPreviewStep({
   draft,
+  isOnline,
+  isPublishing,
   onBack,
-  onContinue,
+  onPublish,
   onRedraw,
   onRecalculate,
 }: DrawPreviewStepProps) {
@@ -26,9 +30,10 @@ export function DrawPreviewStep({
   return (
     <section className="space-y-4">
       <div>
-        <h3 className="text-lg font-semibold text-foreground">Grupos formados</h3>
+        <h3 className="text-lg font-semibold text-foreground">Revisar e publicar</h3>
         <p className="mt-1 text-sm text-muted">
-          Revise a distribuição dos jogadores antes de publicar o sorteio dos grupos.
+          Confira os grupos. Ao publicar, as partidas serão geradas e o acesso dos jogadores será
+          liberado.
         </p>
       </div>
 
@@ -77,6 +82,13 @@ export function DrawPreviewStep({
         </button>
       ) : null}
 
+      {!isOnline ? (
+        <Alert variant="warning">
+          Sem conexão: o sorteio ficará salvo para sincronizar, mas o acesso dos jogadores só será
+          liberado após a publicação no servidor.
+        </Alert>
+      ) : null}
+
       <div className="flex gap-3">
         <button
           type="button"
@@ -87,11 +99,11 @@ export function DrawPreviewStep({
         </button>
         <button
           type="button"
-          disabled={!canContinue}
-          onClick={onContinue}
+          disabled={!canContinue || isPublishing}
+          onClick={onPublish}
           className="flex-1 rounded-lg bg-brand px-4 py-2.5 text-sm font-medium text-white disabled:opacity-50"
         >
-          Continuar para publicação →
+          {isPublishing ? 'Publicando…' : isOnline ? 'Publicar sorteio' : 'Salvar para sincronizar'}
         </button>
       </div>
     </section>

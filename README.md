@@ -288,6 +288,7 @@ Fragmento: `docker/caddy/Caddyfile.prod.external`. O Caddy deve:
 
 - montar `${CLANDESTINO_WEB_ROOT}:/srv/clandestino:ro`
 - estar na rede Docker `clandestino` (`docker network connect clandestino <caddy>`)
+- preservar `Cache-Control: no-cache, no-store, must-revalidate` e os headers `*-CDN-Cache-Control: no-store` para `/sw.js`, `/index.html` e `/manifest.webmanifest`; não sobrescrever essa política com uma regra de cache do Cloudflare
 
 Para atualizar só o PWA após mudanças no código:
 

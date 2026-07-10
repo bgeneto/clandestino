@@ -5,36 +5,45 @@ import { queryKeys } from './query-keys.js';
 export function getInvalidationKeysForSseEvent(
   editionId: string,
   event: SseEventType,
+  championshipId?: string,
 ): readonly (readonly unknown[])[] {
+  const parentKeys = championshipId
+    ? [queryKeys.championshipEditions(championshipId), queryKeys.organizerActiveEditions()]
+    : [];
+
   switch (event) {
     case 'match_result_submitted':
-      return [[queryKeys.matches(editionId)]];
+      return [queryKeys.matchesForEdition(editionId), ...parentKeys];
     case 'match_confirmed':
       return [
-        [queryKeys.matches(editionId)],
-        [queryKeys.standings(editionId)],
-        [queryKeys.edition(editionId)],
-        [queryKeys.organizerActiveEditions()],
+        queryKeys.matchesForEdition(editionId),
+        queryKeys.standings(editionId),
+        queryKeys.edition(editionId),
+        ...parentKeys,
       ];
     case 'phase_published':
       return [
-        [queryKeys.groups(editionId)],
-        [queryKeys.matches(editionId)],
-        [queryKeys.standings(editionId)],
-        [queryKeys.edition(editionId)],
-        [queryKeys.organizerActiveEditions()],
+        queryKeys.groups(editionId),
+        queryKeys.matchesForEdition(editionId),
+        queryKeys.standings(editionId),
+        queryKeys.edition(editionId),
+        ...parentKeys,
       ];
     case 'match_contested':
-      return [[queryKeys.contestedMatches(editionId)], [queryKeys.matches(editionId)]];
+      return [
+        queryKeys.contestedMatches(editionId),
+        queryKeys.matchesForEdition(editionId),
+        ...parentKeys,
+      ];
     case 'player_withdrawn':
       return [
-        [queryKeys.participants(editionId)],
-        [queryKeys.matches(editionId)],
-        [queryKeys.standings(editionId)],
-        [queryKeys.groups(editionId)],
-        [queryKeys.edition(editionId)],
-        [queryKeys.contestedMatches(editionId)],
-        [queryKeys.organizerActiveEditions()],
+        queryKeys.participants(editionId),
+        queryKeys.matchesForEdition(editionId),
+        queryKeys.standings(editionId),
+        queryKeys.groups(editionId),
+        queryKeys.edition(editionId),
+        queryKeys.contestedMatches(editionId),
+        ...parentKeys,
       ];
     default: {
       const _exhaustive: never = event;
@@ -44,18 +53,28 @@ export function getInvalidationKeysForSseEvent(
 }
 
 /** Invalidação ampla quando o polling detecta revisão sem detalhe do evento. */
-export function getInvalidationKeysForSyncBump(editionId: string): readonly (readonly unknown[])[] {
+export function getInvalidationKeysForSyncBump(
+  editionId: string,
+  championshipId?: string,
+): readonly (readonly unknown[])[] {
   return [
-    [queryKeys.edition(editionId)],
-    [queryKeys.participants(editionId)],
-    [queryKeys.registrations(editionId)],
-    [queryKeys.groups(editionId)],
-    [queryKeys.standings(editionId)],
-    [queryKeys.matches(editionId)],
-    [queryKeys.contestedMatches(editionId)],
-    [queryKeys.drawSnapshots(editionId)],
-    [queryKeys.finalPlacements(editionId)],
-    [queryKeys.organizerActiveEditions()],
+    queryKeys.edition(editionId),
+    queryKeys.participants(editionId),
+    queryKeys.registrations(editionId),
+    queryKeys.groups(editionId),
+    queryKeys.standings(editionId),
+    queryKeys.matchesForEdition(editionId),
+    queryKeys.contestedMatches(editionId),
+    queryKeys.drawSnapshots(editionId),
+    queryKeys.finalPlacements(editionId),
+    queryKeys.organizerActiveEditions(),
+    ...(championshipId
+      ? [
+          queryKeys.championshipEditions(championshipId),
+          queryKeys.championshipRanking(championshipId),
+          queryKeys.championshipRoster(championshipId),
+        ]
+      : []),
   ];
 }
 
@@ -65,10 +84,7 @@ export async function invalidateEditionSyncQueries(
   keys: readonly (readonly unknown[])[],
 ): Promise<void> {
   await Promise.all(
-    keys.map(async (queryKey) => {
-      await queryClient.invalidateQueries({ queryKey, refetchType: 'active' });
-      await queryClient.refetchQueries({ queryKey, type: 'active' });
-    }),
+    keys.map((queryKey) => queryClient.invalidateQueries({ queryKey, refetchType: 'active' })),
   );
 }
 

@@ -1,33 +1,49 @@
-import { QueryClient } from '@tanstack/react-query';
+import { MutationCache, QueryClient } from '@tanstack/react-query';
 import { ApiError } from '../lib/api-client.js';
 
-export const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 30_000,
-      gcTime: 1000 * 60 * 60 * 24,
-      retry: (failureCount, error) => {
-        if (!navigator.onLine) {
-          return false;
-        }
+export function createAppQueryClient(): QueryClient {
+  let client!: QueryClient;
+  const mutationCache = new MutationCache({
+    onSettled: (_data, error) => {
+      if (error === null) {
+        void client.invalidateQueries({ refetchType: 'active' });
+      }
+    },
+  });
 
-        if (error instanceof ApiError && error.status === 404) {
-          return false;
-        }
+  client = new QueryClient({
+    mutationCache,
+    defaultOptions: {
+      queries: {
+        staleTime: 30_000,
+        gcTime: 1000 * 60 * 60 * 24,
+        retry: (failureCount, error) => {
+          if (!navigator.onLine) {
+            return false;
+          }
 
-        if (error instanceof ApiError && error.status >= 400 && error.status < 500) {
-          return false;
-        }
+          if (error instanceof ApiError && error.status === 404) {
+            return false;
+          }
 
-        if (error instanceof TypeError) {
-          return failureCount < 1;
-        }
+          if (error instanceof ApiError && error.status >= 400 && error.status < 500) {
+            return false;
+          }
 
-        return failureCount < 2;
+          if (error instanceof TypeError) {
+            return failureCount < 1;
+          }
+
+          return failureCount < 2;
+        },
+      },
+      mutations: {
+        retry: false,
       },
     },
-    mutations: {
-      retry: false,
-    },
-  },
-});
+  });
+
+  return client;
+}
+
+export const queryClient = createAppQueryClient();

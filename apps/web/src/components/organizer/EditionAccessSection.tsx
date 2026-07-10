@@ -4,70 +4,43 @@ import { useEditionQr } from '../../hooks/use-organizer-data.js';
 import { buildEditionEntryUrl } from '../../lib/edition-entry-url.js';
 
 type EditionAccessSectionProps = {
-  editionId?: string;
+  editionId: string;
   editionName: string;
-  editionStatus?: EditionStatus;
-  offlinePending?: boolean;
+  editionStatus: EditionStatus;
 };
 
-function accessHint(status: EditionStatus | undefined): string {
-  if (status === 'RASCUNHO' || status === 'INSCRICOES_ABERTAS') {
-    return 'Compartilhe com antecedência — os jogadores poderão entrar assim que forem confirmados no check-in.';
-  }
-
-  if (status === 'ENCERRADA') {
-    return 'Esta edição foi encerrada. O link permanece para consulta.';
-  }
-
-  return 'Exiba para os jogadores entrarem ou compartilhe no WhatsApp.';
+export function canShareEditionAccess(status: EditionStatus): boolean {
+  return status === 'EM_ANDAMENTO' || status === 'FASE_COLOCACAO';
 }
 
 export function EditionAccessSection({
   editionId,
   editionName,
   editionStatus,
-  offlinePending = false,
 }: EditionAccessSectionProps) {
-  const qrQuery = useEditionQr(editionId, editionId !== undefined);
+  const canShare = canShareEditionAccess(editionStatus);
+  const qrQuery = useEditionQr(editionId, canShare);
 
-  if (offlinePending || !editionId) {
-    return (
-      <section className="rounded-xl border border-line bg-card p-4 shadow-sm">
-        <h3 className="text-sm font-bold uppercase tracking-wide text-subtle">
-          Acesso dos jogadores
-        </h3>
-        <p className="mt-2 text-sm text-muted">
-          O link e o QR code ficarão disponíveis quando a edição for criada no servidor.
-        </p>
-      </section>
-    );
-  }
-
-  if (editionStatus === 'ENCERRADA') {
+  if (!canShare) {
     return null;
   }
 
   const entryUrl = qrQuery.data?.url ?? buildEditionEntryUrl(editionId);
-  const isPreparing = editionStatus === 'RASCUNHO' || editionStatus === 'INSCRICOES_ABERTAS';
 
   return (
-    <section
-      className={[
-        'rounded-xl border bg-card p-4 shadow-sm',
-        isPreparing ? 'border-brand/40 ring-1 ring-brand/20' : 'border-line',
-      ].join(' ')}
-    >
+    <section className="rounded-xl bg-card p-4 shadow-sm">
       <h3 className="text-sm font-bold uppercase tracking-wide text-subtle">
         Acesso dos jogadores
       </h3>
-      {isPreparing ? (
-        <p className="mt-1 text-sm text-muted">
-          Envie este link ou QR code aos jogadores <strong>antes do evento</strong> — não é preciso
-          esperar o check-in ou o sorteio.
-        </p>
-      ) : null}
-      <div className={isPreparing ? 'mt-4' : 'mt-3'}>
-        <EditionQrCode url={entryUrl} hint={accessHint(editionStatus)} editionName={editionName} />
+      <p className="mt-1 text-sm text-muted">
+        Grupos e partidas publicados. Exiba o QR code ou envie o link pelo WhatsApp.
+      </p>
+      <div className="mt-4">
+        <EditionQrCode
+          url={entryUrl}
+          hint="Ao entrar, cada jogador verá seu grupo e suas partidas."
+          editionName={editionName}
+        />
       </div>
     </section>
   );

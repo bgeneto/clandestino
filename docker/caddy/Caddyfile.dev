@@ -8,6 +8,13 @@
 # (no WSL2, edite o hosts do Windows: C:\Windows\System32\drivers\etc\hosts)
 
 http://clandestino.test {
+	@pwa_update_metadata path /sw.js /manifest.webmanifest
+	header @pwa_update_metadata {
+		Cache-Control "no-cache, no-store, must-revalidate"
+		CDN-Cache-Control "no-store"
+		Cloudflare-CDN-Cache-Control "no-store"
+	}
+
 	# API: remove o prefixo /api e encaminha à API.
 	# flush_interval -1 desativa o buffer para suportar SSE (use-edition-sse).
 	@api path /api/*

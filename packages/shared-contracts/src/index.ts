@@ -186,10 +186,12 @@ export {
 export {
   DrawSnapshotSchema,
   DrawSnapshotListResponseSchema,
+  ApprovedDrawGroupSchema,
   EditionDrawPlanSchema,
   ExecuteDrawBodySchema,
   type DrawSnapshot,
   type DrawSnapshotListResponse,
+  type ApprovedDrawGroup,
   type EditionDrawPlan,
   type ExecuteDrawBody,
 } from './draw-snapshot.js';

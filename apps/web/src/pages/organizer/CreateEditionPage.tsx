@@ -11,8 +11,9 @@ import { useChampionship, useChampionshipEditions } from '../../hooks/use-organi
 import { createEditionWizardDraft } from '../../offline/edition-wizard-draft.js';
 import { notifyApiError } from '../../notifications/notify-api-error.js';
 import { useNotification } from '../../notifications/notification-context.js';
-import { queryKeys } from '../../lib/query-keys.js';
 import { Alert } from '../../components/ui/Alert.js';
+import { cacheCreatedEditions } from '../../lib/championship-query-cache.js';
+import { invalidateChampionshipQueries } from '../../lib/invalidate-edition-queries.js';
 
 function todayIsoDate(): string {
   const now = new Date();
@@ -94,26 +95,30 @@ export function CreateEditionPage() {
           autoConfirmMinutes,
         });
 
-        return { mode: 'online-single' as const, editionId: edition.id };
+        return {
+          mode: 'online-single' as const,
+          editionId: edition.id,
+          createdEditions: result.editions,
+        };
       }
 
       return {
         mode: 'online-bulk' as const,
         createdCount: result.createdCount,
         skippedCount: result.skippedCount,
+        createdEditions: result.editions,
       };
     },
     onSuccess: async (result) => {
-      await queryClient.invalidateQueries({
-        queryKey: queryKeys.championshipEditions(championshipId!),
-      });
-
       if (result.mode === 'offline') {
         void navigate(
           `/organizador/campeonato/${championshipId}/edicao/rascunho/${result.draftId}/preparar`,
         );
         return;
       }
+
+      cacheCreatedEditions(queryClient, championshipId!, result.createdEditions);
+      await invalidateChampionshipQueries(queryClient, championshipId!);
 
       if (result.mode === 'online-single') {
         void navigate(`/organizador/edicao/${result.editionId}/preparar`);

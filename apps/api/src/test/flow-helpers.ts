@@ -1,5 +1,6 @@
 import { DEFAULT_TOURNAMENT_RULES } from '@clandestino/shared-contracts';
 import type { EditionGroupsResponse, Match } from '@clandestino/shared-contracts';
+import { executeExplicitDraw } from '@clandestino/tournament-engine';
 import { expect } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { getCreatedEditionId, organizerHeaders, playerHeaders } from './integration-setup.js';
@@ -41,6 +42,17 @@ export function groupIdsByPhase(groups: EditionGroupsResponse['groups'], phase: 
 export function matchesForGroups(matches: Match[], groupIds: readonly string[]): Match[] {
   const groupIdSet = new Set(groupIds);
   return matches.filter((match) => groupIdSet.has(match.groupId));
+}
+
+function approvedGroupsForExplicitDraw(input: {
+  playerIds: string[];
+  seedPlayerIds: string[];
+  groupSizes: number[];
+  randomSeed: string;
+}): Array<{ playerIds: string[] }> {
+  return executeExplicitDraw(input).groups.map((group) => ({
+    playerIds: group.players.map((player) => player.playerId),
+  }));
 }
 
 export class EditionFlowClient {
@@ -163,11 +175,20 @@ export class EditionFlowClient {
       expect(registration.statusCode).toBe(201);
     }
 
-    const draw = await this.org('POST', `/editions/${editionId}/draw`, {
+    const explicitDraw = {
       randomSeed,
       groupCount: 2,
       groupSizes: [3, 3],
       seedPlayerIds: playerIds.slice(0, 2),
+    };
+    const draw = await this.org('POST', `/editions/${editionId}/draw`, {
+      ...explicitDraw,
+      approvedGroups: approvedGroupsForExplicitDraw({
+        playerIds,
+        seedPlayerIds: explicitDraw.seedPlayerIds,
+        groupSizes: explicitDraw.groupSizes,
+        randomSeed,
+      }),
     });
     expect(draw.statusCode).toBe(201);
 
@@ -218,11 +239,20 @@ export class EditionFlowClient {
       expect(registration.statusCode).toBe(201);
     }
 
-    const draw = await this.org('POST', `/editions/${editionId}/draw`, {
+    const explicitDraw = {
       randomSeed,
       groupCount: 4,
       groupSizes: [4, 4, 4, 4],
       seedPlayerIds: playerIds.slice(0, 4),
+    };
+    const draw = await this.org('POST', `/editions/${editionId}/draw`, {
+      ...explicitDraw,
+      approvedGroups: approvedGroupsForExplicitDraw({
+        playerIds,
+        seedPlayerIds: explicitDraw.seedPlayerIds,
+        groupSizes: explicitDraw.groupSizes,
+        randomSeed,
+      }),
     });
     expect(draw.statusCode).toBe(201);
 

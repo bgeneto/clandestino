@@ -69,6 +69,7 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
 
   const response = await fetch(buildApiUrl(path), {
     ...options,
+    cache: options.cache ?? 'no-store',
     headers,
     body: options.body === undefined ? undefined : JSON.stringify(options.body),
   });

@@ -18,7 +18,31 @@ export function buildGroupName(index: number): string {
 }
 
 function canonicalPlayerOrder(playerIds: readonly string[]): string[] {
-  return [...playerIds].sort((left, right) => left.localeCompare(right));
+  return [...playerIds].sort((left, right) => (left < right ? -1 : left > right ? 1 : 0));
+}
+
+export function drawMatchesApprovedGroups(
+  draw: ExplicitDrawResult,
+  approvedGroups: readonly { playerIds: readonly string[] }[],
+): boolean {
+  if (draw.groups.length !== approvedGroups.length) {
+    return false;
+  }
+
+  return draw.groups.every((group, index) => {
+    const approvedGroup = approvedGroups[index];
+    if (!approvedGroup) {
+      return false;
+    }
+
+    const drawnPlayerIds = canonicalPlayerOrder(group.players.map((player) => player.playerId));
+    const approvedPlayerIds = canonicalPlayerOrder(approvedGroup.playerIds);
+
+    return (
+      drawnPlayerIds.length === approvedPlayerIds.length &&
+      drawnPlayerIds.every((playerId, playerIndex) => playerId === approvedPlayerIds[playerIndex])
+    );
+  });
 }
 
 export function executeExplicitDraw(input: {

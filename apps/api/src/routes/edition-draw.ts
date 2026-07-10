@@ -10,7 +10,7 @@ import {
 import { Type } from '@sinclair/typebox';
 import { and, asc, eq } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
-import { WIZARD_MIN_GROUP_SIZE } from '@clandestino/tournament-engine';
+import { drawMatchesApprovedGroups, WIZARD_MIN_GROUP_SIZE } from '@clandestino/tournament-engine';
 import { schema } from '../db/index.js';
 import { generateSecureToken } from '../lib/crypto.js';
 import {
@@ -96,6 +96,15 @@ export async function registerEditionDrawRoutes(app: FastifyInstance): Promise<v
       );
 
       const explicitDraw = isExplicitDrawRequest(request.body);
+      if (
+        explicitDraw &&
+        (!request.body.randomSeed?.trim() || request.body.approvedGroups === undefined)
+      ) {
+        throw conflict(
+          'A prévia aprovada do sorteio não foi enviada. Atualize o aplicativo e refaça a prévia antes de publicar.',
+        );
+      }
+
       const randomSeed = request.body.randomSeed?.trim() || generateSecureToken(16);
       const drawnBy = request.organizerEmail ?? 'organizer';
       const drawnAt = new Date();
@@ -105,8 +114,8 @@ export async function registerEditionDrawRoutes(app: FastifyInstance): Promise<v
       let updatedRules = edition.rules;
 
       if (explicitDraw) {
-        const { groupCount, groupSizes, seedPlayerIds } = request.body;
-        if (!groupCount || !groupSizes || !seedPlayerIds) {
+        const { approvedGroups, groupCount, groupSizes, seedPlayerIds } = request.body;
+        if (!groupCount || !groupSizes || !seedPlayerIds || !approvedGroups) {
           throw badRequest('Configuração explícita do sorteio incompleta.');
         }
 
@@ -149,6 +158,12 @@ export async function registerEditionDrawRoutes(app: FastifyInstance): Promise<v
         } catch (error) {
           throw badRequest(
             error instanceof Error ? error.message : 'Não foi possível executar o sorteio.',
+          );
+        }
+
+        if (!drawMatchesApprovedGroups(drawResult, approvedGroups)) {
+          throw conflict(
+            'Os grupos calculados pelo servidor diferem da prévia aprovada. Atualize o aplicativo e refaça a prévia; nenhum sorteio foi publicado.',
           );
         }
       } else {
@@ -233,6 +248,9 @@ export async function registerEditionDrawRoutes(app: FastifyInstance): Promise<v
             randomSeed,
             groupCount: drawResult.groupCount,
             playerCount: rankedPlayers.length,
+            ...(explicitDraw && request.body.approvedGroups
+              ? { approvedGroups: request.body.approvedGroups.map((group) => group.playerIds) }
+              : {}),
           },
           createdBy: drawnBy,
         });
@@ -492,11 +510,13 @@ function isExplicitDrawRequest(body: {
   groupCount?: number;
   groupSizes?: number[];
   seedPlayerIds?: string[];
+  approvedGroups?: Array<{ playerIds: string[] }>;
 }): boolean {
   return (
     body.groupCount !== undefined ||
     body.groupSizes !== undefined ||
-    body.seedPlayerIds !== undefined
+    body.seedPlayerIds !== undefined ||
+    body.approvedGroups !== undefined
   );
 }
 

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   WIZARD_MIN_GROUP_SIZE,
   buildGroupConfiguration,
+  drawMatchesApprovedGroups,
   estimateRoundRobinMatches,
   executeExplicitDraw,
   maxGroupCount,
@@ -109,5 +110,26 @@ describe('executeExplicitDraw', () => {
 
     expect(reversed).toEqual(forward);
     expect(shuffled).toEqual(forward);
+  });
+
+  it('matches only the approved player membership for every group', () => {
+    const draw = executeExplicitDraw({
+      playerIds: [playerId(1), playerId(2), playerId(3), playerId(4), playerId(5), playerId(6)],
+      seedPlayerIds: [playerId(1), playerId(2)],
+      groupSizes: [3, 3],
+      randomSeed: 'approved-groups-seed',
+    });
+    const approvedGroups = draw.groups.map((group) => ({
+      playerIds: group.players.map((player) => player.playerId).reverse(),
+    }));
+
+    expect(drawMatchesApprovedGroups(draw, approvedGroups)).toBe(true);
+
+    const shiftedGroups = approvedGroups.map((group) => ({ playerIds: [...group.playerIds] }));
+    const movedPlayer = shiftedGroups[0]!.playerIds[1]!;
+    shiftedGroups[0]!.playerIds[1] = shiftedGroups[1]!.playerIds[1]!;
+    shiftedGroups[1]!.playerIds[1] = movedPlayer;
+
+    expect(drawMatchesApprovedGroups(draw, shiftedGroups)).toBe(false);
   });
 });

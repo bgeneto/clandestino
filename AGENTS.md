@@ -37,7 +37,7 @@ apps/
 
 5. **Regras configuráveis por edição.** Não codifique limiares fixos (“acima de 24 jogadores, melhor de 3”) em código de rota. Use `EditionRules` / `edition.rules` (jsonb).
 
-6. **Determinismo auditável no sorteio.** Sorteios usam semente reproduzível (`random_seed` em `draw_snapshot`). Mesma entrada + mesma semente → mesmo resultado.
+6. **Determinismo auditável no sorteio.** Sorteios usam semente reproduzível (`random_seed` em `draw_snapshot`). Mesma entrada + mesma semente → mesmo resultado. A prévia aprovada (`approvedGroups`) é persistida e validada na publicação; não sorteie novamente entre etapas.
 
 ## Mapa de pacotes
 
@@ -92,8 +92,9 @@ apps/api/src/
 
 React + Vite + PWA (`apps/web/`):
 
-- TanStack Query para dados remotos; invalidação via SSE (`use-edition-sse`)
+- TanStack Query para dados remotos; invalidação via SSE + polling (`use-edition-sync`) e após mutações
 - Dexie/IndexedDB para cache da edição ativa e fila offline (`outbox`)
+- GETs dinâmicos da API são `network-only` no service worker e usam `cache: 'no-store'`; mantenha o fallback offline em `edition-api.ts` + Dexie, não em cache HTTP
 - Sessão do jogador: `player_id` + `edition_id` no IndexedDB (sem JWT no MVP)
 - GET de edição com **404** = edição removida: não servir cache IndexedDB; chamar `purgeEditionLocalState` e limpar sessão do jogador
 - Em dev (host): `VITE_API_URL=/api` + proxy Vite → `localhost:3000`

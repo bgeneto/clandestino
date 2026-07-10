@@ -21,7 +21,12 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(caches.delete('api-cache'));
 });
 
-registerRoute(({ request }) => request.mode === 'navigate', createHandlerBoundToURL('/index.html'));
+registerRoute(
+  ({ url, request }) => request.mode === 'navigate' && !url.pathname.startsWith('/api/'),
+  createHandlerBoundToURL('/index.html'),
+);
+
+registerRoute(({ url }) => url.pathname.startsWith('/api/'), new NetworkOnly());
 
 registerRoute(
   ({ request }) =>
@@ -34,21 +39,6 @@ registerRoute(
     cacheName: 'static-assets',
   }),
 );
-
-// SSE e sync-state: sempre rede direta — NetworkFirst quebra EventSource e atrasa polling.
-registerRoute(({ url, request }) => {
-  if (!url.pathname.startsWith('/api/')) {
-    return false;
-  }
-
-  if (url.pathname.endsWith('/events') || url.pathname.endsWith('/sync-state')) {
-    return true;
-  }
-
-  return request.headers.get('accept')?.includes('text/event-stream') ?? false;
-}, new NetworkOnly());
-
-registerRoute(({ url }) => url.pathname.startsWith('/api/'), new NetworkOnly());
 
 async function runOutboxSync(): Promise<void> {
   try {

@@ -55,6 +55,7 @@ export function App() {
               path="campeonato/:championshipId/jogadores"
               element={<ChampionshipPlayersPage />}
             />
+            <Route path="campeonato/:championshipId/importar" element={<ImportCsvPage />} />
             <Route path="edicao/:editionId" element={<OrganizerEditionPage />} />
           </Route>
         </Route>

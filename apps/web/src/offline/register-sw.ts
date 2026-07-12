@@ -1,5 +1,10 @@
 import { useEffect } from 'react';
 import { useQueryClient, type QueryClient } from '@tanstack/react-query';
+import {
+  getOnlineStatus,
+  startOnlineStatusMonitor,
+  subscribeOnlineStatus,
+} from '../lib/online-status.js';
 import { OUTBOX_SYNC_MESSAGE } from './outbox.js';
 import { syncPendingEditionWizardDrafts } from './sync-pending-wizard-drafts.js';
 import { processOutbox } from './process-outbox.js';
@@ -27,8 +32,14 @@ export function useOfflineSync(): void {
   const queryClient = useQueryClient();
 
   useEffect(() => {
-    const handleOnline = () => {
-      void syncPendingServerWork(queryClient);
+    startOnlineStatusMonitor();
+    let wasOnline = getOnlineStatus();
+
+    const handleOnlineStatus = (online: boolean) => {
+      if (online && !wasOnline) {
+        void syncPendingServerWork(queryClient);
+      }
+      wasOnline = online;
     };
 
     const handleOutboxSynced = () => {
@@ -43,16 +54,16 @@ export function useOfflineSync(): void {
       }
     };
 
-    window.addEventListener('online', handleOnline);
+    const unsubscribe = subscribeOnlineStatus(handleOnlineStatus);
     window.addEventListener(OUTBOX_SYNC_MESSAGE, handleOutboxSynced);
     navigator.serviceWorker?.addEventListener('message', handleServiceWorkerMessage);
 
-    if (navigator.onLine) {
+    if (getOnlineStatus()) {
       void syncPendingServerWork(queryClient);
     }
 
     return () => {
-      window.removeEventListener('online', handleOnline);
+      unsubscribe();
       window.removeEventListener(OUTBOX_SYNC_MESSAGE, handleOutboxSynced);
       navigator.serviceWorker?.removeEventListener('message', handleServiceWorkerMessage);
     };

@@ -1,5 +1,6 @@
 import { MutationCache, QueryClient } from '@tanstack/react-query';
 import { ApiError } from '../lib/api-client.js';
+import { getOnlineStatus } from '../lib/online-status.js';
 
 export function createAppQueryClient(): QueryClient {
   let client!: QueryClient;
@@ -18,7 +19,7 @@ export function createAppQueryClient(): QueryClient {
         staleTime: 30_000,
         gcTime: 1000 * 60 * 60 * 24,
         retry: (failureCount, error) => {
-          if (!navigator.onLine) {
+          if (!getOnlineStatus()) {
             return false;
           }
 

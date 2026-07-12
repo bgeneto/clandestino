@@ -3,6 +3,7 @@ import type { QueryClient } from '@tanstack/react-query';
 import type { EditionWizardDraft, WizardDraftPlayer } from '../db/clandestino-db.js';
 import { ApiError } from '../lib/api-client.js';
 import { applyDraftMutation, remapDraftPlayerIds } from '../lib/draw-input-fingerprint.js';
+import { getOnlineStatus } from '../lib/online-status.js';
 import { queryKeys } from '../lib/query-keys.js';
 import { createPlayer, registerPlayer, unregisterPlayer } from '../lib/organizer-api.js';
 
@@ -201,7 +202,7 @@ export async function reconcileCheckInWithServer(
 ): Promise<EditionWizardDraft | undefined> {
   const { draftId, editionId, championshipId, queryClient, getDraft, persistDraft } = context;
 
-  if (!navigator.onLine) {
+  if (!getOnlineStatus()) {
     return getDraft();
   }
 
@@ -258,7 +259,7 @@ function runQueuedReconcile(context: CheckInSyncContext): Promise<EditionWizardD
 }
 
 export function scheduleWizardCheckInSync(context: CheckInSyncContext): void {
-  if (!navigator.onLine) {
+  if (!getOnlineStatus()) {
     return;
   }
 
@@ -292,7 +293,7 @@ export async function flushCheckInSync(
     debounceTimers.delete(context.draftId);
   }
 
-  if (!navigator.onLine) {
+  if (!getOnlineStatus()) {
     return context.getDraft();
   }
 
@@ -308,7 +309,7 @@ export async function syncWizardCheckInToggle(params: {
   const { draft, player, checkingIn, queryClient } = params;
   const editionId = draft.editionId;
 
-  if (!editionId || !navigator.onLine) {
+  if (!editionId || !getOnlineStatus()) {
     return draft;
   }
 

@@ -26,7 +26,7 @@ export function deriveOrganizerEditionAction(
   }
 
   if (input.pendingMatchCount > 0) {
-    return { needsOrganizerAction: true, actionLabel: 'Registrar resultados pendentes' };
+    return { needsOrganizerAction: true, actionLabel: 'Resultados' };
   }
 
   switch (input.status) {

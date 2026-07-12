@@ -10,6 +10,7 @@ import {
   readStoredSyncRevision,
   writeStoredSyncRevision,
 } from '../lib/edition-sync-invalidation.js';
+import { useOnlineStatus } from './use-online-status.js';
 
 const SSE_EVENTS: SseEventType[] = [
   'match_confirmed',
@@ -44,6 +45,7 @@ export function useEditionSync(
   championshipId?: string,
 ): void {
   const queryClient = useQueryClient();
+  const online = useOnlineStatus();
   const lastRevisionRef = useRef(0);
   const sseConnectedRef = useRef(false);
   const reconnectAttemptRef = useRef(0);
@@ -52,7 +54,7 @@ export function useEditionSync(
   const lastPollAtRef = useRef(0);
 
   useEffect(() => {
-    if (!enabled || !editionId || !navigator.onLine) {
+    if (!enabled || !editionId || !online) {
       return;
     }
 
@@ -182,5 +184,5 @@ export function useEditionSync(
       sourceRef.current?.close();
       sourceRef.current = null;
     };
-  }, [championshipId, editionId, enabled, queryClient]);
+  }, [championshipId, editionId, enabled, online, queryClient]);
 }

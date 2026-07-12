@@ -8,6 +8,7 @@ import {
   generateMatches,
   registerPlayer,
 } from '../lib/organizer-api.js';
+import { getOnlineStatus } from '../lib/online-status.js';
 import type { EditionWizardDraft } from '../db/clandestino-db.js';
 import { deleteEditionWizardDraft, saveEditionWizardDraft } from './edition-wizard-draft.js';
 import { buildApprovedGroupsFromDraft } from './sync-wizard-draw-plan.js';
@@ -18,7 +19,7 @@ export type WizardSyncResult =
   | { status: 'error'; message: string };
 
 export async function syncEditionWizardDraft(draft: EditionWizardDraft): Promise<WizardSyncResult> {
-  if (!navigator.onLine) {
+  if (!getOnlineStatus()) {
     return { status: 'error', message: 'Sem conexão com a internet.' };
   }
 

@@ -1,8 +1,9 @@
 import { db } from '../db/clandestino-db.js';
+import { getOnlineStatus } from '../lib/online-status.js';
 import { syncEditionWizardDraft } from './sync-edition-wizard.js';
 
 export async function syncPendingEditionWizardDrafts(): Promise<void> {
-  if (!navigator.onLine) {
+  if (!getOnlineStatus()) {
     return;
   }
 

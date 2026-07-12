@@ -1,5 +1,6 @@
 import type { Match, SubmitMatchResultBody } from '@clandestino/shared-contracts';
 import { apiRequest } from '../lib/api-client.js';
+import { getOnlineStatus } from '../lib/online-status.js';
 import { enqueueSubmitMatchResult } from './outbox.js';
 import { processOutbox } from './process-outbox.js';
 
@@ -10,7 +11,7 @@ export async function submitMatchResultOfflineAware(
   matchId: string,
   body: SubmitMatchResultBody,
 ): Promise<SubmitMatchResultOutcome> {
-  if (navigator.onLine) {
+  if (getOnlineStatus()) {
     try {
       const response = await apiRequest<{ match: Match }>(`/matches/${matchId}/result`, {
         method: 'POST',
@@ -30,7 +31,7 @@ export async function submitMatchResultOfflineAware(
 }
 
 function shouldQueue(error: unknown): boolean {
-  if (!navigator.onLine) {
+  if (!getOnlineStatus()) {
     return true;
   }
 

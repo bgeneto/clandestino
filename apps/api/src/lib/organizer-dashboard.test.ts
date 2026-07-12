@@ -59,7 +59,7 @@ describe('deriveOrganizerEditionAction', () => {
       }),
     ).toEqual({
       needsOrganizerAction: true,
-      actionLabel: 'Registrar resultados pendentes',
+      actionLabel: 'Resultados',
     });
   });
 

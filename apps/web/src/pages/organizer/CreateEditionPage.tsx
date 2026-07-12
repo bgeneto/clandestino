@@ -14,6 +14,7 @@ import { useNotification } from '../../notifications/notification-context.js';
 import { Alert } from '../../components/ui/Alert.js';
 import { cacheCreatedEditions } from '../../lib/championship-query-cache.js';
 import { invalidateChampionshipQueries } from '../../lib/invalidate-edition-queries.js';
+import { useOnlineStatus } from '../../hooks/use-online-status.js';
 
 function todayIsoDate(): string {
   const now = new Date();
@@ -30,13 +31,14 @@ export function CreateEditionPage() {
   const { championshipId } = useParams<{ championshipId: string }>();
   const championshipQuery = useChampionship(championshipId);
   const editionsQuery = useChampionshipEditions(championshipId);
+  const online = useOnlineStatus();
   const [date, setDate] = useState(todayIsoDate);
   const [recurrence, setRecurrence] = useState<EditionRecurrence>('none');
   const [autoConfirmMinutes, setAutoConfirmMinutes] = useState(15);
 
   const existingEditions = editionsQuery.data ?? [];
   const isRecurring = recurrence !== 'none';
-  const isOffline = !navigator.onLine;
+  const isOffline = !online;
   const recurrencePreview = useEditionRecurrencePreview(recurrence, date, existingEditions);
   const hasNothingToCreate = isRecurring && (recurrencePreview?.createCount ?? 0) === 0;
 

@@ -83,8 +83,9 @@ export function LiveEditionCard({
       standings: standingsQuery.data.groups,
       groupIds: groupsQuery.data.groups.map((entry) => entry.group.id),
       playerNames,
+      matches: matchesQuery.data ?? [],
     }).slice(0, PREVIEW_STANDINGS_LIMIT);
-  }, [standingsQuery.data, groupsQuery.data, playerNames]);
+  }, [standingsQuery.data, groupsQuery.data, playerNames, matchesQuery.data]);
 
   const previewMatches = useMemo(
     () => selectPreviewMatches(matchesQuery.data ?? []),

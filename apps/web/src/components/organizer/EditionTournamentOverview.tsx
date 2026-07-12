@@ -91,6 +91,8 @@ export function EditionTournamentOverview({ edition }: EditionTournamentOverview
 
     // Consolida os standings de TODAS as fases (fase de grupos + fase de
     // colocação) em uma linha por jogador, somando setsWon/matchesWon.
+    // O detail mostra partidas jogadas (CONFIRMADA/CORRIGIDA), derivadas
+    // das matches para acompanhar confirmações em tempo real.
     // A "Classificação Final" oficial (uma linha por jogador, baseada em
     // `final_placement`) só aparece após encerrar a edição; esta prévia
     // evita a duplicação visível (ex.: 12 linhas para 6 jogadores) que
@@ -99,8 +101,9 @@ export function EditionTournamentOverview({ edition }: EditionTournamentOverview
       standings: standingsQuery.data.groups,
       groupIds: groups.map((entry) => entry.group.id),
       playerNames,
+      matches,
     });
-  }, [standingsQuery.data, groups, playerNames]);
+  }, [standingsQuery.data, groups, playerNames, matches]);
 
   const groupNameById = useMemo(
     () => new Map(groups.map((entry) => [entry.group.id, entry.group.name])),

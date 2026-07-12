@@ -48,8 +48,9 @@ export function PublicEditionPage() {
       standings: standingsQuery.data.groups,
       groupIds: groupsQuery.data.groups.map((entry) => entry.group.id),
       playerNames,
+      matches: matchesQuery.data ?? [],
     });
-  }, [standingsQuery.data, groupsQuery.data, playerNames]);
+  }, [standingsQuery.data, groupsQuery.data, playerNames, matchesQuery.data]);
 
   const isPreparing = edition.status === 'RASCUNHO' || edition.status === 'INSCRICOES_ABERTAS';
 

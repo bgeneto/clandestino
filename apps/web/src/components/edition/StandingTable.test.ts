@@ -1,6 +1,10 @@
-import type { Group, Standing } from '@clandestino/shared-contracts';
+import type { Match, Standing } from '@clandestino/shared-contracts';
 import { describe, expect, it } from 'vitest';
-import { buildCombinedStandingsRows, buildGroupStandingsRows } from './StandingTable.js';
+import {
+  buildCombinedStandingsRows,
+  buildGroupStandingsRows,
+  countMatchesPlayedByPlayer,
+} from './StandingTable.js';
 
 function standing(playerId: string, setsWon: number, matchesWon: number): Standing {
   return {
@@ -14,9 +18,47 @@ function standing(playerId: string, setsWon: number, matchesWon: number): Standi
   };
 }
 
-function group(id: string, name = id, phase: string = 'GROUP_STAGE'): Group {
-  return { id, editionId: 'edition-1', name, phase };
+function confirmedMatch(
+  groupId: string,
+  playerOneId: string,
+  playerTwoId: string,
+  status: Match['status'] = 'CONFIRMADA',
+): Pick<Match, 'participants' | 'status' | 'groupId'> {
+  return {
+    groupId,
+    status,
+    participants: [
+      { playerId: playerOneId, setsWon: 0 },
+      { playerId: playerTwoId, setsWon: 0 },
+    ],
+  };
 }
+
+describe('countMatchesPlayedByPlayer', () => {
+  it('conta apenas CONFIRMADA e CORRIGIDA', () => {
+    const counts = countMatchesPlayedByPlayer([
+      confirmedMatch('g1', 'p1', 'p2', 'CONFIRMADA'),
+      confirmedMatch('g1', 'p1', 'p3', 'CORRIGIDA'),
+      confirmedMatch('g1', 'p1', 'p4', 'AGENDADA'),
+      confirmedMatch('g1', 'p1', 'p5', 'AGUARDANDO_CONFIRMACAO'),
+    ]);
+
+    expect(counts.get('p1')).toBe(2);
+    expect(counts.get('p2')).toBe(1);
+    expect(counts.get('p3')).toBe(1);
+    expect(counts.get('p4')).toBeUndefined();
+  });
+
+  it('ignora partidas de grupos desconhecidos quando groupIds é informado', () => {
+    const counts = countMatchesPlayedByPlayer(
+      [confirmedMatch('g1', 'p1', 'p2'), confirmedMatch('other', 'p1', 'p3')],
+      ['g1'],
+    );
+
+    expect(counts.get('p1')).toBe(1);
+    expect(counts.get('p3')).toBeUndefined();
+  });
+});
 
 describe('buildCombinedStandingsRows', () => {
   it('retorna uma linha por jogador quando há apenas um grupo', () => {
@@ -33,6 +75,7 @@ describe('buildCombinedStandingsRows', () => {
         ['p2', 'ADRIANO'],
         ['p3', 'BERNHARD'],
       ]),
+      matches: [],
     });
 
     expect(rows.map((row) => row.playerId)).toEqual(['p1', 'p2', 'p3']);
@@ -89,6 +132,7 @@ describe('buildCombinedStandingsRows', () => {
         ['fernando', 'FERNANDO'],
         ['bernhard', 'BERNHARD'],
       ]),
+      matches: [],
     });
 
     // Antes da correção: 12 linhas. Depois: 6 linhas, uma por jogador.
@@ -129,6 +173,7 @@ describe('buildCombinedStandingsRows', () => {
         ['p1', 'AMANDA'],
         ['p2', 'ADRIANO'],
       ]),
+      matches: [],
     });
 
     // Standings de 'unknown-group' são ignorados (defesa contra cache).
@@ -144,6 +189,7 @@ describe('buildCombinedStandingsRows', () => {
         ['alpha', 'ALPHA'],
         ['beta', 'BETA'],
       ]),
+      matches: [],
     });
 
     // Empate em setsWon (4) e matchesWon (1) → ordem alfabética estável.
@@ -157,6 +203,7 @@ describe('buildCombinedStandingsRows', () => {
         standings: [],
         groupIds: ['g1'],
         playerNames: new Map(),
+        matches: [],
       }),
     ).toEqual([]);
   });
@@ -166,6 +213,7 @@ describe('buildCombinedStandingsRows', () => {
       standings: [{ groupId: 'g1', standings: [standing('p1', 5, 1)] }],
       groupIds: ['g1'],
       playerNames: new Map(),
+      matches: [],
     });
 
     expect(rows[0]?.playerName).toBe('Jogador');
@@ -179,20 +227,40 @@ describe('buildCombinedStandingsRows', () => {
       ],
       groupIds: ['g1', 'g2'],
       playerNames: new Map([['p1', 'AMANDA']]),
+      matches: [],
     });
 
     expect(rows[0]?.setsWon).toBe(8);
     expect(rows[0]?.matchesWon).toBe(3);
   });
 
-  it('inclui detail com o total de partidas quando matchesWon está presente', () => {
+  it('mostra no detail o total de partidas jogadas, não vitórias', () => {
+    // Eduardo: 1 vitória (matchesWon=1) e 3 partidas confirmadas.
     const rows = buildCombinedStandingsRows({
-      standings: [{ groupId: 'g1', standings: [standing('p1', 5, 3)] }],
+      standings: [{ groupId: 'g1', standings: [standing('eduardo', 5, 1)] }],
       groupIds: ['g1'],
-      playerNames: new Map([['p1', 'AMANDA']]),
+      playerNames: new Map([['eduardo', 'EDUARDO']]),
+      matches: [
+        confirmedMatch('g1', 'eduardo', 'bernhard'),
+        confirmedMatch('g1', 'eduardo', 'denilson'),
+        confirmedMatch('g1', 'eduardo', 'lucas'),
+      ],
     });
 
+    expect(rows[0]?.matchesWon).toBe(1);
+    expect(rows[0]?.matchesPlayed).toBe(3);
     expect(rows[0]?.detail).toBe('3 partidas');
+  });
+
+  it('usa singular no detail quando há exatamente uma partida', () => {
+    const rows = buildCombinedStandingsRows({
+      standings: [{ groupId: 'g1', standings: [standing('p1', 3, 1)] }],
+      groupIds: ['g1'],
+      playerNames: new Map([['p1', 'AMANDA']]),
+      matches: [confirmedMatch('g1', 'p1', 'p2')],
+    });
+
+    expect(rows[0]?.detail).toBe('1 partida');
   });
 });
 

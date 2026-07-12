@@ -1,4 +1,4 @@
-import type { EditionParticipant, Standing } from '@clandestino/shared-contracts';
+import type { EditionParticipant, Match, Standing } from '@clandestino/shared-contracts';
 
 type StandingTableProps = {
   rows: Array<{
@@ -8,8 +8,42 @@ type StandingTableProps = {
     detail?: string;
     setsWon: number;
     matchesWon?: number;
+    matchesPlayed?: number;
   }>;
 };
+
+/** Statuses that count toward standings / matches played (mirrors tournament-engine). */
+const COUNTED_MATCH_STATUSES = new Set<Match['status']>(['CONFIRMADA', 'CORRIGIDA']);
+
+function formatMatchesPlayedDetail(count: number): string {
+  return count === 1 ? '1 partida' : `${count} partidas`;
+}
+
+/**
+ * Counts confirmed/corrected matches per player, optionally scoped to known groups.
+ */
+export function countMatchesPlayedByPlayer(
+  matches: Array<Pick<Match, 'participants' | 'status' | 'groupId'>>,
+  groupIds: Iterable<string> = [],
+): Map<string, number> {
+  const knownGroupIds = new Set(groupIds);
+  const counts = new Map<string, number>();
+
+  for (const match of matches) {
+    if (knownGroupIds.size > 0 && !knownGroupIds.has(match.groupId)) {
+      continue;
+    }
+    if (!COUNTED_MATCH_STATUSES.has(match.status)) {
+      continue;
+    }
+
+    for (const participant of match.participants) {
+      counts.set(participant.playerId, (counts.get(participant.playerId) ?? 0) + 1);
+    }
+  }
+
+  return counts;
+}
 
 function rankClassName(rank: number): string {
   if (rank === 1) return 'text-amber-600';
@@ -64,6 +98,12 @@ type CombinedStandingInput = {
    *  ignorados. Se vazio, aceita todos. */
   groupIds: Iterable<string>;
   playerNames: Map<string, string>;
+  /**
+   * Partidas da edição. O `detail` da linha mostra partidas jogadas
+   * (CONFIRMADA/CORRIGIDA), não vitórias (`matchesWon`). Contagem deriva
+   * das partidas para acompanhar confirmações em tempo real via sync.
+   */
+  matches: Array<Pick<Match, 'participants' | 'status' | 'groupId'>>;
 };
 
 /**
@@ -82,11 +122,13 @@ type CombinedStandingInput = {
  *
  * A ordenação é por `setsWon` total (decrescente), com `matchesWon`
  * total como desempate e nome como último critério (estável).
+ * O `detail` usa partidas jogadas (não vitórias).
  */
 export function buildCombinedStandingsRows(
   input: CombinedStandingInput,
 ): StandingTableProps['rows'] {
   const knownGroupIds = new Set(input.groupIds);
+  const matchesPlayedByPlayer = countMatchesPlayedByPlayer(input.matches, knownGroupIds);
 
   const aggregated = new Map<string, { setsWon: number; matchesWon: number; setDiff: number }>();
 
@@ -116,6 +158,7 @@ export function buildCombinedStandingsRows(
       playerName: input.playerNames.get(playerId) ?? 'Jogador',
       setsWon: totals.setsWon,
       matchesWon: totals.matchesWon,
+      matchesPlayed: matchesPlayedByPlayer.get(playerId) ?? 0,
     }))
     .sort((left, right) => {
       if (right.setsWon !== left.setsWon) {
@@ -130,9 +173,10 @@ export function buildCombinedStandingsRows(
       rank: index + 1,
       playerId: entry.playerId,
       playerName: entry.playerName,
-      detail: entry.matchesWon !== undefined ? `${entry.matchesWon} partidas` : undefined,
+      detail: formatMatchesPlayedDetail(entry.matchesPlayed),
       setsWon: entry.setsWon,
       matchesWon: entry.matchesWon,
+      matchesPlayed: entry.matchesPlayed,
     }));
 }
 

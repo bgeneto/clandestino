@@ -36,6 +36,7 @@ Variáveis:
   PUBLIC_APP_URL            URL pública do PWA (magic links; use https em prod)
   VITE_API_URL              Prefixo da API no build do PWA (padrão: /api)
   VITE_SHOW_PLAYER_SHUFFLE  Flag Vite opcional (lida do .env na raiz)
+  ORGANIZER_SESSION_TTL_HOURS  Validade da sessão do organizador em horas (padrão 720)
 
 Exemplos:
   ./start dev

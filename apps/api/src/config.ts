@@ -97,7 +97,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ApiConfig {
     databaseUrl,
     organizerAllowedEmails: parseAllowedEmails(env.ORGANIZER_ALLOWED_EMAILS),
     organizerMagicLinkTtlMinutes: parsePositiveInt(env.ORGANIZER_MAGIC_LINK_TTL_MINUTES, 15),
-    organizerSessionTtlHours: parsePositiveInt(env.ORGANIZER_SESSION_TTL_HOURS, 168),
+    // Padrão: 30 dias. Sessão do organizador é persistente (Bearer + IndexedDB no PWA).
+    organizerSessionTtlHours: parsePositiveInt(env.ORGANIZER_SESSION_TTL_HOURS, 720),
     publicAppUrl: env.PUBLIC_APP_URL ?? 'http://localhost:5173',
     exposeMagicLinks,
     isProduction,

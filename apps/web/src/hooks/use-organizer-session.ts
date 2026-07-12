@@ -1,11 +1,11 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import { useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
 import { db, ORGANIZER_SESSION_ROW_ID, type OrganizerSession } from '../db/clandestino-db.js';
-import {
-  clearOrganizerSession,
-  getOrganizerSession,
-  saveOrganizerSession,
-} from '../lib/organizer-session.js';
+import { clearOrganizerSession, saveOrganizerSession } from '../lib/organizer-session.js';
+
+function isOrganizerSessionExpired(session: OrganizerSession): boolean {
+  return new Date(session.expiresAt).getTime() <= Date.now();
+}
 
 export function useOrganizerSession(): {
   session: OrganizerSession | undefined;
@@ -20,11 +20,27 @@ export function useOrganizerSession(): {
   refreshSession: () => Promise<OrganizerSession | undefined>;
 } {
   // `useLiveQuery` returns `undefined` while the IndexedDB read is in flight.
-  // `getOrganizerSession` resolves to `null` when there is no session, so we
-  // can tell "loading" apart from "logged out" and avoid redirect loops.
-  const sessionResult = useLiveQuery(async () => getOrganizerSession(), []);
+  // Resolving a missing/expired row to `null` distinguishes "loading" from
+  // "logged out" and avoids redirect loops. Queriers must stay read-only —
+  // Dexie throws ReadOnlyError if we delete expired sessions here.
+  const sessionResult = useLiveQuery(async () => {
+    const current = await db.organizerSession.get(ORGANIZER_SESSION_ROW_ID);
+    if (!current || isOrganizerSessionExpired(current)) {
+      return null;
+    }
+    return current;
+  }, []);
   const isLoading = sessionResult === undefined;
   const session = sessionResult ?? undefined;
+
+  useEffect(() => {
+    void (async () => {
+      const current = await db.organizerSession.get(ORGANIZER_SESSION_ROW_ID);
+      if (current && isOrganizerSessionExpired(current)) {
+        await clearOrganizerSession();
+      }
+    })();
+  }, [sessionResult]);
 
   const setSession = useCallback(
     async (input: { sessionToken: string; email: string; expiresAt: string }) =>
@@ -40,7 +56,7 @@ export function useOrganizerSession(): {
       return undefined;
     }
 
-    if (new Date(current.expiresAt).getTime() <= Date.now()) {
+    if (isOrganizerSessionExpired(current)) {
       await clearOrganizerSession();
       return undefined;
     }

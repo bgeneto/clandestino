@@ -258,17 +258,18 @@ O diretório pai do arquivo é criado automaticamente no primeiro acesso.
 
 Edite `docker-compose.yml` (ou use um arquivo `.env` na raiz lido pelo Compose) **antes** de subir em produção:
 
-| Variável                   | Valor em produção                                            |
-| -------------------------- | ------------------------------------------------------------ |
-| `NODE_ENV`                 | `production` (já definido no serviço `api`)                  |
-| `PUBLIC_APP_URL`           | URL pública do PWA, ex. `https://clandestino.sistema.pro.br` |
-| `CLANDESTINO_WEB_ROOT`     | Caminho dos estáticos no host, ex. `/srv/clandestino`        |
-| `ORGANIZER_ALLOWED_EMAILS` | E-mails reais, separados por vírgula                         |
-| `RESEND_API_KEY`           | Chave da API Resend                                          |
-| `EMAIL_FROM`               | Remetente verificado no Resend (ex. `admin@sistema.pro.br`)  |
-| `EMAIL_FROM_NAME`          | Nome do remetente (ex. `Clandestino - Tênis de Mesa`)        |
-| `DATABASE_URL`             | `file:/app/data/clandestino.db` (bind mount `./data`)        |
-| `SEED_ON_START`            | `false` (padrão) — **não** popular dados fictícios           |
+| Variável                      | Valor em produção                                            |
+| ----------------------------- | ------------------------------------------------------------ |
+| `NODE_ENV`                    | `production` (já definido no serviço `api`)                  |
+| `PUBLIC_APP_URL`              | URL pública do PWA, ex. `https://clandestino.sistema.pro.br` |
+| `CLANDESTINO_WEB_ROOT`        | Caminho dos estáticos no host, ex. `/srv/clandestino`        |
+| `ORGANIZER_ALLOWED_EMAILS`    | E-mails reais, separados por vírgula                         |
+| `ORGANIZER_SESSION_TTL_HOURS` | Horas de validade da sessão (padrão `720` = 30 dias)         |
+| `RESEND_API_KEY`              | Chave da API Resend                                          |
+| `EMAIL_FROM`                  | Remetente verificado no Resend (ex. `admin@sistema.pro.br`)  |
+| `EMAIL_FROM_NAME`             | Nome do remetente (ex. `Clandestino - Tênis de Mesa`)        |
+| `DATABASE_URL`                | `file:/app/data/clandestino.db` (bind mount `./data`)        |
+| `SEED_ON_START`               | `false` (padrão) — **não** popular dados fictícios           |
 
 Em produção, magic links **não** aparecem na resposta HTTP — o link é enviado por e-mail via Resend (`RESEND_API_KEY`, `EMAIL_FROM`, `EMAIL_FROM_NAME`).
 
@@ -421,7 +422,7 @@ pnpm --filter @clandestino/api test
 | `PUBLIC_APP_URL`                   | `http://localhost:5173` | Base do PWA nos links de organizador                            |
 | `ORGANIZER_ALLOWED_EMAILS`         | `organizador@gmail.com` | E-mails autorizados (vírgula)                                   |
 | `ORGANIZER_MAGIC_LINK_TTL_MINUTES` | `15`                    | Validade do magic link                                          |
-| `ORGANIZER_SESSION_TTL_HOURS`      | `168`                   | Validade da sessão do organizador                               |
+| `ORGANIZER_SESSION_TTL_HOURS`      | `720` (30 dias)         | Validade da sessão do organizador (persistente no PWA)          |
 | `EXPOSE_MAGIC_LINKS`               | exposto em dev          | Força exposição em dev; **ignorado** em produção                |
 | `EMAIL_FROM`                       | —                       | Remetente Resend; **obrigatório** em produção                   |
 | `EMAIL_FROM_NAME`                  | —                       | Nome do remetente; **obrigatório** em produção                  |

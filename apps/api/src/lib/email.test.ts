@@ -20,7 +20,7 @@ const baseConfig: ApiConfig = {
   databaseUrl: 'file:./data/clandestino.db',
   organizerAllowedEmails: ['organizador@gmail.com'],
   organizerMagicLinkTtlMinutes: 15,
-  organizerSessionTtlHours: 168,
+  organizerSessionTtlHours: 720,
   publicAppUrl: 'http://localhost:5173',
   exposeMagicLinks: true,
   isProduction: false,

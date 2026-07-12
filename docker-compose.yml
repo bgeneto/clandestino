@@ -28,6 +28,7 @@ services:
       NODE_ENV: production
       PUBLIC_APP_URL: ${PUBLIC_APP_URL:-http://localhost}
       ORGANIZER_ALLOWED_EMAILS: ${ORGANIZER_ALLOWED_EMAILS:-organizador@gmail.com}
+      ORGANIZER_SESSION_TTL_HOURS: ${ORGANIZER_SESSION_TTL_HOURS:-720}
       EMAIL_FROM: ${EMAIL_FROM:-admin@sistema.pro.br}
       EMAIL_FROM_NAME: ${EMAIL_FROM_NAME:-Clandestino - Tênis de Mesa}
       RESEND_API_KEY: ${RESEND_API_KEY:?RESEND_API_KEY é obrigatória em produção}

@@ -499,8 +499,8 @@ function PendingMatchesSection({ edition }: { edition: Edition }) {
       {awaitingPlayerConfirmation.length > 0 ? (
         <div className="space-y-4">
           <p className="text-sm text-muted">
-            Placar informado por um jogador, aguardando confirmação do adversário. Use
-            &quot;Oficializar manualmente&quot; para confirmar o resultado já informado.
+            Placar informado por um jogador, aguardando confirmação do adversário. Um clique em
+            &quot;Oficializar&quot; confirma o resultado já informado.
           </p>
           {awaitingPlayerConfirmation.map((match) => (
             <OrganizerOfficializeMatchCard

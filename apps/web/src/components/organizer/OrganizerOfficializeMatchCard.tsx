@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import type { Match } from '@clandestino/shared-contracts';
+import type { CorrectMatchResultBody, Match } from '@clandestino/shared-contracts';
 import { MatchResultForm } from '../edition/MatchResultForm.js';
 import type { MatchResultSubmitPayload } from '../edition/MatchResultForm.js';
 import { formatMatchScore } from '../../lib/format.js';
@@ -25,6 +25,27 @@ function getPlayerTwoId(match: Match): string {
   return match.participants[1]?.playerId ?? '';
 }
 
+function buildPayloadFromSubmittedMatch(
+  match: Match,
+  playerOneId: string,
+  playerTwoId: string,
+): CorrectMatchResultBody {
+  if (match.outcome === 'WALKOVER' && match.walkoverAbsentPlayerId) {
+    return {
+      outcome: 'WALKOVER',
+      absentPlayerId: match.walkoverAbsentPlayerId,
+    };
+  }
+
+  return {
+    outcome: 'PLAYED',
+    setsWonByPlayerOne:
+      match.participants.find((participant) => participant.playerId === playerOneId)?.setsWon ?? 0,
+    setsWonByPlayerTwo:
+      match.participants.find((participant) => participant.playerId === playerTwoId)?.setsWon ?? 0,
+  };
+}
+
 export function OrganizerOfficializeMatchCard({
   match,
   playerNames,
@@ -37,7 +58,6 @@ export function OrganizerOfficializeMatchCard({
   const playerOneId = getPlayerOneId(match);
   const playerTwoId = getPlayerTwoId(match);
   const [confirmedOfficial, setConfirmedOfficial] = useState(false);
-  const [showManualOfficialize, setShowManualOfficialize] = useState(false);
   const submittedPlayerOneSets =
     match.participants.find((participant) => participant.playerId === playerOneId)?.setsWon ?? 0;
   const submittedPlayerTwoSets =
@@ -46,20 +66,7 @@ export function OrganizerOfficializeMatchCard({
     match.status === 'AGUARDANDO_CONFIRMACAO' || match.status === 'CONTESTADA';
 
   const officializeMutation = useMutation({
-    mutationFn: (payload: MatchResultSubmitPayload) => {
-      if (payload.outcome === 'WALKOVER') {
-        return officializeMatchResult(match.id, {
-          outcome: 'WALKOVER',
-          absentPlayerId: payload.absentPlayerId,
-        });
-      }
-
-      return officializeMatchResult(match.id, {
-        outcome: 'PLAYED',
-        setsWonByPlayerOne: payload.setsWonByReporter,
-        setsWonByPlayerTwo: payload.setsWonByOpponent,
-      });
-    },
+    mutationFn: (payload: CorrectMatchResultBody) => officializeMatchResult(match.id, payload),
     onSuccess: async () => {
       notify.success(
         variant === 'contested'
@@ -78,6 +85,21 @@ export function OrganizerOfficializeMatchCard({
       );
     },
   });
+
+  const submitFromForm = (payload: MatchResultSubmitPayload) => {
+    if (payload.outcome === 'WALKOVER') {
+      return officializeMutation.mutateAsync({
+        outcome: 'WALKOVER',
+        absentPlayerId: payload.absentPlayerId,
+      });
+    }
+
+    return officializeMutation.mutateAsync({
+      outcome: 'PLAYED',
+      setsWonByPlayerOne: payload.setsWonByReporter,
+      setsWonByPlayerTwo: payload.setsWonByOpponent,
+    });
+  };
 
   const isContested = variant === 'contested';
   const isAwaitingPlayer = variant === 'awaiting-player';
@@ -128,49 +150,55 @@ export function OrganizerOfficializeMatchCard({
       ) : null}
 
       <div className="mt-4">
-        {isAwaitingPlayer && !showManualOfficialize ? (
+        {isAwaitingPlayer ? (
           <button
             type="button"
-            onClick={() => setShowManualOfficialize(true)}
-            className="w-full rounded-lg border border-line bg-card px-4 py-2.5 text-sm font-medium text-foreground"
+            onClick={() =>
+              void officializeMutation.mutateAsync(
+                buildPayloadFromSubmittedMatch(match, playerOneId, playerTwoId),
+              )
+            }
+            disabled={officializeMutation.isPending}
+            className="w-full rounded-lg border border-line bg-card px-4 py-2.5 text-sm font-medium text-foreground disabled:opacity-60"
           >
-            Oficializar manualmente
+            {officializeMutation.isPending ? 'Oficializando…' : 'Oficializar'}
           </button>
         ) : (
-          <MatchResultForm
-            organizerMode
-            playerOneId={playerOneId}
-            playerTwoId={playerTwoId}
-            playerOneLabel={playerNames.get(playerOneId) ?? 'Jogador 1'}
-            playerTwoLabel={playerNames.get(playerTwoId) ?? 'Jogador 2'}
-            reporterLabel={playerNames.get(playerOneId) ?? 'Jogador 1'}
-            opponentLabel={playerNames.get(playerTwoId) ?? 'Jogador 2'}
-            opponentId={playerTwoId}
-            initialPlayerOneSets={hasPlayerSubmittedScore ? submittedPlayerOneSets : undefined}
-            initialPlayerTwoSets={hasPlayerSubmittedScore ? submittedPlayerTwoSets : undefined}
-            disabled={!confirmedOfficial}
-            pending={officializeMutation.isPending}
-            submitLabel={isContested ? 'Oficializar resultado corrigido' : 'Oficializar resultado'}
-            onSubmit={(payload) => void officializeMutation.mutateAsync(payload)}
-          />
+          <>
+            <MatchResultForm
+              organizerMode
+              playerOneId={playerOneId}
+              playerTwoId={playerTwoId}
+              playerOneLabel={playerNames.get(playerOneId) ?? 'Jogador 1'}
+              playerTwoLabel={playerNames.get(playerTwoId) ?? 'Jogador 2'}
+              reporterLabel={playerNames.get(playerOneId) ?? 'Jogador 1'}
+              opponentLabel={playerNames.get(playerTwoId) ?? 'Jogador 2'}
+              opponentId={playerTwoId}
+              initialPlayerOneSets={hasPlayerSubmittedScore ? submittedPlayerOneSets : undefined}
+              initialPlayerTwoSets={hasPlayerSubmittedScore ? submittedPlayerTwoSets : undefined}
+              disabled={!confirmedOfficial}
+              pending={officializeMutation.isPending}
+              submitLabel={
+                isContested ? 'Oficializar resultado corrigido' : 'Oficializar resultado'
+              }
+              onSubmit={(payload) => void submitFromForm(payload)}
+            />
+            <label className="mt-4 flex items-start gap-2 text-sm text-muted">
+              <input
+                type="checkbox"
+                checked={confirmedOfficial}
+                onChange={(event) => setConfirmedOfficial(event.target.checked)}
+                className="mt-1"
+              />
+              <span>
+                {isContested
+                  ? 'Confirmo que o resultado corrigido é oficial e substitui o placar contestado.'
+                  : 'Confirmo que o resultado informado é oficial.'}
+              </span>
+            </label>
+          </>
         )}
       </div>
-
-      {!isAwaitingPlayer || showManualOfficialize ? (
-        <label className={`mt-4 flex items-start gap-2 text-sm text-muted`}>
-          <input
-            type="checkbox"
-            checked={confirmedOfficial}
-            onChange={(event) => setConfirmedOfficial(event.target.checked)}
-            className="mt-1"
-          />
-          <span>
-            {isContested
-              ? 'Confirmo que o resultado corrigido é oficial e substitui o placar contestado.'
-              : 'Confirmo que o resultado informado é oficial.'}
-          </span>
-        </label>
-      ) : null}
     </article>
   );
 }

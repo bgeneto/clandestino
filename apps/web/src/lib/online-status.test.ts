@@ -55,12 +55,24 @@ describe('online status monitor', () => {
     unsubscribe();
   });
 
-  it('marca offline no evento offline do browser', () => {
+  it('marca offline no evento offline do browser e ignora probe atrasado', async () => {
     resetOnlineStatusForTests(true);
-    // Probe inicial nunca resolve — não sobrescreve o evento offline.
-    startOnlineStatusMonitor(vi.fn().mockImplementation(() => new Promise(() => {})));
+    let resolveProbe: (value: { ok: boolean }) => void = () => undefined;
+    const fetchImpl = vi.fn().mockImplementation(
+      () =>
+        new Promise<{ ok: boolean }>((resolve) => {
+          resolveProbe = resolve;
+        }),
+    );
+    startOnlineStatusMonitor(fetchImpl);
 
     window.dispatchEvent(new Event('offline'));
+    expect(getOnlineStatus()).toBe(false);
+
+    resolveProbe({ ok: true });
+    await Promise.resolve();
+    await Promise.resolve();
+
     expect(getOnlineStatus()).toBe(false);
   });
 

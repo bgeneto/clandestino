@@ -45,6 +45,15 @@ async function readSessionHeaders(): Promise<Record<string, string>> {
   };
 }
 
+function readBearerToken(headers: Headers): string | null {
+  const value = headers.get('Authorization');
+  if (!value?.startsWith('Bearer ')) {
+    return null;
+  }
+  const token = value.slice('Bearer '.length).trim();
+  return token || null;
+}
+
 export async function apiRequest<T>(path: string, options: ApiRequestOptions = {}): Promise<T> {
   const headers = new Headers(options.headers);
   headers.set('Accept', 'application/json');
@@ -67,6 +76,8 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
     }
   }
 
+  const requestOrganizerToken = options.organizerAuth ? readBearerToken(headers) : null;
+
   const response = await fetch(buildApiUrl(path), {
     ...options,
     cache: options.cache ?? 'no-store',
@@ -88,8 +99,13 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
       // resposta não-JSON
     }
 
-    if (response.status === 401 && options.organizerAuth) {
-      await invalidateOrganizerSession();
+    // Só invalida se o 401 for da mesma sessão ainda armazenada (evita apagar
+    // um login novo quando uma request antiga com token expirado retorna tarde).
+    if (response.status === 401 && options.organizerAuth && requestOrganizerToken) {
+      const current = await getOrganizerSession();
+      if (current?.sessionToken === requestOrganizerToken) {
+        await invalidateOrganizerSession();
+      }
     }
 
     throw new ApiError(message, response.status, details);

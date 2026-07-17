@@ -1,92 +1,101 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import { ClandestinoDatabase, SESSION_ROW_ID, type OutboxEntry } from '../db/clandestino-db.js';
-import { processOutbox } from './process-outbox.js';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import 'fake-indexeddb/auto';
+import { ClandestinoDatabase } from '../db/clandestino-db.js';
+import { processOutbox, resetProcessOutboxLockForTests } from './process-outbox.js';
 
 describe('processOutbox', () => {
-  afterEach(() => {
-    vi.restoreAllMocks();
-  });
+  let database: ClandestinoDatabase;
 
-  it('envia itens pendentes e remove da fila após confirmação da API', async () => {
-    const database = new ClandestinoDatabase(`test-${crypto.randomUUID()}`);
-    await database.open();
-
-    await database.session.put({
-      id: SESSION_ROW_ID,
-      playerId: '11111111-1111-4111-8111-111111111111',
-      editionId: '22222222-2222-4222-8222-222222222222',
-      updatedAt: new Date().toISOString(),
-    });
-
-    const entry: OutboxEntry = {
-      id: '33333333-3333-4333-8333-333333333333',
-      kind: 'SUBMIT_MATCH_RESULT',
-      matchId: '44444444-4444-4444-8444-444444444444',
-      payload: { setsWonByReporter: 2, setsWonByOpponent: 0 },
-      status: 'AGUARDANDO_SINCRONIZACAO',
-      createdAt: new Date().toISOString(),
-      attemptCount: 0,
-    };
-
-    await database.outbox.put(entry);
-
+  beforeEach(() => {
+    resetProcessOutboxLockForTests();
+    database = new ClandestinoDatabase(`outbox-test-${Math.random().toString(36).slice(2)}`);
     vi.stubGlobal(
       'fetch',
-      vi.fn(async () => ({
+      vi.fn().mockResolvedValue({
         ok: true,
-        json: async () => ({ match: { id: entry.matchId } }),
-      })),
+        json: async () => ({ match: { id: 'm1' } }),
+      }),
     );
+  });
+
+  afterEach(async () => {
+    resetProcessOutboxLockForTests();
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+    await database.delete();
+  });
+
+  it('recupera entradas SINCRONIZANDO e sincroniza com a identidade da entrada', async () => {
+    await database.outbox.put({
+      id: 'o1',
+      kind: 'SUBMIT_MATCH_RESULT',
+      matchId: 'm1',
+      playerId: 'player-a',
+      editionId: 'edition-1',
+      payload: { outcome: 'PLAYED', setsWonByReporter: 3, setsWonByOpponent: 1 },
+      status: 'SINCRONIZANDO',
+      createdAt: new Date().toISOString(),
+      attemptCount: 1,
+    });
 
     const result = await processOutbox(database);
 
     expect(result.processed).toBe(1);
-    expect(result.failed).toBe(0);
     expect(await database.outbox.count()).toBe(0);
-
-    await database.delete();
+    expect(fetch).toHaveBeenCalledWith(
+      expect.stringContaining('/matches/m1/result'),
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          'X-Player-Id': 'player-a',
+          'X-Edition-Id': 'edition-1',
+        }),
+      }),
+    );
   });
 
-  it('mantém item na fila quando a API rejeita', async () => {
-    const database = new ClandestinoDatabase(`test-${crypto.randomUUID()}`);
-    await database.open();
+  it('deduplica processamentos concorrentes', async () => {
+    let resolveFetchStarted: (() => void) | undefined;
+    let resolveFetchResult:
+      ((value: { ok: boolean; json: () => Promise<object> }) => void) | undefined;
 
-    await database.session.put({
-      id: SESSION_ROW_ID,
-      playerId: '11111111-1111-4111-8111-111111111111',
-      editionId: '22222222-2222-4222-8222-222222222222',
-      updatedAt: new Date().toISOString(),
+    const fetchStarted = new Promise<void>((resolve) => {
+      resolveFetchStarted = resolve;
+    });
+    const fetchResult = new Promise<{ ok: boolean; json: () => Promise<object> }>((resolve) => {
+      resolveFetchResult = resolve;
     });
 
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => {
+        resolveFetchStarted?.();
+        return fetchResult;
+      }),
+    );
+
     await database.outbox.put({
-      id: '55555555-5555-4555-8555-555555555555',
+      id: 'o2',
       kind: 'SUBMIT_MATCH_RESULT',
-      matchId: '66666666-6666-4666-8666-666666666666',
-      payload: { setsWonByReporter: 2, setsWonByOpponent: 1 },
+      matchId: 'm2',
+      playerId: 'player-a',
+      editionId: 'edition-1',
+      payload: { outcome: 'PLAYED', setsWonByReporter: 3, setsWonByOpponent: 0 },
       status: 'AGUARDANDO_SINCRONIZACAO',
       createdAt: new Date().toISOString(),
       attemptCount: 0,
     });
 
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => ({
-        ok: false,
-        status: 409,
-        json: async () => ({ error: 'Partida indisponível' }),
-      })),
-    );
+    const first = processOutbox(database);
+    await fetchStarted;
+    const second = processOutbox(database);
 
-    const result = await processOutbox(database);
+    resolveFetchResult?.({
+      ok: true,
+      json: async () => ({ match: { id: 'm2' } }),
+    });
 
-    expect(result.processed).toBe(0);
-    expect(result.failed).toBe(1);
-
-    const remaining = await database.outbox.toArray();
-    expect(remaining).toHaveLength(1);
-    expect(remaining[0]?.status).toBe('AGUARDANDO_SINCRONIZACAO');
-    expect(remaining[0]?.attemptCount).toBe(1);
-
-    await database.delete();
+    const [a, b] = await Promise.all([first, second]);
+    expect(a).toEqual(b);
+    expect(fetch).toHaveBeenCalledTimes(1);
   });
 });

@@ -81,6 +81,25 @@ export function validateEditionRules(rules: EditionRules): string | null {
     return 'groupRankingCriteria deve conter ao menos um critério.';
   }
 
+  // Valores aceitos no contrato mas ainda não implementados no engine —
+  // rejeitar para não produzir resultados diferentes do anunciado.
+  if (rules.seedingMethod !== 'fixed-heads') {
+    return `seedingMethod "${rules.seedingMethod}" ainda não é suportado. Use "fixed-heads".`;
+  }
+
+  if (rules.placementStageFormat === 'knockout') {
+    return 'placementStageFormat "knockout" ainda não é suportado. Use "round-robin".';
+  }
+
+  for (const criterion of rules.groupRankingCriteria) {
+    if (criterion === 'POINTS_DIFF') {
+      return 'Critério POINTS_DIFF ainda não é suportado (placares não armazenam pontos por set).';
+    }
+    if (criterion === 'RANDOM_OR_ORGANIZER') {
+      return 'Critério RANDOM_OR_ORGANIZER ainda não é suportado.';
+    }
+  }
+
   return null;
 }
 

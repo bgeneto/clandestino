@@ -256,6 +256,22 @@ export async function registerEditionPlacementRoutes(app: FastifyInstance): Prom
       const organizer = request.organizerEmail ?? 'organizer';
 
       const result = await app.db.transaction(async (tx) => {
+        const [freshEdition] = await tx
+          .select()
+          .from(schema.editions)
+          .where(eq(schema.editions.id, editionId))
+          .limit(1);
+
+        if (!freshEdition) {
+          throw notFound('Edição não encontrada.');
+        }
+
+        if (freshEdition.status === 'ENCERRADA') {
+          throw conflict('Esta edição já foi encerrada.');
+        }
+
+        await assertEditionReadyToFinalize(tx, freshEdition);
+
         const finalized = await finalizeEditionPlacements(
           tx,
           editionId,

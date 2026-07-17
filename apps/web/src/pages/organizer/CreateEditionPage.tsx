@@ -57,6 +57,8 @@ export function CreateEditionPage() {
   }, [date, existingEditions, isRecurring]);
 
   const createMutation = useMutation({
+    // Precisa rodar offline para gravar rascunho local (default 'online' pausa a mutation).
+    networkMode: 'always',
     mutationFn: async () => {
       if (isOffline) {
         if (isRecurring) {

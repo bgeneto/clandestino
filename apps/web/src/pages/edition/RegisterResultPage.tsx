@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { Link, Navigate, useNavigate, useOutletContext, useParams } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { EditionHeader } from '../../components/edition/EditionHeader.js';
@@ -22,9 +22,18 @@ export function RegisterResultPage() {
   const queryClient = useQueryClient();
   const online = useOnlineStatus();
   const notify = useNotification();
+  const redirectTimerRef = useRef<number | null>(null);
   const matchesQuery = usePlayerMatches(editionId, true);
   const groupsQuery = useEditionGroups(editionId);
   const participantsQuery = useEditionParticipants(editionId);
+
+  useEffect(() => {
+    return () => {
+      if (redirectTimerRef.current !== null) {
+        window.clearTimeout(redirectTimerRef.current);
+      }
+    };
+  }, []);
 
   const match = useMemo(
     () => (matchesQuery.data ?? []).find((entry) => entry.id === matchId),
@@ -54,6 +63,8 @@ export function RegisterResultPage() {
   }, [groupsQuery.data, match]);
 
   const submitMutation = useMutation({
+    // Precisa rodar offline para enfileirar no IndexedDB (default 'online' pausa a mutation).
+    networkMode: 'always',
     mutationFn: async (
       payload:
         | { outcome: 'PLAYED'; setsWonByReporter: number; setsWonByOpponent: number }
@@ -77,7 +88,7 @@ export function RegisterResultPage() {
       });
     },
     onSuccess: async (outcome) => {
-      await queryClient.invalidateQueries({ queryKey: queryKeys.matches(editionId, 'me') });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.matchesForEdition(editionId) });
 
       if (outcome.mode === 'queued') {
         notify.success('Resultado salvo na fila — será enviado ao reconectar.');
@@ -87,7 +98,11 @@ export function RegisterResultPage() {
         notify.success('Resultado enviado! Aguardando confirmação do adversário.');
       }
 
-      window.setTimeout(() => {
+      if (redirectTimerRef.current !== null) {
+        window.clearTimeout(redirectTimerRef.current);
+      }
+      redirectTimerRef.current = window.setTimeout(() => {
+        redirectTimerRef.current = null;
         navigate(`/edicao/${editionId}/partidas`, { replace: true });
       }, 900);
     },

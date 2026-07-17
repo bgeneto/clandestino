@@ -135,6 +135,10 @@ export interface ConfirmedMatchResult {
 }
 
 export interface ConfirmMatchResultOptions {
+  /** Status permitidos no momento do claim (CAS). Obrigatório para evitar races. */
+  expectedStatuses: readonly MatchStatus[];
+  /** Status final após confirmação/correção. Default: CONFIRMADA. */
+  resultingStatus?: 'CONFIRMADA' | 'CORRIGIDA';
   correctedSets?: {
     playerOneSets: number;
     playerTwoSets: number;
@@ -149,7 +153,7 @@ export async function confirmMatchResult(
   matchId: string,
   createdBy: string,
   auditEventType: ConfirmAuditEventType,
-  options?: ConfirmMatchResultOptions,
+  options: ConfirmMatchResultOptions,
 ): Promise<ConfirmedMatchResult> {
   const loaded = await loadMatch(db, matchId);
   if (!loaded) {
@@ -157,6 +161,10 @@ export async function confirmMatchResult(
   }
 
   const { match, participants } = loaded;
+
+  if (!options.expectedStatuses.includes(match.status)) {
+    throw conflict('Esta partida não está em um estado que permita esta operação.');
+  }
 
   const [edition] = await db
     .select()
@@ -169,9 +177,30 @@ export async function confirmMatchResult(
   }
 
   const now = new Date();
-  const correctedSets = options?.correctedSets;
+  const correctedSets = options.correctedSets;
+  const resultingStatus = options.resultingStatus ?? 'CONFIRMADA';
 
   await db.transaction(async (tx) => {
+    const claimed = await tx
+      .update(schema.matches)
+      .set({
+        status: resultingStatus,
+        outcome: options.outcome ?? match.outcome,
+        walkoverAbsentPlayerId: options.walkoverAbsentPlayerId ?? match.walkoverAbsentPlayerId,
+        updatedAt: now,
+      })
+      .where(
+        and(
+          eq(schema.matches.id, match.id),
+          inArray(schema.matches.status, options.expectedStatuses),
+        ),
+      )
+      .returning({ id: schema.matches.id });
+
+    if (!claimed[0]) {
+      throw conflict('Esta partida mudou de estado. Atualize e tente novamente.');
+    }
+
     if (correctedSets) {
       await tx
         .update(schema.matchParticipants)
@@ -193,16 +222,6 @@ export async function confirmMatchResult(
           ),
         );
     }
-
-    await tx
-      .update(schema.matches)
-      .set({
-        status: 'CONFIRMADA',
-        outcome: options?.outcome ?? match.outcome,
-        walkoverAbsentPlayerId: options?.walkoverAbsentPlayerId ?? match.walkoverAbsentPlayerId,
-        updatedAt: now,
-      })
-      .where(eq(schema.matches.id, match.id));
 
     await recalculateGroupStanding(tx, match.groupId, edition.rules);
 
@@ -229,11 +248,12 @@ export async function confirmMatchResult(
         phase: match.phase,
         playerOneId: match.playerOneId,
         playerTwoId: match.playerTwoId,
+        resultingStatus,
         setsWon: {
           [match.playerOneId]: playerOneSets,
           [match.playerTwoId]: playerTwoSets,
         },
-        ...options?.auditExtras,
+        ...options.auditExtras,
       },
       createdBy,
     });
@@ -331,6 +351,7 @@ export async function isGroupStageComplete(db: DbExecutor, editionId: string): P
         eq(schema.matches.editionId, editionId),
         eq(schema.matches.phase, GROUP_PHASE),
         ne(schema.matches.status, 'CONFIRMADA'),
+        ne(schema.matches.status, 'CORRIGIDA'),
         ne(schema.matches.status, 'CANCELADA'),
       ),
     )
@@ -851,6 +872,17 @@ export async function finalizeEditionPlacements(
   scoringTable: Parameters<typeof attachScoringPoints>[1],
   rules: EditionRules,
 ) {
+  // Claim atômico: só um finalize concorrente consegue marcar ENCERRADA.
+  const [claimedEdition] = await db
+    .update(schema.editions)
+    .set({ status: 'ENCERRADA' })
+    .where(and(eq(schema.editions.id, editionId), ne(schema.editions.status, 'ENCERRADA')))
+    .returning();
+
+  if (!claimedEdition) {
+    throw conflict('Esta edição já foi encerrada.');
+  }
+
   const placementResults = await buildPlacementGroupResults(db, editionId, rules);
   const finalStanding = calculateFinalStanding(placementResults);
   const withPoints = attachScoringPoints(finalStanding, scoringTable);
@@ -902,14 +934,8 @@ export async function finalizeEditionPlacements(
     }
   }
 
-  const [updatedEdition] = await db
-    .update(schema.editions)
-    .set({ status: 'ENCERRADA' })
-    .where(eq(schema.editions.id, editionId))
-    .returning();
-
   return {
-    edition: updatedEdition,
+    edition: claimedEdition,
     placements: withPoints,
     championshipId,
   };

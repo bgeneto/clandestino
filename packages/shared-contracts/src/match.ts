@@ -21,7 +21,7 @@ export type MatchStatus = Static<typeof MatchStatusSchema>;
 
 /** Mirrors isGroupStageComplete — a match is settled for edition close purposes. */
 export function isMatchResolvedForEditionClose(status: MatchStatus): boolean {
-  return status === 'CONFIRMADA' || status === 'CANCELADA';
+  return status === 'CONFIRMADA' || status === 'CORRIGIDA' || status === 'CANCELADA';
 }
 
 export const MatchParticipantSchema = Type.Object(

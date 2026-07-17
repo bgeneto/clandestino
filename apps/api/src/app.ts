@@ -24,6 +24,8 @@ import { startAutoConfirmJob } from './jobs/auto-confirm.js';
 export async function createApp(config: ApiConfig, options?: { emailSender?: EmailSender }) {
   const app = Fastify({
     logger: true,
+    // Necessário atrás do Caddy para rate limit por IP real do cliente.
+    trustProxy: true,
   }).withTypeProvider<TypeBoxTypeProvider>();
 
   app.addHook('onSend', async (_request, reply, payload) => {

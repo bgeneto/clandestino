@@ -124,9 +124,10 @@ export async function consumeMagicToken(
   const tokenHash = hashToken(token);
   const now = new Date();
 
-  const [magicToken] = await app.db
-    .select()
-    .from(schema.organizerMagicTokens)
+  // Claim atômico: só um verify concorrente consegue marcar usedAt.
+  const claimed = await app.db
+    .update(schema.organizerMagicTokens)
+    .set({ usedAt: now })
     .where(
       and(
         eq(schema.organizerMagicTokens.tokenHash, tokenHash),
@@ -134,16 +135,14 @@ export async function consumeMagicToken(
         gt(schema.organizerMagicTokens.expiresAt, now),
       ),
     )
-    .limit(1);
+    .returning({
+      email: schema.organizerMagicTokens.email,
+    });
 
+  const magicToken = claimed[0];
   if (!magicToken) {
     return null;
   }
-
-  await app.db
-    .update(schema.organizerMagicTokens)
-    .set({ usedAt: now })
-    .where(eq(schema.organizerMagicTokens.id, magicToken.id));
 
   return { email: magicToken.email };
 }

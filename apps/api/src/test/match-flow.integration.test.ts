@@ -322,4 +322,78 @@ describe.skipIf(!hasTestDb)('fluxo de partidas e autorização (integração HTT
     const finalize = await org('POST', `/editions/${editionId}/finalize`);
     expect(finalize.statusCode).toBe(200);
   });
+
+  it('contestar e confirmar em paralelo: exatamente um vence (CAS)', async () => {
+    const { editionId, matches } = await setupTournament();
+    const match = matches[0]!;
+    const [playerOneId, playerTwoId] = participants(match);
+
+    const submit = await app.inject({
+      method: 'POST',
+      url: `/matches/${match.id}/result`,
+      headers: playerHeaders(playerOneId, editionId),
+      payload: { setsWonByReporter: 2, setsWonByOpponent: 0 },
+    });
+    expect(submit.statusCode).toBe(200);
+
+    const [confirm, contest] = await Promise.all([
+      app.inject({
+        method: 'POST',
+        url: `/matches/${match.id}/confirm`,
+        headers: playerHeaders(playerTwoId, editionId),
+      }),
+      app.inject({
+        method: 'POST',
+        url: `/matches/${match.id}/contest`,
+        headers: playerHeaders(playerTwoId, editionId),
+        payload: { reason: 'placar errado' },
+      }),
+    ]);
+
+    const statuses = [confirm.statusCode, contest.statusCode].sort();
+    expect(statuses).toEqual([200, 409]);
+
+    const finalMatch = await app.inject({
+      method: 'GET',
+      url: `/editions/${editionId}/matches`,
+    });
+    const updated = finalMatch
+      .json<{ matches: Match[] }>()
+      .matches.find((entry) => entry.id === match.id);
+    expect(updated?.status === 'CONFIRMADA' || updated?.status === 'CONTESTADA').toBe(true);
+  });
+
+  it('correção do organizador após contestação persiste CORRIGIDA', async () => {
+    const { editionId, matches } = await setupTournament();
+    const match = matches[0]!;
+    const [playerOneId, playerTwoId] = participants(match);
+
+    await app.inject({
+      method: 'POST',
+      url: `/matches/${match.id}/result`,
+      headers: playerHeaders(playerOneId, editionId),
+      payload: { setsWonByReporter: 2, setsWonByOpponent: 1 },
+    });
+
+    const contest = await app.inject({
+      method: 'POST',
+      url: `/matches/${match.id}/contest`,
+      headers: playerHeaders(playerTwoId, editionId),
+      payload: { reason: 'set invertido' },
+    });
+    expect(contest.statusCode).toBe(200);
+    expect(contest.json<{ match: Match }>().match.status).toBe('CONTESTADA');
+
+    const corrected = await app.inject({
+      method: 'PUT',
+      url: `/matches/${match.id}/result`,
+      headers: organizerHeaders(organizerToken),
+      payload: {
+        setsWonByPlayerOne: 1,
+        setsWonByPlayerTwo: 2,
+      },
+    });
+    expect(corrected.statusCode).toBe(200);
+    expect(corrected.json<{ match: Match }>().match.status).toBe('CORRIGIDA');
+  });
 });

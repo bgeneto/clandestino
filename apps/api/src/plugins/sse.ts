@@ -5,7 +5,12 @@ import { eq } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import { schema } from '../db/index.js';
 import { notFound } from '../lib/errors.js';
-import { SseHub, parseLastEventId, writeSseConnected, writeSseKeepAlive } from '../lib/sse.js';
+import {
+  SseHub,
+  resolveSseResumeRevision,
+  writeSseConnected,
+  writeSseKeepAlive,
+} from '../lib/sse.js';
 
 const KEEP_ALIVE_INTERVAL_MS = 30_000;
 
@@ -26,6 +31,9 @@ export async function registerSsePlugin(app: FastifyInstance): Promise<void> {
     {
       schema: {
         params: Type.Object({ id: Type.String({ format: 'uuid' }) }),
+        querystring: Type.Object({
+          lastEventId: Type.Optional(Type.String()),
+        }),
         response: {
           404: ErrorResponseSchema,
         },
@@ -55,7 +63,12 @@ export async function registerSsePlugin(app: FastifyInstance): Promise<void> {
         reply.raw.flushHeaders();
       }
 
-      const lastRevision = parseLastEventId(request.headers['last-event-id']);
+      // Last-Event-ID header is authoritative on browser auto-reconnect (SSE spec).
+      // Query param covers our manual reconnect (new EventSource with ?lastEventId=).
+      const lastRevision = resolveSseResumeRevision(
+        request.headers['last-event-id'],
+        request.query.lastEventId,
+      );
       if (lastRevision > 0) {
         hub.replayAfter(editionId, lastRevision, reply.raw);
       }

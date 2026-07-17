@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { EventEmitter } from 'node:events';
 import type { ServerResponse } from 'node:http';
-import { SseHub, formatSseMessage, parseLastEventId } from './sse.js';
+import { SseHub, formatSseMessage, parseLastEventId, resolveSseResumeRevision } from './sse.js';
 
 function createMockResponse(): ServerResponse {
   const emitter = new EventEmitter();
@@ -51,6 +51,20 @@ describe('parseLastEventId', () => {
     expect(parseLastEventId('12')).toBe(12);
     expect(parseLastEventId(undefined)).toBe(0);
     expect(parseLastEventId('invalid')).toBe(0);
+  });
+});
+
+describe('resolveSseResumeRevision', () => {
+  it('prefers Last-Event-ID header over a larger stale query value', () => {
+    expect(resolveSseResumeRevision('5', '99')).toBe(5);
+  });
+
+  it('falls back to query when header is absent', () => {
+    expect(resolveSseResumeRevision(undefined, '7')).toBe(7);
+  });
+
+  it('returns 0 when neither source has a valid revision', () => {
+    expect(resolveSseResumeRevision(undefined, undefined)).toBe(0);
   });
 });
 

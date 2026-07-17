@@ -1,26 +1,22 @@
 import type { MatchResultResponse } from '@clandestino/shared-contracts';
 import { buildApiUrl } from '../lib/api-config.js';
-import {
-  db,
-  SESSION_ROW_ID,
-  type ClandestinoDatabase,
-  type OutboxEntry,
-} from '../db/clandestino-db.js';
+import { db, type ClandestinoDatabase, type OutboxEntry } from '../db/clandestino-db.js';
 
 export type ProcessOutboxResult = {
   processed: number;
   failed: number;
 };
 
-async function readSessionHeaders(database: ClandestinoDatabase): Promise<Record<string, string>> {
-  const session = await database.session.get(SESSION_ROW_ID);
-  if (!session) {
-    return {};
+let processInFlight: Promise<ProcessOutboxResult> | null = null;
+
+function headersForEntry(entry: OutboxEntry): Record<string, string> | null {
+  if (!entry.playerId || !entry.editionId) {
+    return null;
   }
 
   return {
-    'X-Player-Id': session.playerId,
-    'X-Edition-Id': session.editionId,
+    'X-Player-Id': entry.playerId,
+    'X-Edition-Id': entry.editionId,
   };
 }
 
@@ -73,13 +69,16 @@ async function notifyClients(result: ProcessOutboxResult): Promise<void> {
   }
 }
 
-export async function processOutbox(
-  database: ClandestinoDatabase = db,
-): Promise<ProcessOutboxResult> {
-  const sessionHeaders = await readSessionHeaders(database);
-  if (Object.keys(sessionHeaders).length === 0) {
-    return { processed: 0, failed: 0 };
+/** Recupera entradas presas em SINCRONIZANDO (crash/SW kill mid-flight). */
+async function recoverStuckEntries(database: ClandestinoDatabase): Promise<void> {
+  const stuck = await database.outbox.where('status').equals('SINCRONIZANDO').toArray();
+  for (const entry of stuck) {
+    await database.outbox.update(entry.id, { status: 'AGUARDANDO_SINCRONIZACAO' });
   }
+}
+
+async function processOutboxOnce(database: ClandestinoDatabase): Promise<ProcessOutboxResult> {
+  await recoverStuckEntries(database);
 
   const pending = await database.outbox
     .where('status')
@@ -90,6 +89,17 @@ export async function processOutbox(
   let failed = 0;
 
   for (const entry of pending) {
+    const sessionHeaders = headersForEntry(entry);
+    if (!sessionHeaders) {
+      failed += 1;
+      await database.outbox.update(entry.id, {
+        status: 'FALHA',
+        lastError: 'Entrada sem identidade de jogador/edição.',
+        attemptCount: entry.attemptCount + 1,
+      });
+      continue;
+    }
+
     await database.outbox.update(entry.id, { status: 'SINCRONIZANDO' });
 
     try {
@@ -98,9 +108,16 @@ export async function processOutbox(
       processed += 1;
     } catch (error) {
       failed += 1;
+      const message = error instanceof Error ? error.message : String(error);
+      const permanentClientError =
+        message.includes('HTTP 403') ||
+        message.includes('HTTP 404') ||
+        message.includes('HTTP 409') ||
+        /não inscrito|não encontrada|já|conflito/i.test(message);
+
       await database.outbox.update(entry.id, {
-        status: 'AGUARDANDO_SINCRONIZACAO',
-        lastError: error instanceof Error ? error.message : String(error),
+        status: permanentClientError ? 'FALHA' : 'AGUARDANDO_SINCRONIZACAO',
+        lastError: message,
         attemptCount: entry.attemptCount + 1,
       });
     }
@@ -118,4 +135,23 @@ export async function processOutbox(
   }
 
   return result;
+}
+
+export async function processOutbox(
+  database: ClandestinoDatabase = db,
+): Promise<ProcessOutboxResult> {
+  if (processInFlight) {
+    return processInFlight;
+  }
+
+  processInFlight = processOutboxOnce(database).finally(() => {
+    processInFlight = null;
+  });
+
+  return processInFlight;
+}
+
+/** Só para testes. */
+export function resetProcessOutboxLockForTests(): void {
+  processInFlight = null;
 }

@@ -58,35 +58,75 @@ function beginStatement(behavior: 'deferred' | 'immediate' | 'exclusive' = 'defe
   return 'BEGIN';
 }
 
+type TxHandle = Parameters<TransactionCallback>[0];
+
 export function createDb(sqlite: SqliteDatabase = createSqlite()): Db {
   const db = drizzle(sqlite, { schema });
 
-  return Object.assign(db, {
-    transaction<T>(
-      fn: (tx: Parameters<TransactionCallback>[0]) => T | Promise<T>,
-      config?: TransactionConfig,
-    ): T | Promise<T> {
-      sqlite.exec(beginStatement(config?.behavior));
+  // Serializa transactions no mesmo connection SQLite. Sem isso, awaits dentro
+  // de `transaction(async ...)` permitem outro BEGIN / queries de outro request
+  // no meio da transação aberta ("cannot start a transaction within a transaction"
+  // e commits cruzados).
+  // Sempre retorna Promise: a fila de serialização exige isso; callers usam await.
+  let transactionTail: Promise<unknown> = Promise.resolve();
+
+  async function runInSavepoint<T>(
+    fn: (tx: TxHandle) => T | Promise<T>,
+    nestedIndex: number,
+  ): Promise<T> {
+    const savepointName = `sp${nestedIndex}`;
+    sqlite.exec(`SAVEPOINT ${savepointName}`);
+    try {
+      const result = await fn(createTxHandle(nestedIndex + 1));
+      sqlite.exec(`RELEASE SAVEPOINT ${savepointName}`);
+      return result;
+    } catch (error) {
       try {
-        const result = fn(db as unknown as Parameters<TransactionCallback>[0]);
-        if (result instanceof Promise) {
-          return result.then(
-            (value) => {
-              sqlite.exec('COMMIT');
-              return value;
-            },
-            (error) => {
-              sqlite.exec('ROLLBACK');
-              throw error;
-            },
-          );
-        }
-        sqlite.exec('COMMIT');
-        return result;
-      } catch (error) {
-        sqlite.exec('ROLLBACK');
-        throw error;
+        sqlite.exec(`ROLLBACK TO SAVEPOINT ${savepointName}`);
+      } catch {
+        // savepoint pode já ter sido liberado
       }
+      throw error;
+    }
+  }
+
+  /** Handle passado ao callback: queries no `db`, nested `transaction` via SAVEPOINT. */
+  function createTxHandle(nestedIndex: number): TxHandle {
+    return new Proxy(db, {
+      get(target, prop, receiver) {
+        if (prop === 'transaction') {
+          return <T>(innerFn: (tx: TxHandle) => T | Promise<T>) =>
+            runInSavepoint(innerFn, nestedIndex);
+        }
+        return Reflect.get(target, prop, receiver);
+      },
+    }) as TxHandle;
+  }
+
+  return Object.assign(db, {
+    transaction<T>(fn: (tx: TxHandle) => T | Promise<T>, config?: TransactionConfig): Promise<T> {
+      const run = async (): Promise<T> => {
+        sqlite.exec(beginStatement(config?.behavior ?? 'immediate'));
+        try {
+          const result = await fn(createTxHandle(1));
+          sqlite.exec('COMMIT');
+          return result;
+        } catch (error) {
+          try {
+            sqlite.exec('ROLLBACK');
+          } catch {
+            // conexão já pode estar sem transação aberta
+          }
+          throw error;
+        }
+      };
+
+      const result = transactionTail.then(run, run);
+      transactionTail = result.then(
+        () => undefined,
+        () => undefined,
+      );
+      return result;
     },
   }) as Db;
 }

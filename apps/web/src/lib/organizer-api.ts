@@ -302,13 +302,14 @@ export async function importChampionshipScores(
   csvContent: string,
 ): Promise<ImportScoresResponse> {
   const session = await getOrganizerSession();
+  const requestToken = session?.sessionToken;
   const headers: Record<string, string> = {
     Accept: 'application/json',
     'Content-Type': 'text/csv',
   };
 
-  if (session) {
-    headers.Authorization = `Bearer ${session.sessionToken}`;
+  if (requestToken) {
+    headers.Authorization = `Bearer ${requestToken}`;
   }
 
   const response = await fetch(buildApiUrl(`/championships/${championshipId}/import-scores`), {
@@ -328,8 +329,11 @@ export async function importChampionshipScores(
       // resposta não-JSON
     }
 
-    if (response.status === 401) {
-      await invalidateOrganizerSession();
+    if (response.status === 401 && requestToken) {
+      const current = await getOrganizerSession();
+      if (current?.sessionToken === requestToken) {
+        await invalidateOrganizerSession();
+      }
     }
 
     throw new ApiError(message, response.status);

@@ -96,7 +96,12 @@ export function useEditionSync(
       }
 
       sourceRef.current?.close();
-      const source = new EventSource(buildApiUrl(`/editions/${editionId}/events`));
+      const lastEventId = lastRevisionRef.current;
+      const eventsUrl =
+        lastEventId > 0
+          ? buildApiUrl(`/editions/${editionId}/events?lastEventId=${lastEventId}`)
+          : buildApiUrl(`/editions/${editionId}/events`);
+      const source = new EventSource(eventsUrl);
       sourceRef.current = source;
 
       source.onopen = () => {

@@ -519,13 +519,20 @@ export async function registerChampionshipRoutes(app: FastifyInstance): Promise<
       },
     },
     async (request, reply) => {
-      const { validateScoringTable } = await import('../lib/errors.js');
+      const { validateScoringTable, validateEditionRules } = await import('../lib/errors.js');
       const scoringTable = request.body.scoringTable;
 
       if (scoringTable) {
         const scoringError = validateScoringTable(scoringTable);
         if (scoringError) {
           throw badRequest(scoringError);
+        }
+      }
+
+      if (request.body.defaultEditionRules) {
+        const rulesError = validateEditionRules(request.body.defaultEditionRules);
+        if (rulesError) {
+          throw badRequest(rulesError);
         }
       }
 

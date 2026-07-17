@@ -1,6 +1,7 @@
 import type { Edition, ExecuteDrawBody } from '@clandestino/shared-contracts';
 import { ApiError } from '../lib/api-client.js';
 import { isDrawPreviewStale, remapDraftPlayerIds } from '../lib/draw-input-fingerprint.js';
+import { fetchEdition } from '../lib/edition-api.js';
 import {
   createEdition,
   createPlayer,
@@ -38,17 +39,17 @@ export async function syncEditionWizardDraft(draft: EditionWizardDraft): Promise
     };
   }
 
-  const syncingDraft = await saveEditionWizardDraft({
+  let workingDraft = await saveEditionWizardDraft({
     ...draft,
     syncStatus: 'SINCRONIZANDO',
     syncError: undefined,
   });
 
   try {
-    let editionId = syncingDraft.editionId;
+    let editionId = workingDraft.editionId;
     const idRemap = new Map<string, string>();
 
-    for (const player of syncingDraft.checkedInPlayers.filter((entry) => entry.isNew)) {
+    for (const player of workingDraft.checkedInPlayers.filter((entry) => entry.isNew)) {
       try {
         const created = await createPlayer({ name: player.playerName });
         idRemap.set(player.playerId, created.id);
@@ -60,38 +61,44 @@ export async function syncEditionWizardDraft(draft: EditionWizardDraft): Promise
     }
 
     if (idRemap.size > 0) {
-      Object.assign(syncingDraft, remapDraftPlayerIds(syncingDraft, idRemap));
+      workingDraft = await saveEditionWizardDraft(remapDraftPlayerIds(workingDraft, idRemap));
     }
 
     if (
-      !syncingDraft.drawRandomSeed ||
-      !syncingDraft.drawPreview?.length ||
-      isDrawPreviewStale(syncingDraft)
+      !workingDraft.drawRandomSeed ||
+      !workingDraft.drawPreview?.length ||
+      isDrawPreviewStale(workingDraft)
     ) {
       throw new Error(
         'Jogadores sincronizados com novos IDs. Volte ao passo Seeds e recalcule o sorteio.',
       );
     }
 
-    const approvedGroups = buildApprovedGroupsFromDraft(syncingDraft);
+    const approvedGroups = buildApprovedGroupsFromDraft(workingDraft);
     if (!approvedGroups) {
       throw new Error('A prévia aprovada do sorteio não está disponível. Refaça o sorteio.');
     }
 
     if (!editionId) {
       const created = await createEdition({
-        championshipId: syncingDraft.championshipId,
-        date: syncingDraft.date,
-        autoConfirmMinutes: syncingDraft.autoConfirmMinutes,
+        championshipId: workingDraft.championshipId,
+        date: workingDraft.date,
+        autoConfirmMinutes: workingDraft.autoConfirmMinutes,
       });
       const edition = created.editions[0];
       if (!edition) {
         throw new Error('Não foi possível criar a edição.');
       }
       editionId = edition.id;
+      // Checkpoint imediato — evita criar outra edição no retry após falha parcial.
+      workingDraft = await saveEditionWizardDraft({
+        ...workingDraft,
+        editionId,
+        syncStatus: 'SINCRONIZANDO',
+      });
     }
 
-    for (const player of syncingDraft.checkedInPlayers) {
+    for (const player of workingDraft.checkedInPlayers) {
       try {
         await registerPlayer(editionId, { playerId: player.playerId });
       } catch (error) {
@@ -102,10 +109,10 @@ export async function syncEditionWizardDraft(draft: EditionWizardDraft): Promise
     }
 
     const drawBody: ExecuteDrawBody = {
-      randomSeed: syncingDraft.drawRandomSeed,
-      groupCount: syncingDraft.groupCount,
-      groupSizes: syncingDraft.groupSizes,
-      seedPlayerIds: syncingDraft.seedPlayerIds,
+      randomSeed: workingDraft.drawRandomSeed,
+      groupCount: workingDraft.groupCount,
+      groupSizes: workingDraft.groupSizes,
+      seedPlayerIds: workingDraft.seedPlayerIds,
       approvedGroups,
     };
 
@@ -113,25 +120,48 @@ export async function syncEditionWizardDraft(draft: EditionWizardDraft): Promise
       await executeDraw(editionId, drawBody);
     } catch (error) {
       if (error instanceof ApiError && error.status === 409) {
-        return {
-          status: 'conflict',
-          message: 'Esta edição já possui sorteio publicado no servidor.',
-        };
+        // Sorteio já publicado — continuar para geração de partidas (idempotente).
+        const serverEdition = await fetchEdition(editionId).catch(() => null);
+        if (
+          !serverEdition ||
+          (serverEdition.status !== 'SORTEIO_PUBLICADO' &&
+            serverEdition.status !== 'EM_ANDAMENTO' &&
+            serverEdition.status !== 'FASE_COLOCACAO' &&
+            serverEdition.status !== 'ENCERRADA')
+        ) {
+          workingDraft = await saveEditionWizardDraft({
+            ...workingDraft,
+            editionId,
+            syncStatus: 'ERRO',
+            syncError: error.message,
+          });
+          return {
+            status: 'conflict',
+            message: error.message || 'Esta edição já possui sorteio publicado no servidor.',
+          };
+        }
+      } else {
+        throw error;
       }
-
-      throw error;
     }
 
-    await generateMatches(editionId);
+    try {
+      await generateMatches(editionId);
+    } catch (error) {
+      if (!(error instanceof ApiError) || error.status !== 409) {
+        throw error;
+      }
+      // Partidas já geradas — considerar sucesso.
+    }
 
     await saveEditionWizardDraft({
-      ...syncingDraft,
+      ...workingDraft,
       editionId,
       syncStatus: 'SINCRONIZADO',
       syncError: undefined,
     });
 
-    await deleteEditionWizardDraft(syncingDraft.id);
+    await deleteEditionWizardDraft(workingDraft.id);
 
     return { status: 'synced', editionId };
   } catch (error) {
@@ -143,7 +173,7 @@ export async function syncEditionWizardDraft(draft: EditionWizardDraft): Promise
           : 'Falha ao sincronizar o rascunho.';
 
     await saveEditionWizardDraft({
-      ...syncingDraft,
+      ...workingDraft,
       syncStatus: 'ERRO',
       syncError: message,
     });

@@ -7,6 +7,7 @@ import {
   fetchPlayerMatches,
 } from '../lib/edition-api.js';
 import { queryKeys } from '../lib/query-keys.js';
+import { usePlayerSession } from './use-player-session.js';
 
 export function useEditionGroups(editionId: string | undefined) {
   return useQuery({
@@ -34,10 +35,14 @@ export function useEditionMatches(editionId: string | undefined) {
 }
 
 export function usePlayerMatches(editionId: string | undefined, enabled = true) {
+  const { session } = usePlayerSession();
+  const playerId = session?.playerId;
+
   return useQuery({
-    queryKey: editionId ? queryKeys.matches(editionId, 'me') : ['matches', 'me', 'unknown'],
+    queryKey:
+      editionId && playerId ? queryKeys.matches(editionId, playerId) : ['matches', 'me', 'unknown'],
     queryFn: () => fetchPlayerMatches(editionId!),
-    enabled: editionId !== undefined && enabled,
+    enabled: editionId !== undefined && enabled && Boolean(playerId),
     select: (response) => response.matches,
   });
 }

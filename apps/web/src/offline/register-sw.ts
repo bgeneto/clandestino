@@ -7,6 +7,7 @@ import {
 } from '../lib/online-status.js';
 import { OUTBOX_SYNC_MESSAGE } from './outbox.js';
 import { syncPendingEditionWizardDrafts } from './sync-pending-wizard-drafts.js';
+import { flushAllPendingWizardCheckIns } from './sync-wizard-check-in.js';
 import { processOutbox } from './process-outbox.js';
 
 async function flushOutboxFromClient(): Promise<void> {
@@ -24,6 +25,7 @@ async function invalidateServerQueries(queryClient: QueryClient): Promise<void> 
 
 async function syncPendingServerWork(queryClient: QueryClient): Promise<void> {
   await flushOutboxFromClient();
+  await flushAllPendingWizardCheckIns();
   await syncPendingEditionWizardDrafts();
   await invalidateServerQueries(queryClient);
 }

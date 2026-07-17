@@ -22,6 +22,10 @@ import {
   rankEditionPlayers,
   rankEditionPlayersWithSeeds,
 } from '../lib/draw.js';
+import {
+  drawRequestConflictsWithPersistedPlan,
+  isCompleteApprovedDrawPlan,
+} from '../lib/draw-plan.js';
 import { badRequest, conflict, notFound } from '../lib/errors.js';
 import { bumpEditionSyncOnly } from '../lib/sse-events.js';
 import { mapEdition, mapGroupPlayer, mapGroupWithPlayers } from '../lib/mappers.js';
@@ -95,9 +99,18 @@ export async function registerEditionDrawRoutes(app: FastifyInstance): Promise<v
         championshipPoints.map((entry) => [entry.playerId, entry.accumulatedPoints]),
       );
 
-      const explicitDraw = isExplicitDrawRequest(request.body);
+      const persistedPlan = isCompleteApprovedDrawPlan(edition.drawPlan) ? edition.drawPlan : null;
+
+      if (persistedPlan && drawRequestConflictsWithPersistedPlan(persistedPlan, request.body)) {
+        throw conflict(
+          'O sorteio enviado difere da prévia aprovada persistida. Publique a prévia do servidor ou atualize o plano antes de republicar.',
+        );
+      }
+
+      const explicitDraw = persistedPlan !== null || isExplicitDrawRequest(request.body);
       if (
         explicitDraw &&
+        !persistedPlan &&
         (!request.body.randomSeed?.trim() || request.body.approvedGroups === undefined)
       ) {
         throw conflict(
@@ -105,7 +118,10 @@ export async function registerEditionDrawRoutes(app: FastifyInstance): Promise<v
         );
       }
 
-      const randomSeed = request.body.randomSeed?.trim() || generateSecureToken(16);
+      const randomSeed =
+        persistedPlan?.randomSeed.trim() ||
+        request.body.randomSeed?.trim() ||
+        generateSecureToken(16);
       const drawnBy = request.organizerEmail ?? 'organizer';
       const drawnAt = new Date();
 
@@ -114,7 +130,11 @@ export async function registerEditionDrawRoutes(app: FastifyInstance): Promise<v
       let updatedRules = edition.rules;
 
       if (explicitDraw) {
-        const { approvedGroups, groupCount, groupSizes, seedPlayerIds } = request.body;
+        const groupCount = persistedPlan?.groupCount ?? request.body.groupCount;
+        const groupSizes = persistedPlan?.groupSizes ?? request.body.groupSizes;
+        const seedPlayerIds = persistedPlan?.seedPlayerIds ?? request.body.seedPlayerIds;
+        const approvedGroups = persistedPlan?.approvedGroups ?? request.body.approvedGroups;
+
         if (!groupCount || !groupSizes || !seedPlayerIds || !approvedGroups) {
           throw badRequest('Configuração explícita do sorteio incompleta.');
         }

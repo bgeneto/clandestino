@@ -19,9 +19,12 @@ import {
   getCachedEdition,
   getCachedGroups,
   getCachedMatches,
+  getCachedMatchesForPlayer,
   getCachedParticipants,
   getCachedStandings,
+  upsertCachedMatches,
 } from './edition-cache.js';
+import { getPlayerSession } from './session.js';
 
 async function withOfflineFallback<T>(
   fetcher: () => Promise<T>,
@@ -88,10 +91,14 @@ export async function fetchPlayerMatches(editionId: string): Promise<PlayerMatch
         playerAuth: true,
       }),
     async () => {
-      const sessionMatches = await getCachedMatches(editionId);
+      const session = await getPlayerSession();
+      if (!session || session.editionId !== editionId) {
+        return undefined;
+      }
+      const sessionMatches = await getCachedMatchesForPlayer(editionId, session.playerId);
       return sessionMatches.length > 0 ? { matches: sessionMatches } : undefined;
     },
-    (response) => cacheMatches(editionId, response.matches),
+    (response) => upsertCachedMatches(editionId, response.matches),
   );
 }
 

@@ -48,7 +48,7 @@ export function MyMatchesPage() {
   const confirmMutation = useMutation({
     mutationFn: (matchId: string) => confirmMatch(matchId),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: queryKeys.matches(editionId, 'me') });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.matchesForEdition(editionId) });
       await queryClient.invalidateQueries({ queryKey: queryKeys.standings(editionId) });
     },
   });
@@ -58,7 +58,7 @@ export function MyMatchesPage() {
       contestMatch(matchId, reason ? { reason } : {}),
     onSuccess: async () => {
       setContestMatchId(null);
-      await queryClient.invalidateQueries({ queryKey: queryKeys.matches(editionId, 'me') });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.matchesForEdition(editionId) });
     },
   });
 
@@ -78,7 +78,13 @@ export function MyMatchesPage() {
 
       {matchesQuery.isLoading ? <p className="text-sm text-subtle">Carregando partidas…</p> : null}
 
-      {groupedMatches.length === 0 && !matchesQuery.isLoading ? (
+      {matchesQuery.isError ? (
+        <p className="rounded-xl bg-card p-6 text-center text-sm text-danger-foreground">
+          Não foi possível carregar suas partidas. Verifique a conexão e tente novamente.
+        </p>
+      ) : null}
+
+      {groupedMatches.length === 0 && !matchesQuery.isLoading && !matchesQuery.isError ? (
         <p className="rounded-xl bg-card p-6 text-center text-sm text-subtle">
           Nenhuma partida atribuída a você ainda.
         </p>

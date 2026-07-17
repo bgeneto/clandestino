@@ -28,6 +28,9 @@ export type OutboxEntry = {
   id: string;
   kind: OutboxKind;
   matchId: string;
+  /** Identidade do jogador que enfileirou — usada na sync, não a sessão atual. */
+  playerId: string;
+  editionId: string;
   payload: SubmitMatchResultBody;
   status: OutboxStatus;
   createdAt: string;
@@ -154,6 +157,11 @@ export class ClandestinoDatabase extends Dexie {
 
     this.version(4).stores({
       participants: 'id, editionId',
+    });
+
+    // v5: outbox passa a guardar playerId/editionId (campos sem índice novo).
+    this.version(5).stores({
+      outbox: 'id, status, createdAt, matchId',
     });
   }
 }

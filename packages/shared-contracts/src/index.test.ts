@@ -10,6 +10,7 @@ import {
   PlayerSchema,
   EditionRulesSchema,
   formatEditionName,
+  isMatchResolvedForEditionClose,
 } from './index.js';
 
 describe('shared-contracts schemas', () => {
@@ -26,6 +27,12 @@ describe('shared-contracts schemas', () => {
     for (const status of statuses) {
       expect(Value.Check(MatchStatusSchema, status)).toBe(true);
     }
+  });
+
+  it('trata CORRIGIDA como resolvida para encerrar edição', () => {
+    expect(isMatchResolvedForEditionClose('CORRIGIDA')).toBe(true);
+    expect(isMatchResolvedForEditionClose('CONFIRMADA')).toBe(true);
+    expect(isMatchResolvedForEditionClose('AGUARDANDO_CONFIRMACAO')).toBe(false);
   });
 
   it('validates a player entity', () => {

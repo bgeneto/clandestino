@@ -3,6 +3,8 @@ import { executeExplicitDraw } from '@clandestino/tournament-engine';
 import { describe, expect, it } from 'vitest';
 import {
   deriveRulesFromDrawPlan,
+  drawRequestConflictsWithPersistedPlan,
+  isCompleteApprovedDrawPlan,
   mergeDrawPlan,
   validateDrawPlanAgainstRegistrations,
 } from './draw-plan.js';
@@ -96,5 +98,21 @@ describe('draw-plan', () => {
         new Set(playerIds),
       ),
     ).toContain('não correspondem');
+  });
+
+  it('detecta plano aprovado completo e conflito com body divergente', () => {
+    const plan = {
+      groupCount: 2,
+      groupSizes: [3, 3],
+      seedPlayerIds: ['a', 'b'],
+      randomSeed: 'seed-a',
+      approvedGroups: [{ playerIds: ['a', 'c', 'e'] }, { playerIds: ['b', 'd', 'f'] }],
+    };
+
+    expect(isCompleteApprovedDrawPlan(plan)).toBe(true);
+    expect(isCompleteApprovedDrawPlan({ groupCount: 2 })).toBe(false);
+    expect(drawRequestConflictsWithPersistedPlan(plan, { randomSeed: 'seed-b' })).toBe(true);
+    expect(drawRequestConflictsWithPersistedPlan(plan, { randomSeed: 'seed-a' })).toBe(false);
+    expect(drawRequestConflictsWithPersistedPlan(plan, {})).toBe(false);
   });
 });

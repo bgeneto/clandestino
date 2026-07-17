@@ -47,6 +47,7 @@ export async function runAutoConfirmCycle(app: FastifyInstance): Promise<number>
         matchId,
         AUTO_CONFIRM_ACTOR,
         'AUTO_CONFIRMED',
+        { expectedStatuses: ['AGUARDANDO_CONFIRMACAO'] },
       );
 
       await emitMatchConfirmed(app, result.editionId, {

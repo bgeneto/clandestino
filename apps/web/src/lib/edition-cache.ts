@@ -51,9 +51,32 @@ export async function cacheMatches(editionId: string, matches: Match[]): Promise
   });
 }
 
+/** Upsert sem apagar o restante — para cache de "minhas partidas" não contaminar o cache público. */
+export async function upsertCachedMatches(editionId: string, matches: Match[]): Promise<void> {
+  const cachedAt = new Date().toISOString();
+  await db.matches.bulkPut(
+    matches.map((match) => ({
+      id: match.id,
+      editionId,
+      match,
+      cachedAt,
+    })),
+  );
+}
+
 export async function getCachedMatches(editionId: string): Promise<Match[]> {
   const rows = await db.matches.where('editionId').equals(editionId).toArray();
   return rows.map((row) => row.match);
+}
+
+export async function getCachedMatchesForPlayer(
+  editionId: string,
+  playerId: string,
+): Promise<Match[]> {
+  const matches = await getCachedMatches(editionId);
+  return matches.filter((match) =>
+    match.participants.some((participant) => participant.playerId === playerId),
+  );
 }
 
 export async function cacheStandings(

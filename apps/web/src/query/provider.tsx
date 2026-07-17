@@ -3,6 +3,9 @@ import type { ReactNode } from 'react';
 import { queryClient } from './query-client.js';
 import { queryPersister } from './persister.js';
 import { QUERY_CACHE_BUSTER, shouldPersistOfflineQuery } from './persistence-policy.js';
+import { syncReactQueryOnlineManager } from './sync-online-manager.js';
+
+syncReactQueryOnlineManager();
 
 type QueryProviderProps = {
   children: ReactNode;

@@ -13,11 +13,6 @@ export function isLocalOnlyPlayerId(playerId: string): boolean {
   return playerId.startsWith('local-');
 }
 
-const lastSyncedRegistrationIds = new Map<string, Set<string>>();
-const pendingCheckInSyncByDraft = new Map<string, Set<string>>();
-const debounceTimers = new Map<string, ReturnType<typeof setTimeout>>();
-const syncQueues = new Map<string, Promise<void>>();
-
 type CheckInSyncContext = {
   draftId: string;
   editionId: string;
@@ -27,6 +22,12 @@ type CheckInSyncContext = {
   persistDraft: (draft: EditionWizardDraft) => Promise<EditionWizardDraft>;
   onError?: (error: unknown) => void;
 };
+
+const lastSyncedRegistrationIds = new Map<string, Set<string>>();
+const pendingCheckInSyncByDraft = new Map<string, Set<string>>();
+const debounceTimers = new Map<string, ReturnType<typeof setTimeout>>();
+const syncQueues = new Map<string, Promise<void>>();
+const pendingCheckInContexts = new Map<string, CheckInSyncContext>();
 
 export function initLastSyncedRegistrations(
   draftId: string,
@@ -258,18 +259,32 @@ function runQueuedReconcile(context: CheckInSyncContext): Promise<EditionWizardD
   });
 }
 
-export function scheduleWizardCheckInSync(context: CheckInSyncContext): void {
-  if (!getOnlineStatus()) {
-    return;
+function forgetCheckInContextIfIdle(draftId: string): void {
+  if (!isCheckInSyncPending(draftId)) {
+    pendingCheckInContexts.delete(draftId);
   }
+}
+
+export function scheduleWizardCheckInSync(context: CheckInSyncContext): void {
+  // Mantém o context só enquanto houver trabalho pendente (offline ou debounce/sync).
+  pendingCheckInContexts.set(context.draftId, context);
 
   void context.getDraft().then((draft) => {
     if (!draft) {
+      clearPendingCheckInSync(context.draftId);
+      pendingCheckInContexts.delete(context.draftId);
       return;
     }
 
-    updatePendingCheckInSync(context.draftId, draft);
+    // Evita re-marcar pending após um reconcile já ter concluído (getDraft atrasado).
+    if (pendingCheckInContexts.has(context.draftId) || debounceTimers.has(context.draftId)) {
+      updatePendingCheckInSync(context.draftId, draft);
+    }
   });
+
+  if (!getOnlineStatus()) {
+    return;
+  }
 
   const existingTimer = debounceTimers.get(context.draftId);
   if (existingTimer) {
@@ -278,7 +293,9 @@ export function scheduleWizardCheckInSync(context: CheckInSyncContext): void {
 
   const timer = setTimeout(() => {
     debounceTimers.delete(context.draftId);
-    void runQueuedReconcile(context);
+    void runQueuedReconcile(context).finally(() => {
+      forgetCheckInContextIfIdle(context.draftId);
+    });
   }, CHECK_IN_SYNC_DEBOUNCE_MS);
 
   debounceTimers.set(context.draftId, timer);
@@ -294,10 +311,30 @@ export async function flushCheckInSync(
   }
 
   if (!getOnlineStatus()) {
+    pendingCheckInContexts.set(context.draftId, context);
     return context.getDraft();
   }
 
-  return runQueuedReconcile(context);
+  const result = await runQueuedReconcile(context);
+  forgetCheckInContextIfIdle(context.draftId);
+  return result;
+}
+
+/** Reconectou: reprocessa check-ins que ficaram pendentes offline. */
+export async function flushAllPendingWizardCheckIns(): Promise<void> {
+  if (!getOnlineStatus()) {
+    return;
+  }
+
+  const contexts = [...pendingCheckInContexts.values()];
+  for (const context of contexts) {
+    await flushCheckInSync(context);
+  }
+}
+
+/** @internal Exposed for tests. */
+export function countPendingCheckInContextsForTests(): number {
+  return pendingCheckInContexts.size;
 }
 
 export async function syncWizardCheckInToggle(params: {
@@ -345,6 +382,7 @@ export async function syncWizardAddNewPlayer(params: {
 export function resetCheckInSyncStateForTests(): void {
   lastSyncedRegistrationIds.clear();
   pendingCheckInSyncByDraft.clear();
+  pendingCheckInContexts.clear();
   for (const timer of debounceTimers.values()) {
     clearTimeout(timer);
   }

@@ -142,3 +142,69 @@ export function validateDrawPlanAgainstRegistrations(
 
   return null;
 }
+
+export function isCompleteApprovedDrawPlan(
+  plan: EditionDrawPlan | null | undefined,
+): plan is EditionDrawPlan & {
+  groupCount: number;
+  groupSizes: number[];
+  seedPlayerIds: string[];
+  randomSeed: string;
+  approvedGroups: NonNullable<EditionDrawPlan['approvedGroups']>;
+} {
+  return Boolean(
+    plan &&
+    typeof plan.groupCount === 'number' &&
+    plan.groupSizes &&
+    plan.groupSizes.length > 0 &&
+    plan.seedPlayerIds &&
+    plan.seedPlayerIds.length > 0 &&
+    plan.randomSeed?.trim() &&
+    plan.approvedGroups &&
+    plan.approvedGroups.length > 0,
+  );
+}
+
+/** True when the request body disagrees with a field already approved on the server. */
+export function drawRequestConflictsWithPersistedPlan(
+  persisted: EditionDrawPlan & {
+    groupCount: number;
+    groupSizes: number[];
+    seedPlayerIds: string[];
+    randomSeed: string;
+    approvedGroups: NonNullable<EditionDrawPlan['approvedGroups']>;
+  },
+  body: {
+    groupCount?: number;
+    groupSizes?: number[];
+    seedPlayerIds?: string[];
+    randomSeed?: string;
+    approvedGroups?: NonNullable<EditionDrawPlan['approvedGroups']>;
+  },
+): boolean {
+  if (body.groupCount !== undefined && body.groupCount !== persisted.groupCount) {
+    return true;
+  }
+  if (
+    body.groupSizes !== undefined &&
+    JSON.stringify(body.groupSizes) !== JSON.stringify(persisted.groupSizes)
+  ) {
+    return true;
+  }
+  if (
+    body.seedPlayerIds !== undefined &&
+    JSON.stringify(body.seedPlayerIds) !== JSON.stringify(persisted.seedPlayerIds)
+  ) {
+    return true;
+  }
+  if (body.randomSeed !== undefined && body.randomSeed.trim() !== persisted.randomSeed) {
+    return true;
+  }
+  if (
+    body.approvedGroups !== undefined &&
+    JSON.stringify(body.approvedGroups) !== JSON.stringify(persisted.approvedGroups)
+  ) {
+    return true;
+  }
+  return false;
+}

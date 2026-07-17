@@ -79,6 +79,7 @@ export async function registerMatchRoutes(app: FastifyInstance): Promise<void> {
 
       if (parsed.outcome === 'WALKOVER') {
         const confirmed = await confirmMatchResult(app.db, match.id, playerId, 'MATCH_CONFIRMED', {
+          expectedStatuses: ['AGENDADA'],
           correctedSets: {
             playerOneSets: parsed.playerOneSets,
             playerTwoSets: parsed.playerTwoSets,
@@ -114,6 +115,16 @@ export async function registerMatchRoutes(app: FastifyInstance): Promise<void> {
       const now = new Date();
 
       await app.db.transaction(async (tx) => {
+        const claimed = await tx
+          .update(schema.matches)
+          .set({ status: 'AGUARDANDO_CONFIRMACAO', updatedAt: now })
+          .where(and(eq(schema.matches.id, match.id), eq(schema.matches.status, 'AGENDADA')))
+          .returning({ id: schema.matches.id });
+
+        if (!claimed[0]) {
+          throw conflict('Esta partida mudou de estado. Atualize e tente novamente.');
+        }
+
         await tx
           .update(schema.matchParticipants)
           .set({ setsWon: playerOneSets })
@@ -133,11 +144,6 @@ export async function registerMatchRoutes(app: FastifyInstance): Promise<void> {
               eq(schema.matchParticipants.playerId, match.playerTwoId),
             ),
           );
-
-        await tx
-          .update(schema.matches)
-          .set({ status: 'AGUARDANDO_CONFIRMACAO', updatedAt: now })
-          .where(eq(schema.matches.id, match.id));
 
         await tx.insert(schema.auditEvents).values({
           editionId: match.editionId,
@@ -211,7 +217,9 @@ export async function registerMatchRoutes(app: FastifyInstance): Promise<void> {
         throw forbidden('O jogador que registrou o resultado não pode confirmá-lo.');
       }
 
-      const confirmed = await confirmMatchResult(app.db, match.id, playerId, 'MATCH_CONFIRMED');
+      const confirmed = await confirmMatchResult(app.db, match.id, playerId, 'MATCH_CONFIRMED', {
+        expectedStatuses: ['AGUARDANDO_CONFIRMACAO'],
+      });
       await emitMatchConfirmed(app, confirmed.editionId, {
         matchId: confirmed.match.id,
         groupId: confirmed.groupId,
@@ -271,10 +279,20 @@ export async function registerMatchRoutes(app: FastifyInstance): Promise<void> {
       const now = new Date();
 
       await app.db.transaction(async (tx) => {
-        await tx
+        const claimed = await tx
           .update(schema.matches)
           .set({ status: 'CONTESTADA', updatedAt: now })
-          .where(eq(schema.matches.id, match.id));
+          .where(
+            and(
+              eq(schema.matches.id, match.id),
+              eq(schema.matches.status, 'AGUARDANDO_CONFIRMACAO'),
+            ),
+          )
+          .returning({ id: schema.matches.id });
+
+        if (!claimed[0]) {
+          throw conflict('Esta partida mudou de estado. Atualize e tente novamente.');
+        }
 
         await tx.insert(schema.auditEvents).values({
           editionId: match.editionId,
@@ -343,8 +361,11 @@ export async function registerMatchRoutes(app: FastifyInstance): Promise<void> {
       const previousStatus = match.status;
       const auditEventType =
         previousStatus === 'CONTESTADA' ? 'MATCH_CORRECTED' : 'MATCH_ORGANIZER_RECORDED';
+      const resultingStatus = previousStatus === 'CONTESTADA' ? 'CORRIGIDA' : 'CONFIRMADA';
 
       const confirmed = await confirmMatchResult(app.db, match.id, organizer, auditEventType, {
+        expectedStatuses: [previousStatus],
+        resultingStatus,
         correctedSets: {
           playerOneSets: parsed.playerOneSets,
           playerTwoSets: parsed.playerTwoSets,

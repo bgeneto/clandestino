@@ -81,6 +81,8 @@ describe('purgeEditionLocalState', () => {
       id: '55555555-5555-4555-8555-555555555555',
       kind: 'SUBMIT_MATCH_RESULT',
       matchId,
+      playerId: '11111111-1111-4111-8111-111111111111',
+      editionId,
       payload: { setsWonByReporter: 2, setsWonByOpponent: 0 },
       status: 'AGUARDANDO_SINCRONIZACAO',
       createdAt: new Date().toISOString(),

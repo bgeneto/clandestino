@@ -88,6 +88,9 @@ export function startOnlineStatusMonitor(fetchImpl: typeof fetch = fetch): void 
   monitorStarted = true;
 
   const handleOffline = () => {
+    // Invalida probe em voo para ele não sobrescrever o offline do browser.
+    probeGeneration += 1;
+    probeInFlight = null;
     setOnlineStatus(false);
   };
 

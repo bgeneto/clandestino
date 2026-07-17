@@ -260,4 +260,60 @@ describe.skipIf(!hasTestDb)('draw plan da edição (integração HTTP)', () => {
     expect(response.statusCode).toBe(200);
     expect(response.json().rules).toEqual(DEFAULT_EDITION_RULES);
   });
+
+  it('rejeita body divergente quando já existe prévia persistida', async () => {
+    const randomSeed = 'persisted-authority-seed';
+    const seedPlayerIds = [playerIds[0]!, playerIds[1]!];
+    const groupSizes = [3, 3];
+    const approvedGroups = executeExplicitDraw({
+      playerIds,
+      seedPlayerIds,
+      groupSizes,
+      randomSeed,
+    }).groups.map((group) => ({
+      playerIds: group.players.map((player) => player.playerId),
+    }));
+
+    const persist = await app.inject({
+      method: 'PATCH',
+      url: `/editions/${editionId}`,
+      headers: organizerHeaders(organizerToken),
+      payload: {
+        drawPlan: {
+          groupCount: 2,
+          groupSizes,
+          seedPlayerIds,
+          randomSeed,
+          approvedGroups,
+        },
+      },
+    });
+    expect(persist.statusCode).toBe(200);
+
+    const otherSeed = 'other-seed-that-still-draws';
+    const otherGroups = executeExplicitDraw({
+      playerIds,
+      seedPlayerIds,
+      groupSizes,
+      randomSeed: otherSeed,
+    }).groups.map((group) => ({
+      playerIds: group.players.map((player) => player.playerId),
+    }));
+
+    const drawResponse = await app.inject({
+      method: 'POST',
+      url: `/editions/${editionId}/draw`,
+      headers: organizerHeaders(organizerToken),
+      payload: {
+        groupCount: 2,
+        groupSizes,
+        seedPlayerIds,
+        randomSeed: otherSeed,
+        approvedGroups: otherGroups,
+      },
+    });
+
+    expect(drawResponse.statusCode).toBe(409);
+    expect(drawResponse.json<{ error: string }>().error).toContain('prévia aprovada persistida');
+  });
 });

@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { ApiError } from '../../lib/api-client.js';
 import { fetchOrganizerSession } from '../../lib/organizer-api.js';
 import { useOrganizerSession } from '../../hooks/use-organizer-session.js';
+import { getOnlineStatus } from '../../lib/online-status.js';
 
 export type OrganizerOutletContext = {
   organizerEmail: string;
@@ -26,6 +27,13 @@ export function OrganizerLayout() {
     sessionCheck.error instanceof ApiError &&
     sessionCheck.error.status === 401;
 
+  // Offline / probe pendente: não bloquear o painel se já há sessão local válida.
+  const waitingForOnlineSessionCheck =
+    Boolean(session) &&
+    sessionCheck.isPending &&
+    sessionCheck.fetchStatus !== 'paused' &&
+    getOnlineStatus();
+
   useEffect(() => {
     if (!sessionInvalid) {
       return;
@@ -36,7 +44,7 @@ export function OrganizerLayout() {
     });
   }, [sessionInvalid, clearSession, navigate]);
 
-  if (isLoading || (session && sessionCheck.isPending)) {
+  if (isLoading || waitingForOnlineSessionCheck) {
     return null;
   }
 

@@ -116,3 +116,19 @@ export function parseLastEventId(header: string | string[] | undefined): number 
   const parsed = Number.parseInt(raw, 10);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
 }
+
+/**
+ * Prefer the browser-managed `Last-Event-ID` header when present.
+ * Falling back to the query param supports manual EventSource reconnects
+ * that bake the resume point into the URL.
+ */
+export function resolveSseResumeRevision(
+  headerValue: string | string[] | undefined,
+  queryValue: string | undefined,
+): number {
+  const headerRevision = parseLastEventId(headerValue);
+  if (headerRevision > 0) {
+    return headerRevision;
+  }
+  return parseLastEventId(queryValue);
+}

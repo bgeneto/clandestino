@@ -12,6 +12,7 @@ import {
   resetCheckInSyncStateForTests,
   scheduleWizardCheckInSync,
   syncWizardCheckInToggle,
+  countPendingCheckInContextsForTests,
 } from './sync-wizard-check-in.js';
 
 vi.mock('../lib/organizer-api.js', () => ({
@@ -350,5 +351,46 @@ describe('sync-wizard-check-in', () => {
     await flushCheckInSync(context);
 
     expect(registerPlayer).toHaveBeenCalledTimes(1);
+  });
+
+  it('drops check-in contexts after a successful scheduled sync', async () => {
+    vi.useFakeTimers();
+    vi.mocked(registerPlayer).mockResolvedValue({ registrations: [] });
+
+    let currentDraft: EditionWizardDraft = {
+      ...baseDraft,
+      checkedInPlayers: [
+        {
+          playerId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+          playerName: 'Ana',
+          accumulatedPoints: 0,
+        },
+      ],
+    };
+
+    const context = syncContext({
+      getDraft: async () => currentDraft,
+      persistDraft: async (draft) => {
+        currentDraft = draft;
+        return draft;
+      },
+    });
+
+    scheduleWizardCheckInSync(context);
+    expect(countPendingCheckInContextsForTests()).toBe(1);
+
+    await flushCheckInSync(context);
+
+    expect(registerPlayer).toHaveBeenCalledTimes(1);
+    expect(countPendingCheckInContextsForTests()).toBe(0);
+  });
+
+  it('keeps offline check-in contexts for reconnect flush', () => {
+    vi.stubGlobal('navigator', { onLine: false });
+
+    const context = syncContext();
+    scheduleWizardCheckInSync(context);
+
+    expect(countPendingCheckInContextsForTests()).toBe(1);
   });
 });

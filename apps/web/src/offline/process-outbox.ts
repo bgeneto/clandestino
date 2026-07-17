@@ -9,6 +9,16 @@ export type ProcessOutboxResult = {
 
 let processInFlight: Promise<ProcessOutboxResult> | null = null;
 
+class OutboxSyncError extends Error {
+  readonly status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = 'OutboxSyncError';
+    this.status = status;
+  }
+}
+
 function headersForEntry(entry: OutboxEntry): Record<string, string> | null {
   if (!entry.playerId || !entry.editionId) {
     return null;
@@ -18,6 +28,20 @@ function headersForEntry(entry: OutboxEntry): Record<string, string> | null {
     'X-Player-Id': entry.playerId,
     'X-Edition-Id': entry.editionId,
   };
+}
+
+function isPermanentClientError(error: unknown): boolean {
+  if (error instanceof OutboxSyncError) {
+    return error.status === 403 || error.status === 404 || error.status === 409;
+  }
+
+  const message = error instanceof Error ? error.message : String(error);
+  return (
+    message.includes('HTTP 403') ||
+    message.includes('HTTP 404') ||
+    message.includes('HTTP 409') ||
+    /não inscrito|não encontrada|já|conflito/i.test(message)
+  );
 }
 
 async function syncOutboxEntry(
@@ -48,7 +72,7 @@ async function syncOutboxEntry(
     } catch {
       // resposta não-JSON
     }
-    throw new Error(message);
+    throw new OutboxSyncError(message, response.status);
   }
 
   (await response.json()) as MatchResultResponse;
@@ -109,11 +133,7 @@ async function processOutboxOnce(database: ClandestinoDatabase): Promise<Process
     } catch (error) {
       failed += 1;
       const message = error instanceof Error ? error.message : String(error);
-      const permanentClientError =
-        message.includes('HTTP 403') ||
-        message.includes('HTTP 404') ||
-        message.includes('HTTP 409') ||
-        /não inscrito|não encontrada|já|conflito/i.test(message);
+      const permanentClientError = isPermanentClientError(error);
 
       await database.outbox.update(entry.id, {
         status: permanentClientError ? 'FALHA' : 'AGUARDANDO_SINCRONIZACAO',

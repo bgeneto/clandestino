@@ -53,6 +53,66 @@ describe('processOutbox', () => {
     );
   });
 
+  it('marca 409 com corpo ApiError como FALHA permanente', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 409,
+        json: async () => ({ error: 'Esta partida não aceita novos resultados.' }),
+      }),
+    );
+
+    await database.outbox.put({
+      id: 'o-conflict',
+      kind: 'SUBMIT_MATCH_RESULT',
+      matchId: 'm-conflict',
+      playerId: 'player-a',
+      editionId: 'edition-1',
+      payload: { outcome: 'PLAYED', setsWonByReporter: 3, setsWonByOpponent: 1 },
+      status: 'AGUARDANDO_SINCRONIZACAO',
+      createdAt: new Date().toISOString(),
+      attemptCount: 0,
+    });
+
+    const result = await processOutbox(database);
+    const entry = await database.outbox.get('o-conflict');
+
+    expect(result.failed).toBe(1);
+    expect(entry?.status).toBe('FALHA');
+    expect(entry?.lastError).toBe('Esta partida não aceita novos resultados.');
+  });
+
+  it('reatenta erros transitórios (5xx) sem marcar FALHA', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 503,
+        json: async () => ({ error: 'Serviço indisponível' }),
+      }),
+    );
+
+    await database.outbox.put({
+      id: 'o-retry',
+      kind: 'SUBMIT_MATCH_RESULT',
+      matchId: 'm-retry',
+      playerId: 'player-a',
+      editionId: 'edition-1',
+      payload: { outcome: 'PLAYED', setsWonByReporter: 3, setsWonByOpponent: 0 },
+      status: 'AGUARDANDO_SINCRONIZACAO',
+      createdAt: new Date().toISOString(),
+      attemptCount: 0,
+    });
+
+    const result = await processOutbox(database);
+    const entry = await database.outbox.get('o-retry');
+
+    expect(result.failed).toBe(1);
+    expect(entry?.status).toBe('AGUARDANDO_SINCRONIZACAO');
+    expect(entry?.lastError).toBe('Serviço indisponível');
+  });
+
   it('deduplica processamentos concorrentes', async () => {
     let resolveFetchStarted: (() => void) | undefined;
     let resolveFetchResult:

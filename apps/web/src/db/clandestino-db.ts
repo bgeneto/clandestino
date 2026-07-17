@@ -122,6 +122,29 @@ export type EditionWizardDraft = {
   updatedAt: string;
 };
 
+/** Preenche playerId/editionId em entradas legadas da outbox a partir da sessão. */
+export async function backfillOutboxIdentityFromSession(
+  outbox: EntityTable<OutboxEntry, 'id'>,
+  sessionStore: EntityTable<PlayerSession, 'id'>,
+): Promise<void> {
+  const session = await sessionStore.get(SESSION_ROW_ID);
+  if (!session?.playerId || !session.editionId) {
+    return;
+  }
+
+  const entries = await outbox.toArray();
+  for (const entry of entries) {
+    const row = entry as Partial<OutboxEntry> & { id: string };
+    if (row.playerId && row.editionId) {
+      continue;
+    }
+    await outbox.update(row.id, {
+      playerId: row.playerId ?? session.playerId,
+      editionId: row.editionId ?? session.editionId,
+    });
+  }
+}
+
 export class ClandestinoDatabase extends Dexie {
   session!: EntityTable<PlayerSession, 'id'>;
   organizerSession!: EntityTable<OrganizerSession, 'id'>;
@@ -160,9 +183,22 @@ export class ClandestinoDatabase extends Dexie {
     });
 
     // v5: outbox passa a guardar playerId/editionId (campos sem índice novo).
+    // Clientes que já migraram para v5 sem backfill são cobertos por v6.
     this.version(5).stores({
       outbox: 'id, status, createdAt, matchId',
     });
+
+    // v6: backfill de identidade em entradas outbox legadas (pré-v5 / v5 sem upgrade).
+    this.version(6)
+      .stores({
+        outbox: 'id, status, createdAt, matchId',
+      })
+      .upgrade(async (tx) => {
+        await backfillOutboxIdentityFromSession(
+          tx.table('outbox') as EntityTable<OutboxEntry, 'id'>,
+          tx.table('session') as EntityTable<PlayerSession, 'id'>,
+        );
+      });
   }
 }
 

@@ -100,7 +100,7 @@ export function createDb(sqlite: SqliteDatabase = createSqlite()): Db {
         }
         return Reflect.get(target, prop, receiver);
       },
-    }) as TxHandle;
+    }) as unknown as TxHandle;
   }
 
   return Object.assign(db, {

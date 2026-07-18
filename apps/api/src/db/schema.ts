@@ -193,18 +193,23 @@ export const groupPlayers = sqliteTable(
     playerId: text('player_id')
       .notNull()
       .references(() => players.id, { onDelete: 'restrict', onUpdate: 'cascade' }),
+    phase: text('phase').notNull(),
     isSeed: integer('is_seed', { mode: 'boolean' }).notNull().default(false),
   },
   (table) => [
     primaryKey({ name: 'group_player_pk', columns: [table.groupId, table.playerId] }),
     foreignKey({
-      name: 'group_player_group_edition_fk',
-      columns: [table.groupId, table.editionId],
-      foreignColumns: [groups.id, groups.editionId],
+      name: 'group_player_group_edition_phase_fk',
+      columns: [table.groupId, table.editionId, table.phase],
+      foreignColumns: [groups.id, groups.editionId, groups.phase],
     })
       .onDelete('cascade')
       .onUpdate('cascade'),
-    uniqueIndex('group_player_edition_player_unique').on(table.editionId, table.playerId),
+    uniqueIndex('group_player_edition_player_phase_unique').on(
+      table.editionId,
+      table.playerId,
+      table.phase,
+    ),
   ],
 );
 

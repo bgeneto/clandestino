@@ -22,6 +22,7 @@ export const GroupPlayerSchema = Type.Object(
   {
     groupId: UuidSchema,
     playerId: UuidSchema,
+    phase: Type.String({ minLength: 1, maxLength: 64 }),
     isSeed: Type.Boolean(),
   },
   { $id: 'GroupPlayer' },

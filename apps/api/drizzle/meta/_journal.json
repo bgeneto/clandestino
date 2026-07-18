@@ -43,6 +43,13 @@
       "when": 1783186328289,
       "tag": "0005_abandoned_professor_monster",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1784332589100,
+      "tag": "0006_rapid_loki",
+      "breakpoints": true
     }
   ]
 }

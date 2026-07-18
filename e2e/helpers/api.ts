@@ -236,7 +236,7 @@ export async function submitPlayedResult(
     headers: playerHeaders(reporterId, editionId),
     body: JSON.stringify({
       outcome: 'PLAYED',
-      setsWonByReporter: 2,
+      setsWonByReporter: 3,
       setsWonByOpponent: 0,
     }),
   });

@@ -1,8 +1,7 @@
 import type { PlacementFormat } from '@clandestino/shared-contracts';
+import { normalizeEditionRules } from '@clandestino/shared-contracts';
 import {
   adaptPlacementBand,
-  applyWithdrawalToGroupStanding,
-  calculateGroupStanding,
   resolveMinigroupThreeAfterWithdrawal,
   type StandingMatch,
 } from '@clandestino/tournament-engine';
@@ -166,10 +165,15 @@ async function autoWalkoverMatch(
     return;
   }
 
-  await recalculateGroupStanding(tx, match.groupId, edition.rules);
+  await recalculateGroupStanding(tx, match.groupId, normalizeEditionRules(edition.rules));
 
   if (match.phase === GROUP_PHASE) {
-    await maybeGeneratePlacementStage(tx, match.editionId, edition.rules, createdBy);
+    await maybeGeneratePlacementStage(
+      tx,
+      match.editionId,
+      normalizeEditionRules(edition.rules),
+      createdBy,
+    );
   } else if (match.phase === PLACEMENT_PHASE) {
     const withdrawnIds = await loadWithdrawnPlayerIds(tx, match.editionId);
     await advanceBracketFourForGroup(tx, match.editionId, match.groupId, withdrawnIds, createdBy);
@@ -337,53 +341,12 @@ async function applyGroupStageWithdrawal(
       ),
     );
 
-  const withdrawnAt = new Date();
+  const normalizedRules = normalizeEditionRules(rules);
   for (const entry of groupPlayers) {
-    const groupMatches = await tx
-      .select()
-      .from(schema.matches)
-      .where(eq(schema.matches.groupId, entry.groupId));
-
-    const matchIds = groupMatches.map((match) => match.id);
-    const participants =
-      matchIds.length === 0
-        ? []
-        : await tx
-            .select()
-            .from(schema.matchParticipants)
-            .where(inArray(schema.matchParticipants.matchId, matchIds));
-
-    const participantsByMatchId = new Map<string, typeof participants>();
-    for (const participant of participants) {
-      const current = participantsByMatchId.get(participant.matchId) ?? [];
-      current.push(participant);
-      participantsByMatchId.set(participant.matchId, current);
-    }
-
-    const standingMatches = groupMatches
-      .map((match) => toStandingMatch(match, participantsByMatchId.get(match.id) ?? []))
-      .filter((match): match is StandingMatch => match !== null);
-
-    const entries = applyWithdrawalToGroupStanding(calculateGroupStanding(standingMatches, rules), [
-      { playerId, withdrawnAt },
-    ]);
-
-    await tx.delete(schema.standings).where(eq(schema.standings.groupId, entry.groupId));
-    if (entries.length > 0) {
-      await tx.insert(schema.standings).values(
-        entries.map((standing) => ({
-          groupId: entry.groupId,
-          playerId: standing.playerId,
-          setsWon: standing.setsWon,
-          setDiff: standing.setDiff,
-          matchesWon: standing.matchesWon,
-          rankInGroup: standing.rankInGroup,
-        })),
-      );
-    }
+    await recalculateGroupStanding(tx, entry.groupId, normalizedRules);
   }
 
-  await maybeGeneratePlacementStage(tx, editionId, rules, createdBy);
+  await maybeGeneratePlacementStage(tx, editionId, normalizedRules, createdBy);
 }
 
 async function midBandPlacementWithdrawal(
@@ -422,9 +385,15 @@ async function midBandPlacementWithdrawal(
       await recalculateGroupStanding(
         tx,
         group.id,
-        (
-          await tx.select().from(schema.editions).where(eq(schema.editions.id, editionId)).limit(1)
-        )[0]!.rules,
+        normalizeEditionRules(
+          (
+            await tx
+              .select()
+              .from(schema.editions)
+              .where(eq(schema.editions.id, editionId))
+              .limit(1)
+          )[0]!.rules,
+        ),
       );
 
       const range = getPlacementGroupRange(group);
@@ -532,7 +501,7 @@ export async function withdrawPlayerFromEdition(
     throw notFound('Edição não encontrada.');
   }
 
-  if (edition.status === 'ENCERRADA' || edition.status === 'RASCUNHO') {
+  if (edition.status !== 'EM_ANDAMENTO' && edition.status !== 'FASE_COLOCACAO') {
     throw conflict('Não é possível registrar abandono nesta fase da edição.');
   }
 
@@ -556,11 +525,9 @@ export async function withdrawPlayerFromEdition(
   }
 
   const phase =
-    edition.status === 'FASE_COLOCACAO' || edition.status === 'EM_ANDAMENTO'
-      ? edition.status === 'FASE_COLOCACAO'
-        ? 'PLACEMENT_STAGE'
-        : await resolveActivePhase(db, editionId, playerId)
-      : 'GROUP_STAGE';
+    edition.status === 'FASE_COLOCACAO'
+      ? 'PLACEMENT_STAGE'
+      : await resolveActivePhase(db, editionId, playerId);
 
   const withdrawnAt = new Date();
 

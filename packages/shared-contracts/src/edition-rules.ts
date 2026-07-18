@@ -28,6 +28,12 @@ export const PlacementStageFormatSchema = Type.Union(
 
 export type PlacementStageFormat = Static<typeof PlacementStageFormatSchema>;
 
+export const MatchBestOfSchema = Type.Union([Type.Literal(3), Type.Literal(5)], {
+  $id: 'MatchBestOf',
+});
+
+export type MatchBestOf = Static<typeof MatchBestOfSchema>;
+
 export const EditionRulesSchema = Type.Object(
   {
     minimumGroupSize: Type.Integer({ minimum: 2 }),
@@ -37,6 +43,8 @@ export const EditionRulesSchema = Type.Object(
     seedingMethod: SeedingMethodSchema,
     groupRankingCriteria: Type.Array(RankingCriterionSchema, { minItems: 1 }),
     placementStageFormat: PlacementStageFormatSchema,
+    normalMatchBestOf: MatchBestOfSchema,
+    participantThresholdForBestOfThree: Type.Integer({ minimum: 1 }),
   },
   { $id: 'EditionRules' },
 );
@@ -57,7 +65,23 @@ export const DEFAULT_EDITION_RULES: EditionRules = {
   seedingMethod: 'fixed-heads',
   groupRankingCriteria: DEFAULT_GROUP_RANKING_CRITERIA,
   placementStageFormat: 'round-robin',
+  normalMatchBestOf: 5,
+  participantThresholdForBestOfThree: 24,
 };
+
+/** Merge partial/legacy stored rules with product defaults. */
+export function normalizeEditionRules(
+  rules: Partial<EditionRules> | null | undefined,
+): EditionRules {
+  return {
+    ...DEFAULT_EDITION_RULES,
+    ...rules,
+    groupRankingCriteria:
+      rules?.groupRankingCriteria && rules.groupRankingCriteria.length > 0
+        ? rules.groupRankingCriteria
+        : DEFAULT_EDITION_RULES.groupRankingCriteria,
+  };
+}
 
 /** @deprecated Use DEFAULT_EDITION_RULES */
 export const DEFAULT_TOURNAMENT_RULES = DEFAULT_EDITION_RULES;

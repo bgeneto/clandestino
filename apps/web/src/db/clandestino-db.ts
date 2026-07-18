@@ -50,6 +50,8 @@ export type CachedEdition = {
   id: string;
   edition: Edition;
   cachedAt: string;
+  /** True only after a full edition match list replace (not player-subset upserts). */
+  matchesComplete?: boolean;
 };
 
 export type CachedGroups = {
@@ -122,16 +124,10 @@ export type EditionWizardDraft = {
   updatedAt: string;
 };
 
-/** Preenche playerId/editionId em entradas legadas da outbox a partir da sessão. */
-export async function backfillOutboxIdentityFromSession(
+/** Marca entradas outbox sem identidade como FALHA — não inventar reporter da sessão atual. */
+export async function failOutboxEntriesMissingIdentity(
   outbox: EntityTable<OutboxEntry, 'id'>,
-  sessionStore: EntityTable<PlayerSession, 'id'>,
 ): Promise<void> {
-  const session = await sessionStore.get(SESSION_ROW_ID);
-  if (!session?.playerId || !session.editionId) {
-    return;
-  }
-
   const entries = await outbox.toArray();
   for (const entry of entries) {
     const row = entry as Partial<OutboxEntry> & { id: string };
@@ -139,8 +135,8 @@ export async function backfillOutboxIdentityFromSession(
       continue;
     }
     await outbox.update(row.id, {
-      playerId: row.playerId ?? session.playerId,
-      editionId: row.editionId ?? session.editionId,
+      status: 'FALHA',
+      lastError: 'Identidade do placar ausente. Reenvie o resultado.',
     });
   }
 }
@@ -188,17 +184,22 @@ export class ClandestinoDatabase extends Dexie {
       outbox: 'id, status, createdAt, matchId',
     });
 
-    // v6: backfill de identidade em entradas outbox legadas (pré-v5 / v5 sem upgrade).
+    // v6: entradas sem identidade → FALHA (não backfill da sessão atual).
     this.version(6)
       .stores({
         outbox: 'id, status, createdAt, matchId',
       })
       .upgrade(async (tx) => {
-        await backfillOutboxIdentityFromSession(
+        await failOutboxEntriesMissingIdentity(
           tx.table('outbox') as EntityTable<OutboxEntry, 'id'>,
-          tx.table('session') as EntityTable<PlayerSession, 'id'>,
         );
       });
+
+    // v7: índice editionId na outbox + flag matchesComplete no cache de edição.
+    this.version(7).stores({
+      outbox: 'id, status, createdAt, matchId, editionId',
+      edition: 'id',
+    });
   }
 }
 

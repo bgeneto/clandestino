@@ -1,4 +1,5 @@
-import { MAX_SETS_SCORE } from '@clandestino/shared-contracts';
+import type { MatchBestOf } from '@clandestino/shared-contracts';
+import { setsToWin } from '@clandestino/tournament-engine';
 import { useEffect, useMemo, useState } from 'react';
 import { ScoreCounter } from './ScoreCounter.js';
 import { Alert } from '../ui/Alert.js';
@@ -31,6 +32,7 @@ type MatchResultFormProps = {
   playerTwoLabel?: string;
   initialPlayerOneSets?: number;
   initialPlayerTwoSets?: number;
+  bestOf?: MatchBestOf;
   onSubmit: (payload: MatchResultSubmitPayload) => void;
 };
 
@@ -48,6 +50,7 @@ export function MatchResultForm({
   playerTwoLabel,
   initialPlayerOneSets,
   initialPlayerTwoSets,
+  bestOf = 5,
   onSubmit,
 }: MatchResultFormProps) {
   const [mode, setMode] = useState<MatchResultMode>('score');
@@ -56,6 +59,7 @@ export function MatchResultForm({
   const [playerOneSets, setPlayerOneSets] = useState(initialPlayerOneSets ?? 0);
   const [playerTwoSets, setPlayerTwoSets] = useState(initialPlayerTwoSets ?? 0);
   const [absentPlayerId, setAbsentPlayerId] = useState(playerTwoId ?? opponentId);
+  const maxSets = setsToWin(bestOf);
 
   useEffect(() => {
     if (!organizerMode) {
@@ -72,11 +76,11 @@ export function MatchResultForm({
     }
 
     if (organizerMode) {
-      return validateScoreInput(playerOneSets, playerTwoSets);
+      return validateScoreInput(playerOneSets, playerTwoSets, bestOf);
     }
 
-    return validateScoreInput(reporterSets, opponentSets);
-  }, [mode, organizerMode, playerOneSets, playerTwoSets, reporterSets, opponentSets]);
+    return validateScoreInput(reporterSets, opponentSets, bestOf);
+  }, [mode, organizerMode, playerOneSets, playerTwoSets, reporterSets, opponentSets, bestOf]);
 
   return (
     <div className="space-y-4">
@@ -114,8 +118,8 @@ export function MatchResultForm({
               <ScoreCounter
                 label={playerOneLabel ?? 'Jogador 1'}
                 value={playerOneSets}
-                max={MAX_SETS_SCORE}
-                onIncrement={() => setPlayerOneSets((value) => Math.min(MAX_SETS_SCORE, value + 1))}
+                max={maxSets}
+                onIncrement={() => setPlayerOneSets((value) => Math.min(maxSets, value + 1))}
                 onDecrement={() => setPlayerOneSets((value) => Math.max(0, value - 1))}
               />
               <span
@@ -127,8 +131,8 @@ export function MatchResultForm({
               <ScoreCounter
                 label={playerTwoLabel ?? 'Jogador 2'}
                 value={playerTwoSets}
-                max={MAX_SETS_SCORE}
-                onIncrement={() => setPlayerTwoSets((value) => Math.min(MAX_SETS_SCORE, value + 1))}
+                max={maxSets}
+                onIncrement={() => setPlayerTwoSets((value) => Math.min(maxSets, value + 1))}
                 onDecrement={() => setPlayerTwoSets((value) => Math.max(0, value - 1))}
               />
             </div>
@@ -137,8 +141,8 @@ export function MatchResultForm({
               <ScoreCounter
                 label={reporterLabel}
                 value={reporterSets}
-                max={MAX_SETS_SCORE}
-                onIncrement={() => setReporterSets((value) => Math.min(MAX_SETS_SCORE, value + 1))}
+                max={maxSets}
+                onIncrement={() => setReporterSets((value) => Math.min(maxSets, value + 1))}
                 onDecrement={() => setReporterSets((value) => Math.max(0, value - 1))}
               />
               <span
@@ -150,8 +154,8 @@ export function MatchResultForm({
               <ScoreCounter
                 label={opponentLabel}
                 value={opponentSets}
-                max={MAX_SETS_SCORE}
-                onIncrement={() => setOpponentSets((value) => Math.min(MAX_SETS_SCORE, value + 1))}
+                max={maxSets}
+                onIncrement={() => setOpponentSets((value) => Math.min(maxSets, value + 1))}
                 onDecrement={() => setOpponentSets((value) => Math.max(0, value - 1))}
               />
             </div>

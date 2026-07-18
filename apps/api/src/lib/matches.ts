@@ -1,12 +1,17 @@
 import type {
   EditionRules,
   EditionStatus,
+  MatchBestOf,
   MatchOutcome,
   MatchStatus,
 } from '@clandestino/shared-contracts';
-import { isMatchResolvedForEditionClose } from '@clandestino/shared-contracts';
+import {
+  isMatchResolvedForEditionClose,
+  normalizeEditionRules,
+} from '@clandestino/shared-contracts';
 import {
   COUNTED_MATCH_STATUSES,
+  applyWithdrawalToGroupStanding,
   attachScoringPoints,
   buildBracketFourState,
   calculateFinalStanding,
@@ -223,10 +228,15 @@ export async function confirmMatchResult(
         );
     }
 
-    await recalculateGroupStanding(tx, match.groupId, edition.rules);
+    await recalculateGroupStanding(tx, match.groupId, normalizeEditionRules(edition.rules));
 
     if (match.phase === GROUP_PHASE) {
-      await maybeGeneratePlacementStage(tx, match.editionId, edition.rules, createdBy);
+      await maybeGeneratePlacementStage(
+        tx,
+        match.editionId,
+        normalizeEditionRules(edition.rules),
+        createdBy,
+      );
     } else if (match.phase === PLACEMENT_PHASE) {
       const withdrawnIds = await loadWithdrawnPlayerIds(tx, match.editionId);
       await advanceBracketFourForGroup(tx, match.editionId, match.groupId, withdrawnIds, createdBy);
@@ -297,6 +307,12 @@ export async function recalculateGroupStanding(
   groupId: string,
   rules: EditionRules,
 ): Promise<void> {
+  const [group] = await tx
+    .select({ editionId: schema.groups.editionId })
+    .from(schema.groups)
+    .where(eq(schema.groups.id, groupId))
+    .limit(1);
+
   const groupMatches = await tx
     .select()
     .from(schema.matches)
@@ -322,7 +338,14 @@ export async function recalculateGroupStanding(
     .map((match) => toStandingMatch(match, participantsByMatchId.get(match.id) ?? []))
     .filter((match): match is StandingMatch => match !== null);
 
-  const entries = calculateGroupStanding(standingMatches, rules);
+  let entries = calculateGroupStanding(standingMatches, rules);
+
+  if (group && entries.length > 0) {
+    const withdrawn = await loadWithdrawnPlayers(tx, group.editionId);
+    if (withdrawn.length > 0) {
+      entries = applyWithdrawalToGroupStanding(entries, withdrawn);
+    }
+  }
 
   await tx.delete(schema.standings).where(eq(schema.standings.groupId, groupId));
 
@@ -343,6 +366,16 @@ export async function recalculateGroupStanding(
 }
 
 export async function isGroupStageComplete(db: DbExecutor, editionId: string): Promise<boolean> {
+  const [anyGroupMatch] = await db
+    .select({ id: schema.matches.id })
+    .from(schema.matches)
+    .where(and(eq(schema.matches.editionId, editionId), eq(schema.matches.phase, GROUP_PHASE)))
+    .limit(1);
+
+  if (!anyGroupMatch) {
+    return false;
+  }
+
   const [pendingMatch] = await db
     .select({ id: schema.matches.id })
     .from(schema.matches)
@@ -451,21 +484,10 @@ export async function maybeGeneratePlacementStage(
         groupId,
         editionId,
         playerId,
+        phase: PLACEMENT_PHASE,
         isSeed: false,
       }));
     });
-
-    const placementPlayerIds = [...new Set(groupPlayers.map((entry) => entry.playerId))];
-    if (placementPlayerIds.length > 0) {
-      await tx
-        .delete(schema.groupPlayers)
-        .where(
-          and(
-            eq(schema.groupPlayers.editionId, editionId),
-            inArray(schema.groupPlayers.playerId, placementPlayerIds),
-          ),
-        );
-    }
 
     await tx.insert(schema.groupPlayers).values(groupPlayers);
   }
@@ -756,18 +778,32 @@ export async function buildPlacementGroupResults(
   return results;
 }
 
-export function validateSubmittedScore(setsWonByReporter: number, setsWonByOpponent: number) {
-  return validateMatchResult({
-    setsWonByReporter,
-    setsWonByOpponent,
-  });
+export function validateSubmittedScore(
+  setsWonByReporter: number,
+  setsWonByOpponent: number,
+  bestOf: MatchBestOf = 5,
+) {
+  return validateMatchResult(
+    {
+      setsWonByReporter,
+      setsWonByOpponent,
+    },
+    bestOf,
+  );
 }
 
-export function validateCorrectedScore(setsWonByPlayerOne: number, setsWonByPlayerTwo: number) {
-  return validateMatchResult({
-    setsWonByReporter: setsWonByPlayerOne,
-    setsWonByOpponent: setsWonByPlayerTwo,
-  });
+export function validateCorrectedScore(
+  setsWonByPlayerOne: number,
+  setsWonByPlayerTwo: number,
+  bestOf: MatchBestOf = 5,
+) {
+  return validateMatchResult(
+    {
+      setsWonByReporter: setsWonByPlayerOne,
+      setsWonByOpponent: setsWonByPlayerTwo,
+    },
+    bestOf,
+  );
 }
 
 export function isMatchCounted(status: MatchStatus): boolean {

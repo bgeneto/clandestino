@@ -6,11 +6,16 @@ import {
   ErrorResponseSchema,
   ExecuteDrawBodySchema,
   GenerateMatchesResponseSchema,
+  normalizeEditionRules,
 } from '@clandestino/shared-contracts';
 import { Type } from '@sinclair/typebox';
 import { and, asc, eq } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
-import { drawMatchesApprovedGroups, WIZARD_MIN_GROUP_SIZE } from '@clandestino/tournament-engine';
+import {
+  chooseGroupConfiguration,
+  drawMatchesApprovedGroups,
+  WIZARD_MIN_GROUP_SIZE,
+} from '@clandestino/tournament-engine';
 import { schema } from '../db/index.js';
 import { generateSecureToken } from '../lib/crypto.js';
 import {
@@ -187,16 +192,33 @@ export async function registerEditionDrawRoutes(app: FastifyInstance): Promise<v
           );
         }
       } else {
-        rankedPlayers = rankEditionPlayers(
-          registrations,
-          pointsByPlayerId,
-          edition.rules.protectedSeedCount,
-        );
+        const rules = normalizeEditionRules(edition.rules);
+        let groupConfig;
+        try {
+          groupConfig = chooseGroupConfiguration(registrations.length, rules);
+        } catch (error) {
+          throw badRequest(
+            error instanceof Error
+              ? error.message
+              : 'Não foi possível calcular a configuração de grupos.',
+          );
+        }
+
+        if (groupConfig.groupCount < 1) {
+          throw badRequest('Não foi possível formar grupos com os inscritos atuais.');
+        }
+
+        updatedRules = {
+          ...rules,
+          protectedSeedCount: groupConfig.groupCount,
+        };
+
+        rankedPlayers = rankEditionPlayers(registrations, pointsByPlayerId, groupConfig.groupCount);
 
         try {
           drawResult = executeDrawAlgorithm({
             rankedPlayers,
-            rules: edition.rules,
+            rules: updatedRules,
             randomSeed,
           });
         } catch (error) {
@@ -207,12 +229,10 @@ export async function registerEditionDrawRoutes(app: FastifyInstance): Promise<v
       }
 
       await app.db.transaction(async (tx) => {
-        if (explicitDraw) {
-          await tx
-            .update(schema.editions)
-            .set({ rules: updatedRules })
-            .where(eq(schema.editions.id, editionId));
-        }
+        await tx
+          .update(schema.editions)
+          .set({ rules: updatedRules })
+          .where(eq(schema.editions.id, editionId));
 
         await tx.insert(schema.drawSnapshots).values(
           rankedPlayers.map((player) => ({
@@ -249,6 +269,7 @@ export async function registerEditionDrawRoutes(app: FastifyInstance): Promise<v
             groupId,
             editionId,
             playerId: player.playerId,
+            phase: GROUP_PHASE,
             isSeed: player.isSeed,
           }));
         });
@@ -299,46 +320,62 @@ export async function registerEditionDrawRoutes(app: FastifyInstance): Promise<v
     },
     async (request) => {
       const editionId = request.params.id;
-      const edition = await loadEdition(app, editionId);
-      if (!edition) {
-        throw notFound('Edição não encontrada.');
-      }
-
-      const [existingDraw] = await app.db
-        .select({ id: schema.drawSnapshots.id })
-        .from(schema.drawSnapshots)
-        .where(eq(schema.drawSnapshots.editionId, editionId))
-        .limit(1);
-
-      if (!existingDraw) {
-        throw notFound('Não há sorteio publicado para esta edição.');
-      }
-
-      const [existingMatch] = await app.db
-        .select({ id: schema.matches.id })
-        .from(schema.matches)
-        .where(eq(schema.matches.editionId, editionId))
-        .limit(1);
-
-      if (existingMatch) {
-        throw conflict('Não é possível cancelar o sorteio após a geração das partidas.');
-      }
-
       const cancelledBy = request.organizerEmail ?? 'organizer';
 
-      const [updatedEdition] = await app.db.transaction(async (tx) => {
+      const updatedEdition = await app.db.transaction(async (tx) => {
+        const [current] = await tx
+          .select()
+          .from(schema.editions)
+          .where(eq(schema.editions.id, editionId))
+          .limit(1);
+
+        if (!current) {
+          throw notFound('Edição não encontrada.');
+        }
+
+        if (current.status !== 'SORTEIO_PUBLICADO') {
+          throw conflict(
+            'Só é possível cancelar o sorteio enquanto a edição estiver em SORTEIO_PUBLICADO.',
+          );
+        }
+
+        const [existingDraw] = await tx
+          .select({ id: schema.drawSnapshots.id })
+          .from(schema.drawSnapshots)
+          .where(eq(schema.drawSnapshots.editionId, editionId))
+          .limit(1);
+
+        if (!existingDraw) {
+          throw notFound('Não há sorteio publicado para esta edição.');
+        }
+
+        const [existingMatch] = await tx
+          .select({ id: schema.matches.id })
+          .from(schema.matches)
+          .where(eq(schema.matches.editionId, editionId))
+          .limit(1);
+
+        if (existingMatch) {
+          throw conflict('Não é possível cancelar o sorteio após a geração das partidas.');
+        }
+
         await tx.delete(schema.drawSnapshots).where(eq(schema.drawSnapshots.editionId, editionId));
         await tx.delete(schema.groupPlayers).where(eq(schema.groupPlayers.editionId, editionId));
         await tx.delete(schema.groups).where(eq(schema.groups.editionId, editionId));
 
-        const nextStatus =
-          edition.status === 'SORTEIO_PUBLICADO' ? 'INSCRICOES_ABERTAS' : edition.status;
-
-        const updated = await tx
+        const [updated] = await tx
           .update(schema.editions)
-          .set({ status: nextStatus })
-          .where(eq(schema.editions.id, editionId))
+          .set({ status: 'INSCRICOES_ABERTAS' })
+          .where(
+            and(eq(schema.editions.id, editionId), eq(schema.editions.status, 'SORTEIO_PUBLICADO')),
+          )
           .returning();
+
+        if (!updated) {
+          throw conflict(
+            'O sorteio já foi alterado por outra operação. Atualize e tente novamente.',
+          );
+        }
 
         await tx.insert(schema.auditEvents).values({
           editionId,
@@ -349,10 +386,6 @@ export async function registerEditionDrawRoutes(app: FastifyInstance): Promise<v
 
         return updated;
       });
-
-      if (!updatedEdition) {
-        throw badRequest('Não foi possível cancelar o sorteio.');
-      }
 
       await bumpEditionSyncOnly(app, editionId);
 
@@ -398,59 +431,73 @@ export async function registerEditionDrawRoutes(app: FastifyInstance): Promise<v
     },
     async (request) => {
       const editionId = request.params.id;
-      const edition = await loadEdition(app, editionId);
-      if (!edition) {
-        throw notFound('Edição não encontrada.');
-      }
 
-      if (edition.status !== 'SORTEIO_PUBLICADO') {
-        throw conflict('As partidas só podem ser geradas após o sorteio ser publicado.');
-      }
+      const result = await app.db.transaction(async (tx) => {
+        const [claimed] = await tx
+          .update(schema.editions)
+          .set({ status: 'EM_ANDAMENTO' })
+          .where(
+            and(eq(schema.editions.id, editionId), eq(schema.editions.status, 'SORTEIO_PUBLICADO')),
+          )
+          .returning();
 
-      const [existingMatch] = await app.db
-        .select({ id: schema.matches.id })
-        .from(schema.matches)
-        .where(eq(schema.matches.editionId, editionId))
-        .limit(1);
+        if (!claimed) {
+          const [current] = await tx
+            .select({ id: schema.editions.id, status: schema.editions.status })
+            .from(schema.editions)
+            .where(eq(schema.editions.id, editionId))
+            .limit(1);
 
-      if (existingMatch) {
-        throw conflict('As partidas desta edição já foram geradas.');
-      }
+          if (!current) {
+            throw notFound('Edição não encontrada.');
+          }
 
-      const groups = await app.db
-        .select()
-        .from(schema.groups)
-        .where(and(eq(schema.groups.editionId, editionId), eq(schema.groups.phase, GROUP_PHASE)))
-        .orderBy(asc(schema.groups.name));
+          throw conflict('As partidas só podem ser geradas após o sorteio ser publicado.');
+        }
 
-      if (groups.length === 0) {
-        throw conflict('Não há grupos publicados para gerar as partidas.');
-      }
+        const [existingMatch] = await tx
+          .select({ id: schema.matches.id })
+          .from(schema.matches)
+          .where(eq(schema.matches.editionId, editionId))
+          .limit(1);
 
-      const groupPlayers = await app.db
-        .select()
-        .from(schema.groupPlayers)
-        .where(eq(schema.groupPlayers.editionId, editionId));
+        if (existingMatch) {
+          throw conflict('As partidas desta edição já foram geradas.');
+        }
 
-      const playersByGroupId = new Map<string, typeof groupPlayers>();
-      for (const groupPlayer of groupPlayers) {
-        const current = playersByGroupId.get(groupPlayer.groupId) ?? [];
-        current.push(groupPlayer);
-        playersByGroupId.set(groupPlayer.groupId, current);
-      }
+        const groups = await tx
+          .select()
+          .from(schema.groups)
+          .where(and(eq(schema.groups.editionId, editionId), eq(schema.groups.phase, GROUP_PHASE)))
+          .orderBy(asc(schema.groups.name));
 
-      const drawGroups = groups.map((group, index) => ({
-        index,
-        name: group.name,
-        players: (playersByGroupId.get(group.id) ?? []).map((player) => ({
-          playerId: player.playerId,
-          isSeed: player.isSeed,
-        })),
-      }));
+        if (groups.length === 0) {
+          throw conflict('Não há grupos publicados para gerar as partidas.');
+        }
 
-      const generatedMatches = buildGeneratedGroupMatches(drawGroups);
+        const groupPlayers = await tx
+          .select()
+          .from(schema.groupPlayers)
+          .where(eq(schema.groupPlayers.editionId, editionId));
 
-      const [updatedEdition] = await app.db.transaction(async (tx) => {
+        const playersByGroupId = new Map<string, typeof groupPlayers>();
+        for (const groupPlayer of groupPlayers) {
+          const current = playersByGroupId.get(groupPlayer.groupId) ?? [];
+          current.push(groupPlayer);
+          playersByGroupId.set(groupPlayer.groupId, current);
+        }
+
+        const drawGroups = groups.map((group, index) => ({
+          index,
+          name: group.name,
+          players: (playersByGroupId.get(group.id) ?? []).map((player) => ({
+            playerId: player.playerId,
+            isSeed: player.isSeed,
+          })),
+        }));
+
+        const generatedMatches = buildGeneratedGroupMatches(drawGroups);
+
         const insertedMatches = await tx
           .insert(schema.matches)
           .values(
@@ -476,24 +523,17 @@ export async function registerEditionDrawRoutes(app: FastifyInstance): Promise<v
           ]),
         );
 
-        const updated = await tx
-          .update(schema.editions)
-          .set({ status: 'EM_ANDAMENTO' })
-          .where(eq(schema.editions.id, editionId))
-          .returning();
-
-        return updated;
+        return {
+          edition: claimed,
+          matchesGenerated: generatedMatches.length,
+        };
       });
-
-      if (!updatedEdition) {
-        throw badRequest('Não foi possível gerar as partidas.');
-      }
 
       await bumpEditionSyncOnly(app, editionId);
 
       return {
-        edition: mapEdition(updatedEdition),
-        matchesGenerated: generatedMatches.length,
+        edition: mapEdition(result.edition),
+        matchesGenerated: result.matchesGenerated,
       };
     },
   );

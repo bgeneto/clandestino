@@ -8,10 +8,12 @@ import type {
 import { db } from '../db/clandestino-db.js';
 
 export async function cacheEdition(edition: Edition): Promise<void> {
+  const existing = await db.edition.get(edition.id);
   await db.edition.put({
     id: edition.id,
     edition,
     cachedAt: new Date().toISOString(),
+    matchesComplete: existing?.matchesComplete ?? false,
   });
 }
 
@@ -38,7 +40,7 @@ export async function getCachedGroups(
 
 export async function cacheMatches(editionId: string, matches: Match[]): Promise<void> {
   const cachedAt = new Date().toISOString();
-  await db.transaction('rw', db.matches, async () => {
+  await db.transaction('rw', db.matches, db.edition, async () => {
     await db.matches.where('editionId').equals(editionId).delete();
     await db.matches.bulkPut(
       matches.map((match) => ({
@@ -48,10 +50,19 @@ export async function cacheMatches(editionId: string, matches: Match[]): Promise
         cachedAt,
       })),
     );
+
+    const existing = await db.edition.get(editionId);
+    if (existing) {
+      await db.edition.put({
+        ...existing,
+        matchesComplete: true,
+        cachedAt,
+      });
+    }
   });
 }
 
-/** Upsert sem apagar o restante — para cache de "minhas partidas" não contaminar o cache público. */
+/** Upsert sem marcar a lista completa — "minhas partidas" não satisfaz fallback público. */
 export async function upsertCachedMatches(editionId: string, matches: Match[]): Promise<void> {
   const cachedAt = new Date().toISOString();
   await db.matches.bulkPut(
@@ -67,6 +78,11 @@ export async function upsertCachedMatches(editionId: string, matches: Match[]): 
 export async function getCachedMatches(editionId: string): Promise<Match[]> {
   const rows = await db.matches.where('editionId').equals(editionId).toArray();
   return rows.map((row) => row.match);
+}
+
+export async function isEditionMatchesCacheComplete(editionId: string): Promise<boolean> {
+  const row = await db.edition.get(editionId);
+  return row?.matchesComplete === true;
 }
 
 export async function getCachedMatchesForPlayer(

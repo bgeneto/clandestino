@@ -22,6 +22,7 @@ import {
   getCachedMatchesForPlayer,
   getCachedParticipants,
   getCachedStandings,
+  isEditionMatchesCacheComplete,
   upsertCachedMatches,
 } from './edition-cache.js';
 import { getPlayerSession } from './session.js';
@@ -77,6 +78,9 @@ export async function fetchEditionMatches(editionId: string): Promise<EditionMat
   return withOfflineFallback(
     () => apiRequest<EditionMatchesResponse>(`/editions/${editionId}/matches`),
     async () => {
+      if (!(await isEditionMatchesCacheComplete(editionId))) {
+        return undefined;
+      }
       const matches = await getCachedMatches(editionId);
       return matches.length > 0 ? { matches } : undefined;
     },

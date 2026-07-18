@@ -122,6 +122,29 @@ describe('purgeEditionLocalState', () => {
     await database.delete();
   });
 
+  it('remove outbox da edição mesmo sem partida em cache', async () => {
+    const database = new ClandestinoDatabase(`test-${crypto.randomUUID()}`);
+    await database.open();
+    const queryClient = new QueryClient();
+
+    await database.outbox.put({
+      id: '55555555-5555-4555-8555-555555555555',
+      kind: 'SUBMIT_MATCH_RESULT',
+      matchId: '44444444-4444-4444-8444-444444444444',
+      playerId,
+      editionId,
+      payload: { setsWonByReporter: 2, setsWonByOpponent: 0 },
+      status: 'AGUARDANDO_SINCRONIZACAO',
+      createdAt: new Date().toISOString(),
+      attemptCount: 0,
+    });
+
+    await purgeEditionLocalState(editionId, queryClient, database);
+
+    expect(await database.outbox.count()).toBe(0);
+    await database.delete();
+  });
+
   it('é idempotente em chamadas repetidas', async () => {
     const database = new ClandestinoDatabase(`test-${crypto.randomUUID()}`);
     await database.open();

@@ -13,6 +13,7 @@ import type {
   Player,
   Standing,
 } from '@clandestino/shared-contracts';
+import { normalizeEditionRules } from '@clandestino/shared-contracts';
 import type { InferSelectModel } from 'drizzle-orm';
 import type {
   championships,
@@ -65,7 +66,9 @@ export function mapChampionship(row: ChampionshipRow): Championship {
     id: row.id,
     name: row.name,
     scoringTable: row.scoringTable,
-    ...(row.defaultEditionRules ? { defaultEditionRules: row.defaultEditionRules } : {}),
+    ...(row.defaultEditionRules
+      ? { defaultEditionRules: normalizeEditionRules(row.defaultEditionRules) }
+      : {}),
     ...(row.archivedAt ? { archivedAt: toIsoDateTime(row.archivedAt) } : {}),
     createdAt: toIsoDateTime(row.createdAt),
   };
@@ -77,7 +80,7 @@ export function mapEdition(row: EditionRow): Edition {
     championshipId: row.championshipId,
     name: row.name,
     date: toIsoDate(row.date),
-    rules: row.rules,
+    rules: normalizeEditionRules(row.rules),
     ...(row.drawPlan ? { drawPlan: row.drawPlan } : {}),
     status: row.status,
     autoConfirmMinutes: row.autoConfirmMinutes,
@@ -126,6 +129,7 @@ export function mapGroupPlayer(row: GroupPlayerRow): GroupPlayer {
   return {
     groupId: row.groupId,
     playerId: row.playerId,
+    phase: row.phase,
     isSeed: row.isSeed,
   };
 }

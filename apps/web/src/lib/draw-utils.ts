@@ -49,19 +49,19 @@ function validateAutomaticDraw(playerCount: number, rules: EditionRules): string
     return `São necessários ao menos ${rules.minimumGroupSize} jogadores inscritos para o sorteio. Clique em configurar edição para fazer o check-in dos jogadores.`;
   }
 
-  if (rules.protectedSeedCount <= 0) {
-    return 'Configure os grupos em Configurar edição antes de executar o sorteio.';
-  }
-
   try {
     const config = chooseGroupConfiguration(playerCount, rules);
-    if (config.groupCount < rules.protectedSeedCount) {
-      return `Com ${playerCount} jogadores, só é possível formar ${config.groupCount} grupo(s), menos que os ${rules.protectedSeedCount} configurados. Ajuste o número de grupos ou inscreva mais jogadores.`;
+    if (config.groupCount < 1) {
+      return 'Não foi possível formar grupos com os inscritos atuais.';
+    }
+
+    if (rules.protectedSeedCount !== config.groupCount) {
+      return `Configure exatamente ${config.groupCount} cabeça(s) de chave (um por grupo) em Configurar edição (atualmente ${rules.protectedSeedCount}).`;
     }
 
     return null;
   } catch {
-    return `Número de jogadores (${playerCount}) insuficiente para o número de grupos configurado (${rules.protectedSeedCount}).`;
+    return `Número de jogadores (${playerCount}) insuficiente para formar grupos com as regras atuais.`;
   }
 }
 

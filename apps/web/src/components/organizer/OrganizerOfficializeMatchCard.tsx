@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import type { CorrectMatchResultBody, Match } from '@clandestino/shared-contracts';
+import type { CorrectMatchResultBody, Match, MatchBestOf } from '@clandestino/shared-contracts';
 import { MatchResultForm } from '../edition/MatchResultForm.js';
 import type { MatchResultSubmitPayload } from '../edition/MatchResultForm.js';
 import { formatMatchScore } from '../../lib/format.js';
@@ -13,6 +13,7 @@ type OrganizerOfficializeMatchCardProps = {
   match: Match;
   playerNames: Map<string, string>;
   editionId: string;
+  bestOf?: MatchBestOf;
   variant: 'contested' | 'pending' | 'awaiting-player';
   contestReason?: string | null;
 };
@@ -50,6 +51,7 @@ export function OrganizerOfficializeMatchCard({
   match,
   playerNames,
   editionId,
+  bestOf = 5,
   variant,
   contestReason,
 }: OrganizerOfficializeMatchCardProps) {
@@ -176,6 +178,7 @@ export function OrganizerOfficializeMatchCard({
               opponentId={playerTwoId}
               initialPlayerOneSets={hasPlayerSubmittedScore ? submittedPlayerOneSets : undefined}
               initialPlayerTwoSets={hasPlayerSubmittedScore ? submittedPlayerTwoSets : undefined}
+              bestOf={bestOf}
               disabled={!confirmedOfficial}
               pending={officializeMutation.isPending}
               submitLabel={

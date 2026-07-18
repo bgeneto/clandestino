@@ -63,7 +63,7 @@ describe.skipIf(!hasTestDb)('sincronização da edição (integração HTTP)', (
       editionId,
       firstMatch,
       firstMatch.participants[0]!.playerId,
-      2,
+      3,
       0,
     );
 

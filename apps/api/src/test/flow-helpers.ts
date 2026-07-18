@@ -285,7 +285,7 @@ export class EditionFlowClient {
     editionId: string,
     match: Match,
     reporterId: string,
-    setsWonByReporter = 2,
+    setsWonByReporter = 3,
     setsWonByOpponent = 0,
   ): Promise<Match> {
     const response = await this.player(
@@ -339,7 +339,7 @@ export class EditionFlowClient {
     match: Match,
     reporterId: string,
     opponentId: string,
-    setsWonByReporter = 2,
+    setsWonByReporter = 3,
     setsWonByOpponent = 0,
   ): Promise<Match> {
     const submitted = await this.submitPlayedResult(

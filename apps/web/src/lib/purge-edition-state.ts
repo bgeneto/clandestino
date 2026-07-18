@@ -13,9 +13,6 @@ async function purgeEditionDexieState(
   editionId: string,
   database: ClandestinoDatabase,
 ): Promise<void> {
-  const matchRows = await database.matches.where('editionId').equals(editionId).toArray();
-  const matchIds = matchRows.map((row) => row.id);
-
   await database.transaction(
     'rw',
     [
@@ -39,11 +36,7 @@ async function purgeEditionDexieState(
       await database.participants.delete(editionId);
       await database.standing.where('editionId').equals(editionId).delete();
       await database.matches.where('editionId').equals(editionId).delete();
-
-      if (matchIds.length > 0) {
-        await database.outbox.where('matchId').anyOf(matchIds).delete();
-      }
-
+      await database.outbox.where('editionId').equals(editionId).delete();
       await database.editionWizardDraft.where('editionId').equals(editionId).delete();
     },
   );

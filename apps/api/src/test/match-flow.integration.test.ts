@@ -123,7 +123,7 @@ describe.skipIf(!hasTestDb)('fluxo de partidas e autorização (integração HTT
       method: 'POST',
       url: `/matches/${match.id}/result`,
       headers: playerHeaders(reporter, editionId),
-      payload: { setsWonByReporter: 2, setsWonByOpponent: 2 },
+      payload: { setsWonByReporter: 3, setsWonByOpponent: 3 },
     });
     expect(response.statusCode).toBe(422);
   });
@@ -138,7 +138,7 @@ describe.skipIf(!hasTestDb)('fluxo de partidas e autorização (integração HTT
       method: 'POST',
       url: `/matches/${match.id}/result`,
       headers: playerHeaders(outsider, editionId),
-      payload: { setsWonByReporter: 2, setsWonByOpponent: 0 },
+      payload: { setsWonByReporter: 3, setsWonByOpponent: 0 },
     });
     expect(response.statusCode).toBe(403);
   });
@@ -167,7 +167,7 @@ describe.skipIf(!hasTestDb)('fluxo de partidas e autorização (integração HTT
       method: 'POST',
       url: `/matches/${match.id}/result`,
       headers: playerHeaders(reporter, otherEditionId),
-      payload: { setsWonByReporter: 2, setsWonByOpponent: 0 },
+      payload: { setsWonByReporter: 3, setsWonByOpponent: 0 },
     });
     expect(response.statusCode).toBe(403);
   });
@@ -181,7 +181,7 @@ describe.skipIf(!hasTestDb)('fluxo de partidas e autorização (integração HTT
       method: 'POST',
       url: `/matches/${match.id}/result`,
       headers: playerHeaders(reporter, editionId),
-      payload: { setsWonByReporter: 2, setsWonByOpponent: 0 },
+      payload: { setsWonByReporter: 3, setsWonByOpponent: 0 },
     });
     expect(submit.statusCode).toBe(200);
     expect(submit.json<{ match: Match }>().match.status).toBe('AGUARDANDO_CONFIRMACAO');
@@ -213,7 +213,7 @@ describe.skipIf(!hasTestDb)('fluxo de partidas e autorização (integração HTT
         method: 'POST',
         url: `/matches/${match.id}/result`,
         headers: playerHeaders(reporter, editionId),
-        payload: { setsWonByReporter: 2, setsWonByOpponent: 0 },
+        payload: { setsWonByReporter: 3, setsWonByOpponent: 0 },
       });
       expect(submit.statusCode).toBe(200);
 
@@ -306,7 +306,7 @@ describe.skipIf(!hasTestDb)('fluxo de partidas e autorização (integração HTT
         url: `/matches/${match.id}/result`,
         headers: organizerHeaders(organizerToken),
         payload: {
-          setsWonByPlayerOne: 2,
+          setsWonByPlayerOne: 3,
           setsWonByPlayerTwo: 0,
         },
       });
@@ -332,7 +332,7 @@ describe.skipIf(!hasTestDb)('fluxo de partidas e autorização (integração HTT
       method: 'POST',
       url: `/matches/${match.id}/result`,
       headers: playerHeaders(playerOneId, editionId),
-      payload: { setsWonByReporter: 2, setsWonByOpponent: 0 },
+      payload: { setsWonByReporter: 3, setsWonByOpponent: 0 },
     });
     expect(submit.statusCode).toBe(200);
 
@@ -372,7 +372,7 @@ describe.skipIf(!hasTestDb)('fluxo de partidas e autorização (integração HTT
       method: 'POST',
       url: `/matches/${match.id}/result`,
       headers: playerHeaders(playerOneId, editionId),
-      payload: { setsWonByReporter: 2, setsWonByOpponent: 1 },
+      payload: { setsWonByReporter: 3, setsWonByOpponent: 1 },
     });
 
     const contest = await app.inject({
@@ -390,7 +390,7 @@ describe.skipIf(!hasTestDb)('fluxo de partidas e autorização (integração HTT
       headers: organizerHeaders(organizerToken),
       payload: {
         setsWonByPlayerOne: 1,
-        setsWonByPlayerTwo: 2,
+        setsWonByPlayerTwo: 3,
       },
     });
     expect(corrected.statusCode).toBe(200);

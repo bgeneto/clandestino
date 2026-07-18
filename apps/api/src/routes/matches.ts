@@ -5,14 +5,17 @@ import {
   ErrorResponseSchema,
   MatchResultResponseSchema,
   SubmitMatchResultBodySchema,
+  normalizeEditionRules,
 } from '@clandestino/shared-contracts';
+import { resolveMatchBestOf } from '@clandestino/tournament-engine';
 import { Type } from '@sinclair/typebox';
 import { and, eq } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import { schema } from '../db/index.js';
-import { badRequest, conflict, forbidden, notFound, unprocessableEntity } from '../lib/errors.js';
+import { badRequest, conflict, forbidden, notFound } from '../lib/errors.js';
 import {
   confirmMatchResult,
+  countEditionRegistrations,
   getResultSubmitter,
   loadMatch,
   mapSetsToParticipants,
@@ -70,11 +73,25 @@ export async function registerMatchRoutes(app: FastifyInstance): Promise<void> {
         throw forbidden('Apenas participantes podem registrar o resultado.');
       }
 
+      const [edition] = await app.db
+        .select()
+        .from(schema.editions)
+        .where(eq(schema.editions.id, match.editionId))
+        .limit(1);
+
+      if (!edition) {
+        throw notFound('Edição não encontrada.');
+      }
+
+      const participantCount = await countEditionRegistrations(app.db, match.editionId);
+      const bestOf = resolveMatchBestOf(normalizeEditionRules(edition.rules), participantCount);
+
       const parsed = parsePlayerMatchSubmission(
         request.body,
         playerId,
         match.playerOneId,
         match.playerTwoId,
+        bestOf,
       );
 
       if (parsed.outcome === 'WALKOVER') {
@@ -351,10 +368,24 @@ export async function registerMatchRoutes(app: FastifyInstance): Promise<void> {
         throw conflict('Esta partida não pode ser alterada pelo organizador.');
       }
 
+      const [edition] = await app.db
+        .select()
+        .from(schema.editions)
+        .where(eq(schema.editions.id, match.editionId))
+        .limit(1);
+
+      if (!edition) {
+        throw notFound('Edição não encontrada.');
+      }
+
+      const participantCount = await countEditionRegistrations(app.db, match.editionId);
+      const bestOf = resolveMatchBestOf(normalizeEditionRules(edition.rules), participantCount);
+
       const parsed = parseOrganizerMatchCorrection(
         request.body,
         match.playerOneId,
         match.playerTwoId,
+        bestOf,
       );
 
       const organizer = request.organizerEmail ?? 'organizer';

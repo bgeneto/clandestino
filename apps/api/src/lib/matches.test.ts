@@ -19,22 +19,30 @@ function playerId(index: number): string {
 
 describe('validateSubmittedScore', () => {
   it('rejects a tied score', () => {
-    const result = validateSubmittedScore(2, 2);
+    const result = validateSubmittedScore(2, 2, 3);
     expect(result.valid).toBe(false);
   });
 
-  it('accepts a valid score', () => {
-    const result = validateSubmittedScore(4, 2);
+  it('accepts a valid best-of-5 score', () => {
+    const result = validateSubmittedScore(3, 1, 5);
     expect(result.valid).toBe(true);
+  });
+
+  it('rejects an incomplete or overshot score', () => {
+    expect(validateSubmittedScore(4, 2, 5).valid).toBe(false);
+    expect(validateSubmittedScore(1, 0, 3).valid).toBe(false);
   });
 });
 
 describe('validateMatchResult', () => {
   it('rejects tied scores', () => {
-    const result = validateMatchResult({
-      setsWonByReporter: 2,
-      setsWonByOpponent: 2,
-    });
+    const result = validateMatchResult(
+      {
+        setsWonByReporter: 2,
+        setsWonByOpponent: 2,
+      },
+      3,
+    );
     expect(result.valid).toBe(false);
   });
 });

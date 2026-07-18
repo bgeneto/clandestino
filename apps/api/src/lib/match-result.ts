@@ -1,5 +1,6 @@
 import type {
   CorrectMatchResultBody,
+  MatchBestOf,
   MatchOutcome,
   SubmitMatchResultBody,
 } from '@clandestino/shared-contracts';
@@ -31,6 +32,7 @@ export function parsePlayerMatchSubmission(
   reporterId: string,
   playerOneId: string,
   playerTwoId: string,
+  bestOf: MatchBestOf,
 ): ParsedMatchResult {
   const outcome = body.outcome ?? 'PLAYED';
 
@@ -57,10 +59,13 @@ export function parsePlayerMatchSubmission(
     throw unprocessableEntity('Informe o placar da partida.');
   }
 
-  const validation = validateMatchResult({
-    setsWonByReporter: body.setsWonByReporter,
-    setsWonByOpponent: body.setsWonByOpponent,
-  });
+  const validation = validateMatchResult(
+    {
+      setsWonByReporter: body.setsWonByReporter,
+      setsWonByOpponent: body.setsWonByOpponent,
+    },
+    bestOf,
+  );
 
   if (!validation.valid) {
     throw unprocessableEntity('Placar inválido para o formato da partida.', {
@@ -84,6 +89,7 @@ export function parseOrganizerMatchCorrection(
   body: CorrectMatchResultBody,
   playerOneId: string,
   playerTwoId: string,
+  bestOf: MatchBestOf,
 ): ParsedMatchResult {
   const outcome = body.outcome ?? 'PLAYED';
 
@@ -109,10 +115,13 @@ export function parseOrganizerMatchCorrection(
     throw unprocessableEntity('Informe o placar corrigido.');
   }
 
-  const validation = validateMatchResult({
-    setsWonByReporter: body.setsWonByPlayerOne,
-    setsWonByOpponent: body.setsWonByPlayerTwo,
-  });
+  const validation = validateMatchResult(
+    {
+      setsWonByReporter: body.setsWonByPlayerOne,
+      setsWonByOpponent: body.setsWonByPlayerTwo,
+    },
+    bestOf,
+  );
 
   if (!validation.valid) {
     throw unprocessableEntity('Placar inválido para o formato da partida.', {

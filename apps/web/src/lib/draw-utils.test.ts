@@ -12,9 +12,20 @@ describe('getDrawReadinessWarning', () => {
     expect(warning).toContain('3');
   });
 
-  it('warns when automatic path has no configured groups', () => {
+  it('warns when automatic seed count does not match group count', () => {
     const warning = getDrawReadinessWarning(6, DEFAULT_TOURNAMENT_RULES);
-    expect(warning).toContain('Configurar edição');
+    expect(warning).toContain('cabeça');
+  });
+
+  it('warns when configured seeds do not equal feasible group count', () => {
+    const rules = { ...DEFAULT_TOURNAMENT_RULES, protectedSeedCount: 5 };
+    const warning = getDrawReadinessWarning(8, rules);
+    expect(warning).toContain('cabeça');
+  });
+
+  it('returns null when automatic draw seed count equals group count', () => {
+    const rules = { ...DEFAULT_TOURNAMENT_RULES, protectedSeedCount: 2 };
+    expect(getDrawReadinessWarning(6, rules)).toBeNull();
   });
 
   it('returns null for explicit 6 players in 2 groups of 3', () => {
@@ -51,17 +62,6 @@ describe('getDrawReadinessWarning', () => {
       seedPlayerIds: ['a', 'b'],
     });
     expect(warning).toContain('prévia');
-  });
-
-  it('warns when configured groups exceed feasible automatic partition', () => {
-    const rules = { ...DEFAULT_TOURNAMENT_RULES, protectedSeedCount: 5 };
-    const warning = getDrawReadinessWarning(8, rules);
-    expect(warning).toContain('5');
-  });
-
-  it('returns null when automatic draw is feasible', () => {
-    const rules = { ...DEFAULT_TOURNAMENT_RULES, protectedSeedCount: 2 };
-    expect(getDrawReadinessWarning(6, rules)).toBeNull();
   });
 });
 

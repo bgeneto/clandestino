@@ -16,7 +16,7 @@ const V5_STORES = {
   editionWizardDraft: 'id, championshipId, editionId, syncStatus, updatedAt',
 };
 
-describe('ClandestinoDatabase v6 outbox identity backfill', () => {
+describe('ClandestinoDatabase v6 outbox identity', () => {
   const opened: Array<{ delete: () => Promise<void> }> = [];
 
   afterEach(async () => {
@@ -28,7 +28,7 @@ describe('ClandestinoDatabase v6 outbox identity backfill', () => {
     }
   });
 
-  it('copia playerId/editionId da sessão para entradas outbox legadas', async () => {
+  it('marca entradas outbox legadas sem identidade como FALHA', async () => {
     const name = `outbox-migrate-${Math.random().toString(36).slice(2)}`;
     const legacy = new Dexie(name);
     legacy.version(5).stores(V5_STORES);
@@ -57,8 +57,10 @@ describe('ClandestinoDatabase v6 outbox identity backfill', () => {
     opened.push(migrated);
 
     const entry = await migrated.outbox.get('o-legacy');
-    expect(entry?.playerId).toBe('player-legacy');
-    expect(entry?.editionId).toBe('edition-legacy');
+    expect(entry?.playerId).toBeUndefined();
+    expect(entry?.editionId).toBeUndefined();
+    expect(entry?.status).toBe('FALHA');
+    expect(entry?.lastError).toContain('Reenvie');
   });
 
   it('não sobrescreve identidade já presente na outbox', async () => {
@@ -94,5 +96,6 @@ describe('ClandestinoDatabase v6 outbox identity backfill', () => {
     const entry = await migrated.outbox.get('o-keep');
     expect(entry?.playerId).toBe('player-original');
     expect(entry?.editionId).toBe('edition-original');
+    expect(entry?.status).toBe('AGUARDANDO_SINCRONIZACAO');
   });
 });

@@ -130,34 +130,66 @@ describe('generateGroupMatches', () => {
 });
 
 describe('validateMatchResult', () => {
-  it('accepts valid scores within range', () => {
-    expect(validateMatchResult({ setsWonByReporter: 4, setsWonByOpponent: 2 }).valid).toBe(true);
-    expect(validateMatchResult({ setsWonByReporter: 0, setsWonByOpponent: 7 }).valid).toBe(true);
+  it('accepts legal best-of-3 and best-of-5 terminal scores', () => {
+    expect(validateMatchResult({ setsWonByReporter: 2, setsWonByOpponent: 0 }, 3).valid).toBe(true);
+    expect(validateMatchResult({ setsWonByReporter: 2, setsWonByOpponent: 1 }, 3).valid).toBe(true);
+    expect(validateMatchResult({ setsWonByReporter: 3, setsWonByOpponent: 0 }, 5).valid).toBe(true);
+    expect(validateMatchResult({ setsWonByReporter: 3, setsWonByOpponent: 2 }, 5).valid).toBe(true);
   });
 
-  it('rejects impossible scores', () => {
-    expect(validateMatchResult({ setsWonByReporter: 2, setsWonByOpponent: 2 }).valid).toBe(false);
-    expect(validateMatchResult({ setsWonByReporter: -1, setsWonByOpponent: 3 }).valid).toBe(false);
+  it('rejects scores impossible for the match format', () => {
+    expect(validateMatchResult({ setsWonByReporter: 4, setsWonByOpponent: 2 }, 5).valid).toBe(
+      false,
+    );
+    expect(validateMatchResult({ setsWonByReporter: 0, setsWonByOpponent: 7 }, 5).valid).toBe(
+      false,
+    );
+    expect(validateMatchResult({ setsWonByReporter: 3, setsWonByOpponent: 2 }, 3).valid).toBe(
+      false,
+    );
+    expect(validateMatchResult({ setsWonByReporter: 1, setsWonByOpponent: 0 }, 3).valid).toBe(
+      false,
+    );
+    expect(validateMatchResult({ setsWonByReporter: 2, setsWonByOpponent: 2 }, 3).valid).toBe(
+      false,
+    );
+    expect(validateMatchResult({ setsWonByReporter: -1, setsWonByOpponent: 3 }, 5).valid).toBe(
+      false,
+    );
     expect(
-      validateMatchResult({
-        setsWonByReporter: MAX_SETS_SCORE + 1,
-        setsWonByOpponent: 3,
-      }).valid,
+      validateMatchResult(
+        {
+          setsWonByReporter: MAX_SETS_SCORE + 1,
+          setsWonByOpponent: 3,
+        },
+        5,
+      ).valid,
     ).toBe(false);
   });
 
-  it('rejects every invalid score in range', () => {
+  it('accepts only terminal scores for a given best-of', () => {
     fc.assert(
       fc.property(
+        fc.constantFrom(3, 5),
         fc.integer({ min: 0, max: MAX_SETS_SCORE }),
         fc.integer({ min: 0, max: MAX_SETS_SCORE }),
-        (a, b) => {
-          const result = validateMatchResult({ setsWonByReporter: a, setsWonByOpponent: b });
-          if (a === b) {
-            expect(result.valid).toBe(false);
-          } else {
-            expect(result.valid).toBe(true);
-          }
+        (bestOf, a, b) => {
+          const result = validateMatchResult(
+            { setsWonByReporter: a, setsWonByOpponent: b },
+            bestOf as 3 | 5,
+          );
+          const required = Math.ceil(bestOf / 2);
+          const winner = Math.max(a, b);
+          const loser = Math.min(a, b);
+          const expected =
+            a !== b &&
+            a >= 0 &&
+            b >= 0 &&
+            a <= MAX_SETS_SCORE &&
+            b <= MAX_SETS_SCORE &&
+            winner === required &&
+            loser < required;
+          expect(result.valid).toBe(expected);
         },
       ),
     );

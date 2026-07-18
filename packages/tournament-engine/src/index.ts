@@ -42,8 +42,7 @@ export { chooseGroupConfiguration } from './choose-group-configuration.js';
 export { allocateSeededPlayers } from './allocate-seeded-players.js';
 export { drawUnseededPlayers } from './draw-unseeded-players.js';
 export { generateGroupMatches } from './generate-group-matches.js';
-export { validateMatchResult, MAX_SETS_SCORE } from './validate-match-result.js';
-export { resolveMatchBestOf, setsToWin } from './resolve-match-best-of.js';
+export { validateMatchResult, MAX_SETS_SCORE, MIN_WINNER_SETS } from './validate-match-result.js';
 export { calculateGroupStanding } from './calculate-group-standing.js';
 export { resolveTies } from './resolve-ties.js';
 export {

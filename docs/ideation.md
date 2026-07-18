@@ -1,6 +1,6 @@
 # PERGUNTA
 
-Na academia de tênis de mesa "FitPong" temos um campeonato semanal chamado "Clandestino". A pontuação de cada jogador é contabilizada por sets ganhos (as partidas podem ser melhor de 3 ou 5 sets, dependendo da quantidade de jogadores nos grupos, se houver muitos jogadores - considerados acima de um limiar estabelecido - as partidas serão disputadas em três sets (melhor de 3). Dependendo do número de participantes nós dividimos em dois, três ou mais grupos (de no mínimo 4 jogadores cada). Depois os primeiros colocados de cada grupo disputam entre si e assim por diante... Até estabelecer as colocações/pontuações finais de cada jogador naquele dia.
+Na academia de tênis de mesa "FitPong" temos um campeonato semanal chamado "Clandestino". A pontuação de cada jogador é contabilizada por sets ganhos. Dependendo do número de participantes nós dividimos em dois, três ou mais grupos (de no mínimo 4 jogadores cada). Depois os primeiros colocados de cada grupo disputam entre si e assim por diante... Até estabelecer as colocações/pontuações finais de cada jogador naquele dia.
 
 Atualmente tudo isso é feito no papel, em que cada jogador anota o resultado de sua própria partida numa tabela.
 
@@ -16,7 +16,7 @@ Os principais ganhos seriam:
 - detecção automática dos cabeças de chave pela pontuação geral do campeonato (quando possível);
 - distribuição equilibrada dos cabeças de chave;
 - geração automática das partidas;
-- validação dos placares conforme o formato da partida;
+- validação flexível dos placares (rejeita empates, incompletos e absurdos);
 - classificação atualizada imediatamente;
 - cálculo automático dos critérios de desempate;
 - geração das fases de colocação;
@@ -115,7 +115,7 @@ O mesmo motor pode ser executado no servidor e parcialmente no navegador, mas o 
 
 # Modelagem das regras
 
-O aplicativo não deve codificar permanentemente algo como “acima de 24 jogadores, melhor de três”. As regras precisam ser configuráveis e associadas a cada edição.
+As regras de formação de grupos, seeds e fase de colocação são configuráveis por edição (`EditionRules`). **Não** há configuração de best-of: o placar da partida é validado de forma flexível.
 
 Um conjunto de regras poderia conter:
 
@@ -125,9 +125,6 @@ type TournamentRules = {
   preferredGroupSize: number;
   maximumGroupSize: number;
 
-  participantThresholdForBestOfThree: number;
-  normalMatchBestOf: 3 | 5;
-
   protectedSeedCount: number;
   seedingMethod: 'fixed-heads' | 'snake' | 'pots';
 
@@ -136,11 +133,14 @@ type TournamentRules = {
 };
 ```
 
-A regra do número de sets seria validada assim:
+A validação de placar (`validateMatchResult`) rejeita:
 
-- melhor de três: vence quem alcançar **dois sets**;
-- melhor de cinco: vence quem alcançar **três sets**;
-- resultados como `2 × 2`, `3 × 3` ou `3 × 2` em melhor de três seriam rejeitados.
+- empates (`2 × 2`, `3 × 3`);
+- resultados incompletos como `1 × 0` / `0 × 1` (WO usa esse placar fora desta validação);
+- totais absurdos acima do teto (`MAX_SETS_SCORE`, ex.: `7 × 2`);
+- valores negativos.
+
+Aceita placares decisivos plausíveis sem travar formato (`2 × 0`, `2 × 1`, `3 × 2`, `4 × 3`, etc.).
 
 ---
 

@@ -49,7 +49,7 @@ Edition names are assigned automatically by the server as `Clandestino #N`, wher
 
 Owns:
 
-- `rules` (`EditionRules`) — group sizes, seeding, best-of threshold, placement format
+- `rules` (`EditionRules`) — group sizes, seeding, placement format
 - Lifecycle status (`RASCUNHO` → … → `ENCERRADA`)
 - Registrations, groups, matches, group standings, final placements
 
@@ -72,7 +72,7 @@ Championship-level configuration: how many points each final placement receives 
 
 ### EditionRules
 
-Edition-level configuration for draw and match mechanics (group sizes, seeds, best-of, placement stage format). Stored on `edition.rules` as jsonb.
+Edition-level configuration for draw and match mechanics (group sizes, seeds, placement stage format). Stored on `edition.rules` as jsonb. Match scores are not format-locked (no best-of); the engine rejects ties, incomplete results (1×0), and absurd tallies.
 
 The `@clandestino/tournament-engine` package implements pure functions that consume `EditionRules`; the package name is historical and refers to edition mechanics, not the championship entity.
 

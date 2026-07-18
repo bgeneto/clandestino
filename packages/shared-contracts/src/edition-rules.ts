@@ -28,12 +28,6 @@ export const PlacementStageFormatSchema = Type.Union(
 
 export type PlacementStageFormat = Static<typeof PlacementStageFormatSchema>;
 
-export const MatchBestOfSchema = Type.Union([Type.Literal(3), Type.Literal(5)], {
-  $id: 'MatchBestOf',
-});
-
-export type MatchBestOf = Static<typeof MatchBestOfSchema>;
-
 export const EditionRulesSchema = Type.Object(
   {
     minimumGroupSize: Type.Integer({ minimum: 2 }),
@@ -43,8 +37,6 @@ export const EditionRulesSchema = Type.Object(
     seedingMethod: SeedingMethodSchema,
     groupRankingCriteria: Type.Array(RankingCriterionSchema, { minItems: 1 }),
     placementStageFormat: PlacementStageFormatSchema,
-    normalMatchBestOf: MatchBestOfSchema,
-    participantThresholdForBestOfThree: Type.Integer({ minimum: 1 }),
   },
   { $id: 'EditionRules' },
 );
@@ -65,20 +57,29 @@ export const DEFAULT_EDITION_RULES: EditionRules = {
   seedingMethod: 'fixed-heads',
   groupRankingCriteria: DEFAULT_GROUP_RANKING_CRITERIA,
   placementStageFormat: 'round-robin',
-  normalMatchBestOf: 5,
-  participantThresholdForBestOfThree: 24,
 };
 
-/** Merge partial/legacy stored rules with product defaults. */
+type LegacyEditionRulesFields = {
+  normalMatchBestOf?: unknown;
+  participantThresholdForBestOfThree?: unknown;
+};
+
+/** Merge partial/legacy stored rules with product defaults. Strips removed best-of fields. */
 export function normalizeEditionRules(
-  rules: Partial<EditionRules> | null | undefined,
+  rules: (Partial<EditionRules> & LegacyEditionRulesFields) | null | undefined,
 ): EditionRules {
+  const {
+    normalMatchBestOf: _removedBestOf,
+    participantThresholdForBestOfThree: _removedThreshold,
+    ...rest
+  } = rules ?? {};
+
   return {
     ...DEFAULT_EDITION_RULES,
-    ...rules,
+    ...rest,
     groupRankingCriteria:
-      rules?.groupRankingCriteria && rules.groupRankingCriteria.length > 0
-        ? rules.groupRankingCriteria
+      rest.groupRankingCriteria && rest.groupRankingCriteria.length > 0
+        ? rest.groupRankingCriteria
         : DEFAULT_EDITION_RULES.groupRankingCriteria,
   };
 }

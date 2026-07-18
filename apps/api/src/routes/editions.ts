@@ -9,6 +9,7 @@ import {
   EditionSchema,
   ErrorResponseSchema,
   generateRecurringEditionDates,
+  normalizeEditionRules,
   RegisterPlayerBodySchema,
   UpdateEditionBodySchema,
 } from '@clandestino/shared-contracts';
@@ -69,7 +70,9 @@ export async function registerEditionRoutes(app: FastifyInstance): Promise<void>
         throw conflict('Não é possível criar edições em um campeonato arquivado.');
       }
 
-      const rules = request.body.rules ?? championship.defaultEditionRules ?? DEFAULT_EDITION_RULES;
+      const rules = normalizeEditionRules(
+        request.body.rules ?? championship.defaultEditionRules ?? DEFAULT_EDITION_RULES,
+      );
       const rulesError = validateEditionRules(rules);
       if (rulesError) {
         throw badRequest(`Regras da edição inválidas: ${rulesError}`);
@@ -245,13 +248,13 @@ export async function registerEditionRoutes(app: FastifyInstance): Promise<void>
         throw badRequest('Nenhum campo para atualizar.');
       }
 
-      let nextRules = edition.rules;
+      let nextRules = normalizeEditionRules(edition.rules);
       if (request.body.rules !== undefined) {
-        const rulesError = validateEditionRules(request.body.rules);
+        nextRules = normalizeEditionRules(request.body.rules);
+        const rulesError = validateEditionRules(nextRules);
         if (rulesError) {
           throw badRequest(`Regras da edição inválidas: ${rulesError}`);
         }
-        nextRules = request.body.rules;
       }
 
       const nextDrawPlan = mergeDrawPlan(edition.drawPlan, request.body.drawPlan);

@@ -63,7 +63,6 @@ export {
   RankingCriterionSchema,
   SeedingMethodSchema,
   PlacementStageFormatSchema,
-  MatchBestOfSchema,
   EditionRulesSchema,
   DEFAULT_GROUP_RANKING_CRITERIA,
   DEFAULT_EDITION_RULES,
@@ -73,7 +72,6 @@ export {
   type RankingCriterion,
   type SeedingMethod,
   type PlacementStageFormat,
-  type MatchBestOf,
   type EditionRules,
   type TournamentRules,
 } from './edition-rules.js';
@@ -145,6 +143,7 @@ export {
 
 export {
   MAX_SETS_SCORE,
+  MIN_WINNER_SETS,
   MatchStatusSchema,
   MatchParticipantSchema,
   MatchSchema,

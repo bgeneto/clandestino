@@ -1,7 +1,6 @@
 import type {
   EditionRules,
   EditionStatus,
-  MatchBestOf,
   MatchOutcome,
   MatchStatus,
 } from '@clandestino/shared-contracts';
@@ -778,32 +777,18 @@ export async function buildPlacementGroupResults(
   return results;
 }
 
-export function validateSubmittedScore(
-  setsWonByReporter: number,
-  setsWonByOpponent: number,
-  bestOf: MatchBestOf = 5,
-) {
-  return validateMatchResult(
-    {
-      setsWonByReporter,
-      setsWonByOpponent,
-    },
-    bestOf,
-  );
+export function validateSubmittedScore(setsWonByReporter: number, setsWonByOpponent: number) {
+  return validateMatchResult({
+    setsWonByReporter,
+    setsWonByOpponent,
+  });
 }
 
-export function validateCorrectedScore(
-  setsWonByPlayerOne: number,
-  setsWonByPlayerTwo: number,
-  bestOf: MatchBestOf = 5,
-) {
-  return validateMatchResult(
-    {
-      setsWonByReporter: setsWonByPlayerOne,
-      setsWonByOpponent: setsWonByPlayerTwo,
-    },
-    bestOf,
-  );
+export function validateCorrectedScore(setsWonByPlayerOne: number, setsWonByPlayerTwo: number) {
+  return validateMatchResult({
+    setsWonByReporter: setsWonByPlayerOne,
+    setsWonByOpponent: setsWonByPlayerTwo,
+  });
 }
 
 export function isMatchCounted(status: MatchStatus): boolean {

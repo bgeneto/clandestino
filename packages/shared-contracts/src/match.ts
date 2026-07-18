@@ -2,8 +2,15 @@ import { type Static, Type } from '@sinclair/typebox';
 import { IsoDateTimeSchema, UuidSchema } from './common.js';
 import { BracketRoundSchema, MatchOutcomeSchema } from './placement.js';
 
-/** Maximum sets a player can win in a single match. */
-export const MAX_SETS_SCORE = 7;
+/**
+ * Maximum sets either player can have in a played match.
+ * High enough for best-of-7 terminal scores (4×3) without locking a format;
+ * rejects absurd tallies such as 7×2.
+ */
+export const MAX_SETS_SCORE = 4;
+
+/** Minimum sets the winner must have in a played match (rejects incomplete 1×0). */
+export const MIN_WINNER_SETS = 2;
 
 export const MatchStatusSchema = Type.Union(
   [

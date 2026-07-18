@@ -11,6 +11,7 @@ import {
   EditionRulesSchema,
   formatEditionName,
   isMatchResolvedForEditionClose,
+  normalizeEditionRules,
 } from './index.js';
 
 describe('shared-contracts schemas', () => {
@@ -47,6 +48,19 @@ describe('shared-contracts schemas', () => {
 
   it('validates tournament rules with defaults', () => {
     expect(Value.Check(EditionRulesSchema, DEFAULT_EDITION_RULES)).toBe(true);
+  });
+
+  it('strips legacy best-of fields when normalizing edition rules', () => {
+    const normalized = normalizeEditionRules({
+      ...DEFAULT_EDITION_RULES,
+      normalMatchBestOf: 5,
+      participantThresholdForBestOfThree: 24,
+    });
+
+    expect(normalized).toEqual(DEFAULT_EDITION_RULES);
+    expect(Value.Check(EditionRulesSchema, normalized)).toBe(true);
+    expect('normalMatchBestOf' in normalized).toBe(false);
+    expect('participantThresholdForBestOfThree' in normalized).toBe(false);
   });
 
   it('validates match entity shape including outcome', () => {

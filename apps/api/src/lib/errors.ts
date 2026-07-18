@@ -77,14 +77,6 @@ export function validateEditionRules(rules: EditionRules): string | null {
     return 'protectedSeedCount não pode ser negativo.';
   }
 
-  if (rules.participantThresholdForBestOfThree < 1) {
-    return 'participantThresholdForBestOfThree deve ser ao menos 1.';
-  }
-
-  if (rules.normalMatchBestOf !== 3 && rules.normalMatchBestOf !== 5) {
-    return 'normalMatchBestOf deve ser 3 ou 5.';
-  }
-
   if (rules.groupRankingCriteria.length === 0) {
     return 'groupRankingCriteria deve conter ao menos um critério.';
   }

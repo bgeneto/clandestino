@@ -130,65 +130,44 @@ describe('generateGroupMatches', () => {
 });
 
 describe('validateMatchResult', () => {
-  it('accepts legal best-of-3 and best-of-5 terminal scores', () => {
-    expect(validateMatchResult({ setsWonByReporter: 2, setsWonByOpponent: 0 }, 3).valid).toBe(true);
-    expect(validateMatchResult({ setsWonByReporter: 2, setsWonByOpponent: 1 }, 3).valid).toBe(true);
-    expect(validateMatchResult({ setsWonByReporter: 3, setsWonByOpponent: 0 }, 5).valid).toBe(true);
-    expect(validateMatchResult({ setsWonByReporter: 3, setsWonByOpponent: 2 }, 5).valid).toBe(true);
+  it('accepts plausible played scores without a fixed best-of', () => {
+    expect(validateMatchResult({ setsWonByReporter: 2, setsWonByOpponent: 0 }).valid).toBe(true);
+    expect(validateMatchResult({ setsWonByReporter: 2, setsWonByOpponent: 1 }).valid).toBe(true);
+    expect(validateMatchResult({ setsWonByReporter: 3, setsWonByOpponent: 0 }).valid).toBe(true);
+    expect(validateMatchResult({ setsWonByReporter: 3, setsWonByOpponent: 2 }).valid).toBe(true);
+    expect(validateMatchResult({ setsWonByReporter: 4, setsWonByOpponent: 3 }).valid).toBe(true);
   });
 
-  it('rejects scores impossible for the match format', () => {
-    expect(validateMatchResult({ setsWonByReporter: 4, setsWonByOpponent: 2 }, 5).valid).toBe(
-      false,
-    );
-    expect(validateMatchResult({ setsWonByReporter: 0, setsWonByOpponent: 7 }, 5).valid).toBe(
-      false,
-    );
-    expect(validateMatchResult({ setsWonByReporter: 3, setsWonByOpponent: 2 }, 3).valid).toBe(
-      false,
-    );
-    expect(validateMatchResult({ setsWonByReporter: 1, setsWonByOpponent: 0 }, 3).valid).toBe(
-      false,
-    );
-    expect(validateMatchResult({ setsWonByReporter: 2, setsWonByOpponent: 2 }, 3).valid).toBe(
-      false,
-    );
-    expect(validateMatchResult({ setsWonByReporter: -1, setsWonByOpponent: 3 }, 5).valid).toBe(
-      false,
-    );
+  it('rejects incomplete, tied, and absurd scores', () => {
+    expect(validateMatchResult({ setsWonByReporter: 1, setsWonByOpponent: 0 }).valid).toBe(false);
+    expect(validateMatchResult({ setsWonByReporter: 0, setsWonByOpponent: 1 }).valid).toBe(false);
+    expect(validateMatchResult({ setsWonByReporter: 7, setsWonByOpponent: 2 }).valid).toBe(false);
+    expect(validateMatchResult({ setsWonByReporter: 2, setsWonByOpponent: 7 }).valid).toBe(false);
+    expect(validateMatchResult({ setsWonByReporter: 2, setsWonByOpponent: 2 }).valid).toBe(false);
+    expect(validateMatchResult({ setsWonByReporter: -1, setsWonByOpponent: 3 }).valid).toBe(false);
     expect(
-      validateMatchResult(
-        {
-          setsWonByReporter: MAX_SETS_SCORE + 1,
-          setsWonByOpponent: 3,
-        },
-        5,
-      ).valid,
+      validateMatchResult({
+        setsWonByReporter: MAX_SETS_SCORE + 1,
+        setsWonByOpponent: 3,
+      }).valid,
     ).toBe(false);
   });
 
-  it('accepts only terminal scores for a given best-of', () => {
+  it('accepts only decisive scores within sport-sane bounds', () => {
     fc.assert(
       fc.property(
-        fc.constantFrom(3, 5),
-        fc.integer({ min: 0, max: MAX_SETS_SCORE }),
-        fc.integer({ min: 0, max: MAX_SETS_SCORE }),
-        (bestOf, a, b) => {
-          const result = validateMatchResult(
-            { setsWonByReporter: a, setsWonByOpponent: b },
-            bestOf as 3 | 5,
-          );
-          const required = Math.ceil(bestOf / 2);
+        fc.integer({ min: 0, max: MAX_SETS_SCORE + 2 }),
+        fc.integer({ min: 0, max: MAX_SETS_SCORE + 2 }),
+        (a, b) => {
+          const result = validateMatchResult({ setsWonByReporter: a, setsWonByOpponent: b });
           const winner = Math.max(a, b);
-          const loser = Math.min(a, b);
           const expected =
             a !== b &&
             a >= 0 &&
             b >= 0 &&
             a <= MAX_SETS_SCORE &&
             b <= MAX_SETS_SCORE &&
-            winner === required &&
-            loser < required;
+            winner >= 2;
           expect(result.valid).toBe(expected);
         },
       ),

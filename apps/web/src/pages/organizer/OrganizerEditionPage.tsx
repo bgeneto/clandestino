@@ -2,7 +2,6 @@ import { useMemo, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { Edition } from '@clandestino/shared-contracts';
-import { resolveMatchBestOf } from '@clandestino/tournament-engine';
 import { GroupsView } from '../../components/edition/GroupsView.js';
 import { EditionTournamentOverview } from '../../components/organizer/EditionTournamentOverview.js';
 import { OrganizerOfficializeMatchCard } from '../../components/organizer/OrganizerOfficializeMatchCard.js';
@@ -426,11 +425,6 @@ function ContestsSection({ edition }: { edition: Edition }) {
     return map;
   }, [participantsQuery.data]);
 
-  const bestOf = useMemo(
-    () => resolveMatchBestOf(edition.rules, participantsQuery.data?.length ?? 0),
-    [edition.rules, participantsQuery.data?.length],
-  );
-
   const contests = contestsQuery.data ?? [];
   if (contests.length === 0) {
     return null;
@@ -446,7 +440,6 @@ function ContestsSection({ edition }: { edition: Edition }) {
             match={contest.match}
             playerNames={playerNames}
             editionId={edition.id}
-            bestOf={bestOf}
             variant="contested"
             contestReason={contest.contestReason}
           />
@@ -467,11 +460,6 @@ function PendingMatchesSection({ edition }: { edition: Edition }) {
     }
     return map;
   }, [participantsQuery.data]);
-
-  const bestOf = useMemo(
-    () => resolveMatchBestOf(edition.rules, participantsQuery.data?.length ?? 0),
-    [edition.rules, participantsQuery.data?.length],
-  );
 
   const pendingMatches = useMemo(
     () => getPendingMatches(matchesQuery.data ?? []),
@@ -502,7 +490,6 @@ function PendingMatchesSection({ edition }: { edition: Edition }) {
               match={match}
               playerNames={playerNames}
               editionId={edition.id}
-              bestOf={bestOf}
               variant="pending"
             />
           ))}
@@ -521,7 +508,6 @@ function PendingMatchesSection({ edition }: { edition: Edition }) {
               match={match}
               playerNames={playerNames}
               editionId={edition.id}
-              bestOf={bestOf}
               variant="awaiting-player"
             />
           ))}

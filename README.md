@@ -8,7 +8,7 @@ Consulte [docs/domain-taxonomy.md](docs/domain-taxonomy.md) para a taxonomia do 
 
 - Sorteia grupos com distribuição equilibrada de cabeças de chave (seeds)
 - Gera partidas automaticamente (round-robin por grupo)
-- Valida placares de sets conforme o formato da partida (melhor de 3 ou 5)
+- Valida placares de sets de forma flexível (rejeita empates, incompletos como 1×0 e absurdos como 7×2)
 - Calcula classificação com critérios de desempate formalizados
 - Mantém ranking atual da temporada com tabela de pontos configurável
 - Permite acesso do jogador via QR code (sem senha) e do organizador via magic link

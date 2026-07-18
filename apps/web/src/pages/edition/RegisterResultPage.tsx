@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { Link, Navigate, useNavigate, useOutletContext, useParams } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { resolveMatchBestOf } from '@clandestino/tournament-engine';
 import { EditionHeader } from '../../components/edition/EditionHeader.js';
 import { MatchResultForm } from '../../components/edition/MatchResultForm.js';
 import {
@@ -62,11 +61,6 @@ export function RegisterResultPage() {
       groupsQuery.data?.groups.find((entry) => entry.group.id === match.groupId)?.group.name ?? ''
     );
   }, [groupsQuery.data, match]);
-
-  const bestOf = useMemo(
-    () => resolveMatchBestOf(edition.rules, participantsQuery.data?.length ?? 0),
-    [edition.rules, participantsQuery.data?.length],
-  );
 
   const submitMutation = useMutation({
     // Precisa rodar offline para enfileirar no IndexedDB (default 'online' pausa a mutation).
@@ -142,7 +136,6 @@ export function RegisterResultPage() {
         opponentId={opponentId ?? ''}
         pending={submitMutation.isPending}
         submitLabel="🚀 Enviar resultado"
-        bestOf={bestOf}
         onSubmit={(payload) => submitMutation.mutate(payload)}
       />
 

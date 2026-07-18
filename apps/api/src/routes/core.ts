@@ -22,6 +22,7 @@ import {
   UpdatePlayerBodySchema,
   UpdateScoringTableBodySchema,
   validatePlayerName,
+  normalizeEditionRules,
   PLAYER_NAME_DUPLICATE_MESSAGE,
   VerifyOrganizerMagicLinkBodySchema,
 } from '@clandestino/shared-contracts';
@@ -529,8 +530,10 @@ export async function registerChampionshipRoutes(app: FastifyInstance): Promise<
         }
       }
 
-      if (request.body.defaultEditionRules) {
-        const rulesError = validateEditionRules(request.body.defaultEditionRules);
+      let defaultEditionRules = request.body.defaultEditionRules;
+      if (defaultEditionRules) {
+        defaultEditionRules = normalizeEditionRules(defaultEditionRules);
+        const rulesError = validateEditionRules(defaultEditionRules);
         if (rulesError) {
           throw badRequest(rulesError);
         }
@@ -542,9 +545,7 @@ export async function registerChampionshipRoutes(app: FastifyInstance): Promise<
           .values({
             name: request.body.name.trim(),
             ...(scoringTable ? { scoringTable } : {}),
-            ...(request.body.defaultEditionRules
-              ? { defaultEditionRules: request.body.defaultEditionRules }
-              : {}),
+            ...(defaultEditionRules ? { defaultEditionRules } : {}),
           })
           .returning();
 

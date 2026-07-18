@@ -1,6 +1,6 @@
-import type { Group, Match, MatchBestOf, MatchStatus } from '@clandestino/shared-contracts';
+import type { Group, Match, MatchStatus } from '@clandestino/shared-contracts';
 import { MAX_SETS_SCORE } from '@clandestino/shared-contracts';
-import { setsToWin, validateMatchResult } from '@clandestino/tournament-engine';
+import { validateMatchResult } from '@clandestino/tournament-engine';
 
 export { MAX_SETS_SCORE };
 
@@ -67,15 +67,11 @@ export function groupMatchesByPhase(
 export function validateScoreInput(
   setsWonByReporter: number,
   setsWonByOpponent: number,
-  bestOf: MatchBestOf = 5,
 ): { valid: boolean; reason?: string } {
-  const result = validateMatchResult(
-    {
-      setsWonByReporter,
-      setsWonByOpponent,
-    },
-    bestOf,
-  );
+  const result = validateMatchResult({
+    setsWonByReporter,
+    setsWonByOpponent,
+  });
 
   if (result.valid) {
     return { valid: true };
@@ -83,11 +79,11 @@ export function validateScoreInput(
 
   return {
     valid: false,
-    reason: translateValidationReason(result.reason, bestOf),
+    reason: translateValidationReason(result.reason),
   };
 }
 
-function translateValidationReason(reason: string | undefined, bestOf: MatchBestOf): string {
+function translateValidationReason(reason: string | undefined): string {
   switch (reason) {
     case 'Match cannot end in a tie':
       return 'O placar não pode terminar empatado.';
@@ -95,8 +91,8 @@ function translateValidationReason(reason: string | undefined, bestOf: MatchBest
       return `Cada jogador pode ter no máximo ${MAX_SETS_SCORE} sets.`;
     case 'Sets won cannot be negative':
       return 'O placar não pode ter valores negativos.';
-    case 'Score is impossible for match format':
-      return `Placar inválido para melhor de ${bestOf} (vence quem ganhar ${setsToWin(bestOf)} sets).`;
+    case 'Winner must win at least 2 sets':
+      return 'Placar incompleto: o vencedor precisa ter ao menos 2 sets (1×0 só vale para WO).';
     default:
       return 'Placar inválido.';
   }

@@ -1,13 +1,15 @@
-import { MAX_SETS_SCORE, type MatchBestOf } from '@clandestino/shared-contracts';
+import { MAX_SETS_SCORE, MIN_WINNER_SETS } from '@clandestino/shared-contracts';
 import type { MatchResultInput, MatchValidationResult } from './types.js';
-import { setsToWin } from './resolve-match-best-of.js';
 
-export { MAX_SETS_SCORE };
+export { MAX_SETS_SCORE, MIN_WINNER_SETS };
 
-export function validateMatchResult(
-  result: MatchResultInput,
-  bestOf: MatchBestOf,
-): MatchValidationResult {
+/**
+ * Validates a played match score without assuming a fixed best-of format.
+ * Accepts any decisive score within sport-sane bounds (winner 2–MAX sets).
+ * Rejects ties, negatives, incomplete results (1×0) and absurd tallies (e.g. 7×2).
+ * Walkovers are handled separately and do not go through this function.
+ */
+export function validateMatchResult(result: MatchResultInput): MatchValidationResult {
   const { setsWonByReporter, setsWonByOpponent } = result;
 
   if (setsWonByReporter < 0 || setsWonByOpponent < 0) {
@@ -22,12 +24,10 @@ export function validateMatchResult(
     return { valid: false, reason: 'Match cannot end in a tie' };
   }
 
-  const required = setsToWin(bestOf);
   const winnerSets = Math.max(setsWonByReporter, setsWonByOpponent);
-  const loserSets = Math.min(setsWonByReporter, setsWonByOpponent);
 
-  if (winnerSets !== required || loserSets >= required) {
-    return { valid: false, reason: 'Score is impossible for match format' };
+  if (winnerSets < MIN_WINNER_SETS) {
+    return { valid: false, reason: 'Winner must win at least 2 sets' };
   }
 
   return { valid: true };

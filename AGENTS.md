@@ -35,7 +35,7 @@ apps/
 
 4. **Validação em duas camadas.** `tournament-engine` valida regras de domínio (ex.: placar impossível). Fastify + TypeBox valida formato de entrada/saída HTTP. SQLite + constraints Drizzle impede estados inválidos persistidos.
 
-5. **Regras configuráveis por edição.** Não codifique limiares fixos (“acima de 24 jogadores, melhor de 3”) em código de rota. Use `EditionRules` / `edition.rules` (jsonb).
+5. **Regras configuráveis por edição.** Tamanhos de grupo, seeds e formato de colocação vivem em `EditionRules` / `edition.rules` (jsonb) — não em constantes mágicas nas rotas. Placares de partida **não** usam best-of configurável: `validateMatchResult` rejeita empates, negativos, 1×0 incompleto e totais absurdos (acima de `MAX_SETS_SCORE`).
 
 6. **Determinismo auditável no sorteio.** Sorteios usam semente reproduzível (`random_seed` em `draw_snapshot`). Mesma entrada + mesma semente → mesmo resultado. A prévia aprovada (`approvedGroups`) é persistida e validada na publicação; não sorteie novamente entre etapas.
 

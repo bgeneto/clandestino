@@ -5,9 +5,7 @@ import {
   ErrorResponseSchema,
   MatchResultResponseSchema,
   SubmitMatchResultBodySchema,
-  normalizeEditionRules,
 } from '@clandestino/shared-contracts';
-import { resolveMatchBestOf } from '@clandestino/tournament-engine';
 import { Type } from '@sinclair/typebox';
 import { and, eq } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
@@ -15,7 +13,6 @@ import { schema } from '../db/index.js';
 import { badRequest, conflict, forbidden, notFound } from '../lib/errors.js';
 import {
   confirmMatchResult,
-  countEditionRegistrations,
   getResultSubmitter,
   loadMatch,
   mapSetsToParticipants,
@@ -83,15 +80,11 @@ export async function registerMatchRoutes(app: FastifyInstance): Promise<void> {
         throw notFound('Edição não encontrada.');
       }
 
-      const participantCount = await countEditionRegistrations(app.db, match.editionId);
-      const bestOf = resolveMatchBestOf(normalizeEditionRules(edition.rules), participantCount);
-
       const parsed = parsePlayerMatchSubmission(
         request.body,
         playerId,
         match.playerOneId,
         match.playerTwoId,
-        bestOf,
       );
 
       if (parsed.outcome === 'WALKOVER') {
@@ -378,14 +371,10 @@ export async function registerMatchRoutes(app: FastifyInstance): Promise<void> {
         throw notFound('Edição não encontrada.');
       }
 
-      const participantCount = await countEditionRegistrations(app.db, match.editionId);
-      const bestOf = resolveMatchBestOf(normalizeEditionRules(edition.rules), participantCount);
-
       const parsed = parseOrganizerMatchCorrection(
         request.body,
         match.playerOneId,
         match.playerTwoId,
-        bestOf,
       );
 
       const organizer = request.organizerEmail ?? 'organizer';
